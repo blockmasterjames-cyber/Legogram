@@ -1,0 +1,26 @@
+# Xcode derived data and build products
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# macOS
+.DS_Store
+*.DS_Store
+
+# CocoaPods (not used here but good practice)
+Pods/
+
+# Firebase — never commit your real GoogleService-Info.plist to a public repo!
+# If this is a private repo you may remove this line.
+# LegoGram/Resources/GoogleService-Info.plist
+
+# Credentials / secrets
+*.p12
+*.mobileprovision
+AuthKey_*.p8

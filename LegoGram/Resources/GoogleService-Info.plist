@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  ╔══════════════════════════════════════════════════════════════════════╗
+  ║  IMPORTANT — REPLACE THIS FILE BEFORE RUNNING THE APP              ║
+  ║                                                                      ║
+  ║  1. Go to console.firebase.google.com                               ║
+  ║  2. Create a project called "LegoGram"                              ║
+  ║  3. Add an iOS app with bundle ID: com.legogram.app                 ║
+  ║  4. Download the real GoogleService-Info.plist                      ║
+  ║  5. Drag it into Xcode replacing this placeholder file              ║
+  ║  6. Enable Auth, Firestore, Storage, and Analytics in the console   ║
+  ╚══════════════════════════════════════════════════════════════════════╝
+-->
+<plist version="1.0">
+<dict>
+    <key>CLIENT_ID</key>
+    <string>REPLACE_WITH_YOUR_CLIENT_ID</string>
+    <key>REVERSED_CLIENT_ID</key>
+    <string>REPLACE_WITH_YOUR_REVERSED_CLIENT_ID</string>
+    <key>BUNDLE_ID</key>
+    <string>com.legogram.app</string>
+    <key>PROJECT_ID</key>
+    <string>REPLACE_WITH_YOUR_PROJECT_ID</string>
+    <key>STORAGE_BUCKET</key>
+    <string>REPLACE_WITH_YOUR_STORAGE_BUCKET</string>
+    <key>GCM_SENDER_ID</key>
+    <string>REPLACE_WITH_YOUR_GCM_SENDER_ID</string>
+    <key>API_KEY</key>
+    <string>REPLACE_WITH_YOUR_API_KEY</string>
+    <key>GOOGLE_APP_ID</key>
+    <string>REPLACE_WITH_YOUR_GOOGLE_APP_ID</string>
+    <key>IS_ADS_ENABLED</key>
+    <false/>
+    <key>IS_ANALYTICS_ENABLED</key>
+    <true/>
+    <key>IS_APPINVITE_ENABLED</key>
+    <true/>
+    <key>IS_GCM_ENABLED</key>
+    <true/>
+    <key>IS_SIGNIN_ENABLED</key>
+    <true/>
+</dict>
+</plist>
