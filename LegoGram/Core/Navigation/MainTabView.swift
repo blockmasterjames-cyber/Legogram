@@ -1,40 +1,36 @@
 import SwiftUI
 
-/// The main navigation of the app.
-/// Think of this like a TV remote — tapping a button takes you to a different channel (screen).
+/// The main navigation shell of the app.
+/// Think of it like a TV remote — tapping a button takes you to a different channel (screen).
 /// There are 5 channels: Home, Search, New Post, Leaderboard, and Profile.
+///
+/// The selected tab is stored in AppState.shared so that any screen in the app
+/// can switch tabs programmatically (e.g. NewPostView jumping back to Home after posting).
 struct MainTabView: View {
 
-    @State private var selectedTab: Tab = .home
-
-    enum Tab: Int {
-        case home        = 0
-        case search      = 1
-        case newPost     = 2
-        case leaderboard = 3
-        case profile     = 4
-    }
+    @ObservedObject private var appState = AppState.shared
 
     var body: some View {
         ZStack(alignment: .bottom) {
+
             // MARK: - Page Content
-            TabView(selection: $selectedTab) {
+            TabView(selection: $appState.selectedTab) {
                 HomeView()
-                    .tag(Tab.home)
+                    .tag(AppTab.home)
 
                 SearchView()
-                    .tag(Tab.search)
+                    .tag(AppTab.search)
 
                 NewPostView()
-                    .tag(Tab.newPost)
+                    .tag(AppTab.newPost)
 
                 LeaderboardView()
-                    .tag(Tab.leaderboard)
+                    .tag(AppTab.leaderboard)
 
                 ProfileView()
-                    .tag(Tab.profile)
+                    .tag(AppTab.profile)
             }
-            // Hide the default system tab bar so we can draw our custom one.
+            // Hide the system tab bar — we draw our own custom one below.
             .tabViewStyle(.page(indexDisplayMode: .never))
 
             // MARK: - Custom Tab Bar
@@ -44,25 +40,27 @@ struct MainTabView: View {
         .ignoresSafeArea(edges: .bottom)
     }
 
-    // MARK: - Custom Tab Bar View
+    // MARK: - Custom Tab Bar
+
     private var customTabBar: some View {
         HStack(spacing: 0) {
-            tabBarButton(tab: .home,        icon: "house.fill",          label: "Home")
-            tabBarButton(tab: .search,      icon: "magnifyingglass",     label: "Search")
+            tabBarButton(tab: .home,        icon: "house.fill",      label: "Home")
+            tabBarButton(tab: .search,      icon: "magnifyingglass", label: "Search")
             postButton
-            tabBarButton(tab: .leaderboard, icon: "trophy.fill",         label: "Leaderboard")
-            tabBarButton(tab: .profile,     icon: "person.fill",         label: "Profile")
+            tabBarButton(tab: .leaderboard, icon: "trophy.fill",     label: "Leaderboard")
+            tabBarButton(tab: .profile,     icon: "person.fill",     label: "Profile")
         }
         .padding(.horizontal, 8)
         .padding(.top, 12)
-        .padding(.bottom, 28) // Extra bottom padding for home indicator bar on newer iPhones
+        .padding(.bottom, 28) // Extra bottom padding for the Home Indicator on newer iPhones
         .background(Color.cardBackground.shadow(radius: 8, y: -2))
     }
 
-    // MARK: - Regular Tab Bar Button
-    private func tabBarButton(tab: Tab, icon: String, label: String) -> some View {
+    // MARK: - Regular Tab Button
+
+    private func tabBarButton(tab: AppTab, icon: String, label: String) -> some View {
         Button {
-            selectedTab = tab
+            appState.selectedTab = tab
         } label: {
             VStack(spacing: 4) {
                 Image(systemName: icon)
@@ -70,17 +68,18 @@ struct MainTabView: View {
                 Text(label)
                     .font(.legoCaption)
             }
-            .foregroundColor(selectedTab == tab ? .legoYellow : .secondaryText)
+            .foregroundColor(appState.selectedTab == tab ? .legoYellow : .secondaryText)
             .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
         }
-        // Badge support: overlay an empty badge view here in a future sprint
-        // .overlay(alignment: .topTrailing) { BadgeView(count: notificationCount) }
+        .buttonStyle(.plain)
     }
 
-    // MARK: - Center Post Button (bigger + LEGO red)
+    // MARK: - Centre Post Button (big LEGO-red circle, lifted above the bar)
+
     private var postButton: some View {
         Button {
-            selectedTab = .newPost
+            appState.selectedTab = .newPost
         } label: {
             ZStack {
                 Circle()
@@ -92,9 +91,10 @@ struct MainTabView: View {
                     .font(.system(size: 28, weight: .bold))
                     .foregroundColor(.white)
             }
-            .offset(y: -16) // Lift the circle above the tab bar
+            .offset(y: -16)
         }
         .frame(maxWidth: .infinity)
+        .buttonStyle(.plain)
     }
 }
 
