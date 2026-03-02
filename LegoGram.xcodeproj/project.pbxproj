@@ -28,6 +28,9 @@
 		AA0001000000000000000013 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000013 /* GoogleService-Info.plist */; };
 		AA0001000000000000000014 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000014 /* AppState.swift */; };
 		AA0001000000000000000015 /* PostStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000015 /* PostStore.swift */; };
+		AA0001000000000000000016 /* EditProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000016 /* EditProfileView.swift */; };
+		AA0001000000000000000017 /* ImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000017 /* ImagePicker.swift */; };
+		AA0001000000000000000018 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000018 /* SettingsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -52,6 +55,9 @@
 		AA0002000000000000000013 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		AA0002000000000000000014 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		AA0002000000000000000015 /* PostStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostStore.swift; sourceTree = "<group>"; };
+		AA0002000000000000000016 /* EditProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditProfileView.swift; sourceTree = "<group>"; };
+		AA0002000000000000000017 /* ImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePicker.swift; sourceTree = "<group>"; };
+		AA0002000000000000000018 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		AA0002000000000000000020 /* LegoGram.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LegoGram.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -158,8 +164,17 @@
 				AA000400000000000000000B /* Post */,
 				AA000400000000000000000C /* Leaderboard */,
 				AA000400000000000000000D /* Profile */,
+				AA0004000000000000000013 /* Settings */,
 			);
 			path = Features;
+			sourceTree = "<group>";
+		};
+		AA0004000000000000000013 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				AA0002000000000000000018 /* SettingsView.swift */,
+			);
+			path = Settings;
 			sourceTree = "<group>";
 		};
 		AA0004000000000000000009 /* Home */ = {
@@ -182,6 +197,7 @@
 			isa = PBXGroup;
 			children = (
 				AA000200000000000000000A /* NewPostView.swift */,
+				AA0002000000000000000017 /* ImagePicker.swift */,
 			);
 			path = Post;
 			sourceTree = "<group>";
@@ -198,6 +214,7 @@
 			isa = PBXGroup;
 			children = (
 				AA000200000000000000000C /* ProfileView.swift */,
+				AA0002000000000000000016 /* EditProfileView.swift */,
 			);
 			path = Profile;
 			sourceTree = "<group>";
@@ -328,6 +345,9 @@
 				AA0001000000000000000011 /* AuthService.swift in Sources */,
 				AA0001000000000000000014 /* AppState.swift in Sources */,
 				AA0001000000000000000015 /* PostStore.swift in Sources */,
+				AA0001000000000000000016 /* EditProfileView.swift in Sources */,
+				AA0001000000000000000017 /* ImagePicker.swift in Sources */,
+				AA0001000000000000000018 /* SettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
