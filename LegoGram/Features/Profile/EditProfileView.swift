@@ -17,6 +17,7 @@ struct EditProfileView: View {
 
     // Avatar
     @State private var selectedAvatar: UIImage?
+    @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var showingLibrary   = false
 
     // Saving spinner
@@ -100,9 +101,14 @@ struct EditProfileView: View {
             draftDisplayName = savedDisplayName
             draftBio         = savedBio
         }
-        .sheet(isPresented: $showingLibrary) {
-            PhotoLibraryPicker(selectedImage: $selectedAvatar)
-                .ignoresSafeArea()
+        .photosPicker(isPresented: $showingLibrary, selection: $selectedPhotoItem, matching: .images)
+        .onChange(of: selectedPhotoItem) { _, newItem in
+            Task {
+                if let data = try? await newItem?.loadTransferable(type: Data.self),
+                   let img = UIImage(data: data) {
+                    selectedAvatar = img
+                }
+            }
         }
     }
 
