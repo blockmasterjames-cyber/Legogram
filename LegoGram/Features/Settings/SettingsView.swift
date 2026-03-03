@@ -1,23 +1,19 @@
 import SwiftUI
 
 /// The Settings screen — accessible from the gear icon on the Profile tab.
-/// Lets the user update account info, toggle Kid Safe Mode and Notifications,
-/// sign out, or delete their account.
+/// Sprint 3: Kid Safe Mode is prominently featured, version updated.
 struct SettingsView: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    // Profile info (read-only here; edited via EditProfileView)
     @AppStorage("profile_displayName") private var displayName = "blockmasterjames"
     @AppStorage("profile_username")    private var username    = "blockmasterjames"
 
-    // Preferences stored across app launches
     @AppStorage("settings_kidSafeMode")    private var kidSafeMode:    Bool = true
     @AppStorage("settings_notifications") private var notificationsOn: Bool = true
 
-    // Alert state
-    @State private var showingSignOutConfirm  = false
-    @State private var showingDeleteConfirm   = false
+    @State private var showingSignOutConfirm = false
+    @State private var showingDeleteConfirm  = false
 
     // MARK: - Body
 
@@ -29,32 +25,22 @@ struct SettingsView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
 
+                        // MARK: Kid Safety — prominent at top (Sprint 3)
+                        kidSafetySection
+
                         // MARK: Account Section
                         settingsSection("Account") {
-                            infoRow(label: "Display Name", value: displayName,      icon: "person.fill")
-                            infoRow(label: "Username",     value: "@\(username)",    icon: "at")
-                            infoRow(label: "Email",        value: "••••@••••.com",   icon: "envelope.fill")
+                            infoRow(label: "Display Name", value: displayName,    icon: "person.fill")
+                            infoRow(label: "Username",     value: "@\(username)", icon: "at")
+                            infoRow(label: "Email",        value: "••••@••••.com", icon: "envelope.fill")
 
-                            actionRow(label: "Change Password", icon: "lock.fill", color: .legoYellow) {
-                                // In Sprint 3 this calls AuthService.shared.sendPasswordReset(to:)
-                            }
+                            actionRow(label: "Change Password", icon: "lock.fill", color: .legoYellow) {}
                         }
 
                         // MARK: Preferences Section
                         settingsSection("Preferences") {
-                            toggleRow(
-                                label: "Kid Safe Mode",
-                                icon: "shield.fill",
-                                tint: .successGreen,
-                                isOn: $kidSafeMode
-                            )
-
-                            toggleRow(
-                                label: "Notifications",
-                                icon: "bell.fill",
-                                tint: .legoYellow,
-                                isOn: $notificationsOn
-                            )
+                            toggleRow(label: "Notifications", icon: "bell.fill",
+                                      tint: .legoYellow, isOn: $notificationsOn)
                         }
 
                         // MARK: Account Actions
@@ -62,14 +48,13 @@ struct SettingsView: View {
                             actionRow(label: "Sign Out", icon: "arrow.right.square.fill", color: .legoRed) {
                                 showingSignOutConfirm = true
                             }
-
                             actionRow(label: "Delete Account", icon: "trash.fill", color: .red) {
                                 showingDeleteConfirm = true
                             }
                         }
 
-                        // App version footer
-                        Text("LegoGram · Sprint 2 Build")
+                        // Version footer
+                        Text("LegoGram · Sprint 3 Build")
                             .font(.legoCaption)
                             .foregroundColor(.secondaryText)
                             .frame(maxWidth: .infinity)
@@ -85,26 +70,17 @@ struct SettingsView: View {
             .toolbarColorScheme(.dark)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Done") { dismiss() }
-                        .foregroundColor(.legoYellow)
+                    Button("Done") { dismiss() }.foregroundColor(.legoYellow)
                 }
             }
-            // Sign Out confirmation
             .alert("Sign Out", isPresented: $showingSignOutConfirm) {
-                Button("Sign Out", role: .destructive) {
-                    // TODO Sprint 3: try? AuthService.shared.signOut()
-                    dismiss()
-                }
+                Button("Sign Out", role: .destructive) { dismiss() }
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("Are you sure you want to sign out of LegoGram?")
             }
-            // Delete Account confirmation
             .alert("Delete Account", isPresented: $showingDeleteConfirm) {
-                Button("Delete Forever", role: .destructive) {
-                    // TODO Sprint 3: AuthService.shared.deleteAccount()
-                    dismiss()
-                }
+                Button("Delete Forever", role: .destructive) { dismiss() }
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("This will permanently delete your account and all your posts. This cannot be undone!")
@@ -112,88 +88,110 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Kid Safety Section
+
+    private var kidSafetySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("KID SAFETY")
+                .font(.legoCaption)
+                .foregroundColor(.secondaryText)
+                .padding(.horizontal)
+
+            VStack(spacing: 1) {
+                // Kid Safe Mode toggle
+                toggleRow(label: "Kid Safe Mode", icon: "shield.checkmark.fill",
+                          tint: .successGreen, isOn: $kidSafeMode)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(kidSafeMode ? Color.successGreen.opacity(0.4) : Color.clear, lineWidth: 1.5)
+                    )
+
+                // Explanation row
+                HStack(spacing: 10) {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(.legoYellow)
+                        .font(.system(size: 16))
+                    Text(kidSafeMode
+                         ? "Kid Safe Mode is ON — only verified kid-friendly content is shown."
+                         : "Turn on Kid Safe Mode to limit content to verified kid-friendly posts.")
+                        .font(.legoCaption)
+                        .foregroundColor(.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 10)
+                .background(Color.cardBackground)
+                .cornerRadius(12)
+
+                // Bad word filter info
+                HStack(spacing: 10) {
+                    Image(systemName: "text.badge.xmark")
+                        .foregroundColor(.legoYellow)
+                        .font(.system(size: 16))
+                    Text("Bad Word Filter is always ON — inappropriate words are replaced with *** automatically.")
+                        .font(.legoCaption)
+                        .foregroundColor(.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 10)
+                .background(Color.cardBackground)
+                .cornerRadius(12)
+            }
+        }
+        .padding(.horizontal)
+    }
+
     // MARK: - Section Builder
 
-    private func settingsSection<Content: View>(
-        _ title: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
+    private func settingsSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title.uppercased())
                 .font(.legoCaption)
                 .foregroundColor(.secondaryText)
                 .padding(.horizontal)
 
-            VStack(spacing: 1) {
-                content()
-            }
+            VStack(spacing: 1) { content() }
         }
         .padding(.horizontal)
     }
 
     // MARK: - Row Helpers
 
-    /// A read-only row showing a label and its current value.
     private func infoRow(label: String, value: String, icon: String) -> some View {
         HStack {
             Label(label, systemImage: icon)
-                .font(.legoBody)
-                .foregroundColor(.lightText)
+                .font(.legoBody).foregroundColor(.lightText)
             Spacer()
             Text(value)
-                .font(.legoBody)
-                .foregroundColor(.secondaryText)
+                .font(.legoBody).foregroundColor(.secondaryText)
         }
-        .padding(.horizontal)
-        .padding(.vertical, 14)
-        .background(Color.cardBackground)
-        .cornerRadius(12)
+        .padding(.horizontal).padding(.vertical, 14)
+        .background(Color.cardBackground).cornerRadius(12)
     }
 
-    /// A tappable row that runs an action (e.g. Change Password, Sign Out).
-    private func actionRow(
-        label: String,
-        icon: String,
-        color: Color,
-        action: @escaping () -> Void
-    ) -> some View {
+    private func actionRow(label: String, icon: String, color: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack {
-                Image(systemName: icon)
-                    .foregroundColor(color)
-                Text(label)
-                    .font(.legoBody)
-                    .foregroundColor(color)
+                Image(systemName: icon).foregroundColor(color)
+                Text(label).font(.legoBody).foregroundColor(color)
                 Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.legoCaption)
-                    .foregroundColor(.secondaryText)
+                Image(systemName: "chevron.right").font(.legoCaption).foregroundColor(.secondaryText)
             }
-            .padding(.horizontal)
-            .padding(.vertical, 14)
-            .background(Color.cardBackground)
-            .cornerRadius(12)
+            .padding(.horizontal).padding(.vertical, 14)
+            .background(Color.cardBackground).cornerRadius(12)
         }
         .buttonStyle(.plain)
     }
 
-    /// A toggle row for boolean preferences.
-    private func toggleRow(
-        label: String,
-        icon: String,
-        tint: Color,
-        isOn: Binding<Bool>
-    ) -> some View {
+    private func toggleRow(label: String, icon: String, tint: Color, isOn: Binding<Bool>) -> some View {
         Toggle(isOn: isOn) {
             Label(label, systemImage: icon)
-                .font(.legoBody)
-                .foregroundColor(.lightText)
+                .font(.legoBody).foregroundColor(.lightText)
         }
         .tint(tint)
-        .padding(.horizontal)
-        .padding(.vertical, 12)
-        .background(Color.cardBackground)
-        .cornerRadius(12)
+        .padding(.horizontal).padding(.vertical, 12)
+        .background(Color.cardBackground).cornerRadius(12)
     }
 }
 
