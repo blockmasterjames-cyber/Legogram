@@ -14,9 +14,12 @@ struct LegoPost: Identifiable, Codable, Hashable {
     /// Username of the creator, stored here so we don't need a second Firestore lookup.
     var username: String
 
-    // MARK: - Photo
+    // MARK: - Photo / Video
     /// URL of the build photo stored in Firebase Storage.
     var imageURL: String
+
+    /// URL of the build video stored in Firebase Storage. Empty string for photo-only posts.
+    var videoURL: String
 
     // MARK: - LEGO Set Info
     /// Official LEGO set number, e.g. "75192".
@@ -52,12 +55,18 @@ struct LegoPost: Identifiable, Codable, Hashable {
     /// Tags the user added, like ["starwars", "ucs", "display"].
     var tags: [String]
 
+    // MARK: - Computed
+
+    /// True when this post contains a video instead of just a photo.
+    var isVideoPost: Bool { !videoURL.isEmpty }
+
     // MARK: - Firestore Field Keys
     enum CodingKeys: String, CodingKey {
         case id
         case userId             = "user_id"
         case username
         case imageURL           = "image_url"
+        case videoURL           = "video_url"
         case legoSetNumber      = "lego_set_number"
         case legoSetName        = "lego_set_name"
         case description
@@ -69,6 +78,30 @@ struct LegoPost: Identifiable, Codable, Hashable {
         case postedDate         = "posted_date"
         case tags
     }
+
+    // MARK: - Convenience Init (with default videoURL for backward compat)
+
+    init(id: String, userId: String, username: String, imageURL: String,
+         videoURL: String = "", legoSetNumber: String, legoSetName: String,
+         description: String, likeCount: Int, commentCount: Int, buyLink: String,
+         affiliateLink: String, estimatedEarnings: Double, postedDate: Date,
+         tags: [String]) {
+        self.id = id
+        self.userId = userId
+        self.username = username
+        self.imageURL = imageURL
+        self.videoURL = videoURL
+        self.legoSetNumber = legoSetNumber
+        self.legoSetName = legoSetName
+        self.description = description
+        self.likeCount = likeCount
+        self.commentCount = commentCount
+        self.buyLink = buyLink
+        self.affiliateLink = affiliateLink
+        self.estimatedEarnings = estimatedEarnings
+        self.postedDate = postedDate
+        self.tags = tags
+    }
 }
 
 // MARK: - Placeholder / Preview
@@ -79,6 +112,7 @@ extension LegoPost {
         userId: "preview-user-001",
         username: "brickmaster99",
         imageURL: "",
+        videoURL: "",
         legoSetNumber: "75192",
         legoSetName: "Millennium Falcon",
         description: "Took me 3 weeks but it was worth every brick! 🚀",

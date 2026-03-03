@@ -1,162 +1,242 @@
 import SwiftUI
 
-/// The Search screen — where you can find LEGO builds by set number.
-/// Type a set number in the search bar and it will find posts about that set.
-/// Right now it shows placeholder content to preview the layout.
+/// The Search screen — find LEGO sets by number OR by name.
+/// Sprint 3: real search powered by LegoSetDatabase.
+/// On iPad, results appear in a side-by-side layout using the extra space.
 struct SearchView: View {
 
     @State private var searchText = ""
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    /// Placeholder popular sets — real data will come from Firebase in a future sprint.
-    private let popularSets: [PopularSetPlaceholder] = [
-        PopularSetPlaceholder(setNumber: "75192", name: "Millennium Falcon",    theme: "Star Wars",     posts: 1_243),
-        PopularSetPlaceholder(setNumber: "10317", name: "Land Rover Classic",   theme: "Icons",         posts: 876),
-        PopularSetPlaceholder(setNumber: "42151", name: "Bugatti Bolide",       theme: "Technic",       posts: 654),
-        PopularSetPlaceholder(setNumber: "21325", name: "Medieval Blacksmith",  theme: "Ideas",         posts: 541),
-        PopularSetPlaceholder(setNumber: "10300", name: "Back to the Future",   theme: "Icons",         posts: 498)
-    ]
+    private var searchResults: [LegoSet] {
+        LegoSetDatabase.search(searchText)
+    }
 
-    /// Placeholder search-result grid tiles — real ones will be photo thumbnails.
-    private let gridColumns = [
-        GridItem(.flexible(), spacing: 2),
-        GridItem(.flexible(), spacing: 2),
-        GridItem(.flexible(), spacing: 2)
-    ]
+    private var popularSets: [LegoSet] {
+        ["75192", "71043", "10307", "76210", "21333", "42115", "60380", "76419", "21325", "76916"]
+            .compactMap { LegoSetDatabase.set(for: $0) }
+    }
 
     var body: some View {
         NavigationStack {
             ZStack {
                 Color.darkBackground.ignoresSafeArea()
 
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-
-                        // MARK: - Screen Title
-                        Text("Search")
-                            .font(.legoScreenTitle)
-                            .foregroundColor(.lightText)
-                            .padding(.horizontal)
-                            .padding(.top, 8)
-
-                        // MARK: - Search Bar
-                        HStack {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundColor(.secondaryText)
-
-                            TextField("Search by LEGO set number...", text: $searchText)
-                                .foregroundColor(.lightText)
-                                .font(.legoBody)
-                                .autocorrectionDisabled()
-                                .keyboardType(.numberPad)
-
-                            if !searchText.isEmpty {
-                                Button {
-                                    searchText = ""
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundColor(.secondaryText)
-                                }
-                            }
-                        }
-                        .padding(12)
-                        .background(Color.cardBackground)
-                        .cornerRadius(12)
-                        .padding(.horizontal)
-
-                        // MARK: - Search Results Placeholder
-                        if !searchText.isEmpty {
-                            Text("Results for \"\(searchText)\"")
-                                .font(.legoCardTitle)
-                                .foregroundColor(.lightText)
-                                .padding(.horizontal)
-
-                            LazyVGrid(columns: gridColumns, spacing: 2) {
-                                ForEach(0..<9, id: \.self) { _ in
-                                    Rectangle()
-                                        .fill(Color.cardBackground)
-                                        .aspectRatio(1, contentMode: .fit)
-                                        .overlay(
-                                            Image(systemName: "photo")
-                                                .foregroundColor(.secondaryText)
-                                        )
-                                }
-                            }
-                            .padding(.horizontal)
-                        }
-
-                        // MARK: - Popular Sets Section
-                        Text("Popular Sets")
-                            .font(.legoCardTitle)
-                            .foregroundColor(.lightText)
-                            .padding(.horizontal)
-
-                        VStack(spacing: 1) {
-                            ForEach(popularSets) { set in
-                                PopularSetRow(set: set)
-                            }
-                        }
-                        .background(Color.cardBackground)
-                        .cornerRadius(12)
-                        .padding(.horizontal)
-
-                        // Bottom padding for tab bar
-                        Color.clear.frame(height: 80)
-                    }
+                if horizontalSizeClass == .regular {
+                    iPadLayout
+                } else {
+                    iPhoneLayout
                 }
             }
         }
     }
+
+    // MARK: - iPhone Layout
+
+    private var iPhoneLayout: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                headerAndSearch
+                resultsList
+                Color.clear.frame(height: 80)
+            }
+        }
+    }
+
+    // MARK: - iPad Layout (side-by-side panels)
+
+    private var iPadLayout: some View {
+        HStack(alignment: .top, spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    headerAndSearch
+                    if !searchText.isEmpty {
+                        Text("\(searchResults.count) result\(searchResults.count == 1 ? "" : "s")")
+                            .font(.legoCaption)
+                            .foregroundColor(.secondaryText)
+                            .padding(.horizontal)
+                    }
+                    Color.clear.frame(height: 80)
+                }
+            }
+            .frame(maxWidth: 360)
+
+            Divider().background(Color.secondaryText.opacity(0.3))
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    resultsList
+                    Color.clear.frame(height: 80)
+                }
+                .padding(.horizontal, 8)
+            }
+        }
+    }
+
+    // MARK: - Shared Components
+
+    @ViewBuilder
+    private var headerAndSearch: some View {
+        Text("Search")
+            .font(.legoScreenTitle)
+            .foregroundColor(.lightText)
+            .padding(.horizontal)
+            .padding(.top, 8)
+
+        // Search bar — accepts both set numbers AND set names
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.secondaryText)
+
+            TextField("Set number or name (e.g. 75192 or Falcon)", text: $searchText)
+                .foregroundColor(.lightText)
+                .font(.legoBody)
+                .autocorrectionDisabled()
+
+            if !searchText.isEmpty {
+                Button { searchText = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondaryText)
+                }
+            }
+        }
+        .padding(12)
+        .background(Color.cardBackground)
+        .cornerRadius(12)
+        .padding(.horizontal)
+    }
+
+    @ViewBuilder
+    private var resultsList: some View {
+        if searchText.isEmpty {
+            popularSetsSection
+        } else if searchResults.isEmpty {
+            noResultsState
+        } else {
+            Text("Results for \"\(searchText)\"")
+                .font(.legoCardTitle)
+                .foregroundColor(.lightText)
+                .padding(.horizontal)
+
+            VStack(spacing: 1) {
+                ForEach(searchResults) { set in
+                    SearchSetRow(set: set)
+                }
+            }
+            .background(Color.cardBackground)
+            .cornerRadius(12)
+            .padding(.horizontal)
+        }
+    }
+
+    private var popularSetsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Popular Sets")
+                .font(.legoCardTitle)
+                .foregroundColor(.lightText)
+                .padding(.horizontal)
+
+            VStack(spacing: 1) {
+                ForEach(popularSets) { set in
+                    SearchSetRow(set: set)
+                }
+            }
+            .background(Color.cardBackground)
+            .cornerRadius(12)
+            .padding(.horizontal)
+        }
+    }
+
+    private var noResultsState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 48))
+                .foregroundColor(.secondaryText)
+            Text("No sets found for \"\(searchText)\"")
+                .font(.legoCardTitle)
+                .foregroundColor(.lightText)
+            Text("Try a set number like 75192\nor a name like Millennium Falcon")
+                .font(.legoBody)
+                .foregroundColor(.secondaryText)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.top, 40)
+        .padding(.horizontal)
+    }
 }
 
-// MARK: - Placeholder Model
-struct PopularSetPlaceholder: Identifiable {
-    let id = UUID()
-    let setNumber: String
-    let name: String
-    let theme: String
-    let posts: Int
-}
+// MARK: - Search Set Row
 
-// MARK: - Popular Set Row
-struct PopularSetRow: View {
-    let set: PopularSetPlaceholder
+/// One result row: set thumbnail placeholder, name, theme, piece count, and price.
+struct SearchSetRow: View {
+    let set: LegoSet
 
     var body: some View {
         HStack(spacing: 12) {
             // Thumbnail placeholder
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color.legoRed.opacity(0.2))
-                .frame(width: 52, height: 52)
+                .fill(
+                    LinearGradient(
+                        colors: [Color.legoRed.opacity(0.3), Color.legoYellow.opacity(0.2)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 60, height: 60)
                 .overlay(
-                    Text(set.setNumber)
-                        .font(.legoCaption)
-                        .foregroundColor(.legoYellow)
-                        .multilineTextAlignment(.center)
+                    VStack(spacing: 2) {
+                        Image(systemName: "building.2.crop.circle")
+                            .font(.system(size: 18))
+                            .foregroundColor(.secondaryText)
+                        Text(set.setNumber)
+                            .font(.legoCaption)
+                            .foregroundColor(.legoYellow)
+                            .minimumScaleFactor(0.7)
+                    }
                 )
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(set.name)
                     .font(.legoCardTitle)
                     .foregroundColor(.lightText)
-                Text("#\(set.setNumber) · \(set.theme)")
+                Text("#\(set.setNumber)  ·  \(set.theme)")
                     .font(.legoCaption)
                     .foregroundColor(.secondaryText)
+                Label("\(set.pieceCount) pieces", systemImage: "square.grid.3x3.fill")
+                    .font(.legoCaption)
+                    .foregroundColor(.legoYellow)
             }
 
             Spacer()
 
             VStack(alignment: .trailing, spacing: 4) {
-                Text("\(set.posts)")
+                Text("$\(String(format: "%.2f", set.retailPrice))")
                     .font(.legoCardTitle)
                     .foregroundColor(.legoYellow)
-                Text("posts")
-                    .font(.legoCaption)
-                    .foregroundColor(.secondaryText)
+                if let url = URL(string: set.legoStoreURL) {
+                    Link(destination: url) {
+                        Text("Shop")
+                            .font(.legoCaption)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.legoYellow)
+                            .foregroundColor(.darkBackground)
+                            .cornerRadius(6)
+                    }
+                }
             }
         }
         .padding(12)
         .background(Color.cardBackground)
     }
+}
+
+// Keep old PopularSetPlaceholder so any remaining references compile
+struct PopularSetPlaceholder: Identifiable {
+    let id = UUID()
+    let setNumber: String
+    let name: String
+    let theme: String
+    let posts: Int
 }
 
 #Preview {

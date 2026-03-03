@@ -1,29 +1,39 @@
 import SwiftUI
 import PhotosUI
+import AVKit
 
 /// The New Post screen — where you share your amazing LEGO build with everyone!
-/// Pick a photo with the camera or photo library, enter the set number and a description,
-/// then tap Post. The post appears at the top of the Home feed right away.
+/// Sprint 3 adds: video upload (≤60 sec), LEGO set auto-complete dropdown,
+/// bad word filter on descriptions, and smarter set name lookup from the database.
 struct NewPostView: View {
 
     // MARK: - State
 
     @State private var selectedImage: UIImage?
+    @State private var selectedVideoURL: URL?
     @State private var legoSetNumber = ""
     @State private var description   = ""
 
-    @State private var showingCamera      = false
-    @State private var showingLibrary     = false
-    @State private var showingCameraAlert = false   // shown on simulator (no camera)
-    @State private var isPosting          = false
-    @State private var showingSuccess     = false
+    @State private var showingCamera        = false
+    @State private var showingLibrary       = false
+    @State private var showingVideoPicker   = false
+    @State private var showingCameraAlert   = false
+    @State private var showingVideoTooLong  = false
+    @State private var isPosting            = false
+    @State private var videoTooLong         = false
+
+    // Auto-complete
+    @State private var autocompleteSuggestions: [LegoSet] = []
+    @State private var selectedSet: LegoSet?
 
     // MARK: - Computed
 
-    /// The Post button is only enabled when the user has chosen a photo AND typed a set number.
     private var canPost: Bool {
-        selectedImage != nil && !legoSetNumber.trimmingCharacters(in: .whitespaces).isEmpty
+        (selectedImage != nil || selectedVideoURL != nil) &&
+        !legoSetNumber.trimmingCharacters(in: .whitespaces).isEmpty
     }
+
+    private var isVideoSelected: Bool { selectedVideoURL != nil }
 
     // MARK: - Body
 
@@ -43,7 +53,7 @@ struct NewPostView: View {
                             .padding(.horizontal)
                             .padding(.top, 8)
 
-                        // MARK: Photo Area
+                        // MARK: Media Area
                         ZStack {
                             RoundedRectangle(cornerRadius: 16)
                                 .fill(Color.cardBackground)
@@ -51,15 +61,17 @@ struct NewPostView: View {
 
                             if let image = selectedImage {
                                 photoPreview(image: image)
+                            } else if let videoURL = selectedVideoURL {
+                                videoPreview(url: videoURL)
                             } else {
-                                photoPlaceholder
+                                mediaPlaceholder
                             }
                         }
                         .frame(height: 260)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                         .padding(.horizontal)
 
-                        // MARK: LEGO Set Number
+                        // MARK: LEGO Set Number + Auto-Complete
                         VStack(alignment: .leading, spacing: 8) {
                             Label("LEGO Set Number", systemImage: "number.circle.fill")
                                 .font(.legoCardTitle)
@@ -72,6 +84,60 @@ struct NewPostView: View {
                                 .padding(14)
                                 .background(Color.cardBackground)
                                 .cornerRadius(12)
+                                .onChange(of: legoSetNumber) { _, newValue in
+                                    selectedSet = nil
+                                    autocompleteSuggestions = LegoSetDatabase.autocomplete(setNumber: newValue)
+                                }
+
+                            // Auto-complete dropdown
+                            if !autocompleteSuggestions.isEmpty && selectedSet == nil {
+                                VStack(spacing: 0) {
+                                    ForEach(autocompleteSuggestions) { set in
+                                        Button {
+                                            legoSetNumber = set.setNumber
+                                            selectedSet = set
+                                            autocompleteSuggestions = []
+                                        } label: {
+                                            HStack {
+                                                VStack(alignment: .leading, spacing: 2) {
+                                                    Text(set.name)
+                                                        .font(.legoBody)
+                                                        .foregroundColor(.lightText)
+                                                    Text("#\(set.setNumber)  ·  \(set.theme)")
+                                                        .font(.legoCaption)
+                                                        .foregroundColor(.secondaryText)
+                                                }
+                                                Spacer()
+                                                Image(systemName: "checkmark.circle")
+                                                    .foregroundColor(.legoYellow)
+                                            }
+                                            .padding(.horizontal, 14)
+                                            .padding(.vertical, 10)
+                                            .background(Color.cardBackground)
+                                        }
+                                        .buttonStyle(.plain)
+                                        Divider().background(Color.secondaryText.opacity(0.3))
+                                    }
+                                }
+                                .background(Color.cardBackground)
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.legoYellow.opacity(0.5), lineWidth: 1)
+                                )
+                            }
+
+                            // Selected set confirmation
+                            if let set = selectedSet {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.successGreen)
+                                    Text("\(set.name) — \(set.theme) · \(set.pieceCount) pieces")
+                                        .font(.legoCaption)
+                                        .foregroundColor(.successGreen)
+                                }
+                                .padding(.top, 4)
+                            }
                         }
                         .padding(.horizontal)
 
@@ -92,19 +158,14 @@ struct NewPostView: View {
                         .padding(.horizontal)
 
                         // MARK: Post Button
-                        Button {
-                            submitPost()
-                        } label: {
+                        Button { submitPost() } label: {
                             HStack(spacing: 10) {
                                 if isPosting {
-                                    ProgressView()
-                                        .tint(.white)
-                                    Text("Posting…")
-                                        .font(.legoCardTitle)
+                                    ProgressView().tint(.white)
+                                    Text("Posting…").font(.legoCardTitle)
                                 } else {
                                     Image(systemName: "paperplane.fill")
-                                    Text("Post Your Build!")
-                                        .font(.legoCardTitle)
+                                    Text("Post Your Build!").font(.legoCardTitle)
                                 }
                             }
                             .frame(maxWidth: .infinity)
@@ -117,35 +178,37 @@ struct NewPostView: View {
                         .disabled(!canPost || isPosting)
                         .padding(.horizontal)
 
-                        // Bottom padding so the last field isn't hidden behind the tab bar
                         Color.clear.frame(height: 80)
                     }
                     .padding(.top)
                 }
             }
         }
-        // Camera sheet
         .sheet(isPresented: $showingCamera) {
-            CameraPicker(selectedImage: $selectedImage)
-                .ignoresSafeArea()
+            CameraPicker(selectedImage: $selectedImage).ignoresSafeArea()
         }
-        // Photo library sheet
         .sheet(isPresented: $showingLibrary) {
-            PhotoLibraryPicker(selectedImage: $selectedImage)
+            PhotoLibraryPicker(selectedImage: $selectedImage).ignoresSafeArea()
+        }
+        .sheet(isPresented: $showingVideoPicker) {
+            VideoPicker(selectedVideoURL: $selectedVideoURL, videoTooLong: $videoTooLong)
                 .ignoresSafeArea()
         }
-        // Friendly alert for simulator / no-camera devices
         .alert("Camera Not Available", isPresented: $showingCameraAlert) {
             Button("Choose from Library") { showingLibrary = true }
             Button("OK", role: .cancel) {}
         } message: {
-            Text("This device doesn't have a camera, or camera access was denied. You can pick a photo from your library instead, or allow camera access in Settings.")
+            Text("This device doesn't have a camera. Pick a photo from your library instead.")
+        }
+        .alert("Video Too Long", isPresented: $videoTooLong) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("For kid safety, videos must be 60 seconds or less. Please pick a shorter video!")
         }
     }
 
     // MARK: - Sub-Views
 
-    /// Live photo preview with an X button to remove the photo.
     private func photoPreview(image: UIImage) -> some View {
         ZStack(alignment: .topTrailing) {
             Image(uiImage: image)
@@ -165,18 +228,35 @@ struct NewPostView: View {
         }
     }
 
-    /// Empty photo area with camera and library buttons.
-    private var photoPlaceholder: some View {
+    private func videoPreview(url: URL) -> some View {
+        ZStack(alignment: .topTrailing) {
+            VideoPlayer(player: AVPlayer(url: url))
+                .frame(height: 260)
+                .disabled(true)
+
+            Button {
+                withAnimation { selectedVideoURL = nil }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 28))
+                    .foregroundStyle(.white, Color.black.opacity(0.5))
+                    .padding(10)
+            }
+        }
+    }
+
+    /// Empty media area with Camera, Library, and Video buttons.
+    private var mediaPlaceholder: some View {
         VStack(spacing: 20) {
             Image(systemName: "photo.badge.plus")
                 .font(.system(size: 48))
                 .foregroundColor(.secondaryText)
 
-            Text("Add a photo of your build")
+            Text("Add a photo or video of your build")
                 .font(.legoBody)
                 .foregroundColor(.secondaryText)
 
-            HStack(spacing: 16) {
+            HStack(spacing: 12) {
 
                 // Camera Button
                 Button {
@@ -187,8 +267,8 @@ struct NewPostView: View {
                     }
                 } label: {
                     Label("Camera", systemImage: "camera.fill")
-                        .font(.legoBody)
-                        .padding(.horizontal, 20)
+                        .font(.legoCaption)
+                        .padding(.horizontal, 14)
                         .padding(.vertical, 10)
                         .background(Color.legoRed)
                         .foregroundColor(.white)
@@ -201,60 +281,91 @@ struct NewPostView: View {
                     showingLibrary = true
                 } label: {
                     Label("Library", systemImage: "photo.on.rectangle")
-                        .font(.legoBody)
-                        .padding(.horizontal, 20)
+                        .font(.legoCaption)
+                        .padding(.horizontal, 14)
                         .padding(.vertical, 10)
                         .background(Color.cardBackground)
                         .foregroundColor(.lightText)
                         .cornerRadius(12)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.secondaryText, lineWidth: 1)
-                        )
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.secondaryText, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+
+                // Video Button (Sprint 3 — max 60 seconds)
+                Button {
+                    showingVideoPicker = true
+                } label: {
+                    Label("Video", systemImage: "video.fill")
+                        .font(.legoCaption)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color.legoYellow.opacity(0.2))
+                        .foregroundColor(.legoYellow)
+                        .cornerRadius(12)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.legoYellow, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
             }
+
+            Text("Videos must be under 60 seconds")
+                .font(.legoCaption)
+                .foregroundColor(.secondaryText)
         }
     }
 
     // MARK: - Actions
 
     private func submitPost() {
-        guard let image = selectedImage else { return }
+        guard selectedImage != nil || selectedVideoURL != nil else { return }
         isPosting = true
 
-        // Small artificial delay so the spinner is visible and feels intentional.
-        // In Sprint 3 this becomes the real Firebase upload await.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
             let setNum = legoSetNumber.trimmingCharacters(in: .whitespaces)
+            let setName = selectedSet?.name ?? LegoSetDatabase.set(for: setNum)?.name ?? "Set #\(setNum)"
+            let storeURL = selectedSet?.legoStoreURL ??
+                           LegoSetDatabase.set(for: setNum)?.legoStoreURL ??
+                           "https://www.lego.com/en-us/search?q=\(setNum)"
+            let retailPrice = selectedSet?.retailPrice ?? LegoSetDatabase.set(for: setNum)?.retailPrice ?? 0.0
+            let earn = (retailPrice * 0.004).rounded(toPlaces: 2)
+
+            let filteredDesc = BadWordFilter.filter(description.trimmingCharacters(in: .whitespaces))
+
             let newPost = LegoPost(
                 id: UUID().uuidString,
                 userId: "current-user",
                 username: "blockmasterjames",
                 imageURL: "",
+                videoURL: "",
                 legoSetNumber: setNum,
-                legoSetName: "Set #\(setNum)",
-                description: description.trimmingCharacters(in: .whitespaces),
+                legoSetName: setName,
+                description: filteredDesc,
                 likeCount: 0,
                 commentCount: 0,
-                buyLink: "https://www.lego.com/en-us/search?q=\(setNum)",
+                buyLink: storeURL,
                 affiliateLink: "",
-                estimatedEarnings: 0.0,
+                estimatedEarnings: earn,
                 postedDate: Date(),
                 tags: []
             )
 
-            PostStore.shared.addPost(newPost, image: image)
+            PostStore.shared.addPost(newPost, image: selectedImage, videoURL: selectedVideoURL)
 
-            // Reset the form
-            selectedImage  = nil
-            legoSetNumber  = ""
-            description    = ""
-            isPosting      = false
+            selectedImage    = nil
+            selectedVideoURL = nil
+            legoSetNumber    = ""
+            description      = ""
+            selectedSet      = nil
+            isPosting        = false
 
-            // Navigate to the Home tab to see the new post
             AppState.shared.selectedTab = .home
         }
+    }
+}
+
+private extension Double {
+    func rounded(toPlaces places: Int) -> Double {
+        let divisor = pow(10.0, Double(places))
+        return (self * divisor).rounded() / divisor
     }
 }
 

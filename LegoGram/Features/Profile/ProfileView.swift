@@ -1,32 +1,31 @@
 import SwiftUI
 
 /// The Profile screen — your personal LEGO portfolio page!
-/// Shows your avatar, username, bio, stats, and a grid of every post you've shared.
-/// Tap "Edit Profile" to change your name or bio. Tap the gear icon for Settings.
+/// Sprint 3 upgrades: Sets Completed stat, iPad 4-column grid, bad word filter on bio.
 struct ProfileView: View {
 
-    // Profile data — written by EditProfileView, read here
     @AppStorage("profile_displayName") private var displayName = "blockmasterjames"
     @AppStorage("profile_bio")         private var bio         = "Building one brick at a time 🧱 | LEGO fan since 2010"
     @AppStorage("profile_username")    private var username    = "blockmasterjames"
 
-    // Sheets
     @State private var showingEditProfile = false
     @State private var showingSettings    = false
 
-    // Posts that belong to the current user
     @ObservedObject private var postStore = PostStore.shared
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private var myPosts: [LegoPost] {
-        // Show posts the user created this session, plus the seed placeholder for "brickmaster99"
         postStore.posts.filter { $0.userId == "current-user" || $0.username == "brickmaster99" }
     }
 
-    private let gridColumns = [
-        GridItem(.flexible(), spacing: 2),
-        GridItem(.flexible(), spacing: 2),
-        GridItem(.flexible(), spacing: 2)
-    ]
+    private var setsCompleted: Int {
+        Set(myPosts.map { $0.legoSetNumber }).count
+    }
+
+    private var gridColumns: [GridItem] {
+        let count = horizontalSizeClass == .regular ? 4 : 3
+        return Array(repeating: GridItem(.flexible(), spacing: 2), count: count)
+    }
 
     // MARK: - Body
 
@@ -56,7 +55,7 @@ struct ProfileView: View {
                                     .foregroundColor(.legoYellow)
                             }
 
-                            Text(bio)
+                            Text(BadWordFilter.filter(bio))
                                 .font(.legoBody)
                                 .foregroundColor(.secondaryText)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -66,23 +65,27 @@ struct ProfileView: View {
                         .padding(.top, 48)
                         .padding(.bottom, 16)
 
-                        // MARK: Stats Row
-                        HStack(spacing: 0) {
-                            statCell(value: "\(myPosts.count)", label: "Posts")
-                            Divider().frame(height: 40)
-                            statCell(value: "1.2k",   label: "Followers")
-                            Divider().frame(height: 40)
-                            statCell(value: "348",    label: "Following")
-                            Divider().frame(height: 40)
-                            statCell(value: "$12.40", label: "Earnings")
+                        // MARK: Stats Row (5 stats: Posts / Followers / Following / Earnings / Completed)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 0) {
+                                statCell(value: "\(myPosts.count)", label: "Posts")
+                                Divider().frame(height: 40)
+                                statCell(value: "1.2k",   label: "Followers")
+                                Divider().frame(height: 40)
+                                statCell(value: "348",    label: "Following")
+                                Divider().frame(height: 40)
+                                statCell(value: "$12.40", label: "Earnings")
+                                Divider().frame(height: 40)
+                                statCell(value: "\(setsCompleted)", label: "Completed")
+                            }
+                            .padding(.vertical, 12)
                         }
-                        .padding(.vertical, 12)
                         .background(Color.cardBackground)
                         .cornerRadius(12)
                         .padding(.horizontal, 16)
                         .padding(.bottom, 20)
 
-                        // MARK: Post Grid
+                        // MARK: Post Grid (3-col iPhone, 4-col iPad)
                         if myPosts.isEmpty {
                             emptyPostsState
                         } else {
@@ -99,21 +102,15 @@ struct ProfileView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showingSettings = true
-                    } label: {
+                    Button { showingSettings = true } label: {
                         Image(systemName: "gearshape.fill")
                             .foregroundColor(.legoYellow)
                     }
                 }
             }
         }
-        .sheet(isPresented: $showingEditProfile) {
-            EditProfileView()
-        }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView()
-        }
+        .sheet(isPresented: $showingEditProfile) { EditProfileView() }
+        .sheet(isPresented: $showingSettings) { SettingsView() }
     }
 
     // MARK: - Sub-Views
@@ -124,13 +121,11 @@ struct ProfileView: View {
                 .fill(
                     LinearGradient(
                         colors: [Color.legoRed, Color.legoYellow.opacity(0.6)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+                        startPoint: .topLeading, endPoint: .bottomTrailing
                     )
                 )
                 .frame(height: 160)
 
-            // Decorative LEGO stud pattern
             HStack(spacing: 20) {
                 ForEach(0..<8, id: \.self) { _ in
                     Circle()
@@ -145,7 +140,6 @@ struct ProfileView: View {
 
     private var avatarRow: some View {
         HStack(alignment: .bottom) {
-            // Avatar circle
             Circle()
                 .fill(Color.cardBackground)
                 .frame(width: 90, height: 90)
@@ -160,10 +154,7 @@ struct ProfileView: View {
 
             Spacer()
 
-            // Edit Profile button
-            Button {
-                showingEditProfile = true
-            } label: {
+            Button { showingEditProfile = true } label: {
                 Text("Edit Profile")
                     .font(.legoCaption)
                     .padding(.horizontal, 16)
@@ -171,10 +162,7 @@ struct ProfileView: View {
                     .background(Color.cardBackground)
                     .foregroundColor(.lightText)
                     .cornerRadius(8)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.secondaryText, lineWidth: 1)
-                    )
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.secondaryText, lineWidth: 1))
             }
             .padding(.trailing, 16)
             .padding(.bottom, 8)
@@ -201,25 +189,38 @@ struct ProfileView: View {
 
     @ViewBuilder
     private func gridTile(for post: LegoPost) -> some View {
-        if let image = postStore.postImages[post.id] {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-                .aspectRatio(1, contentMode: .fill)
-                .clipped()
-        } else {
-            Rectangle()
-                .fill(Color.legoRed.opacity(0.25))
-                .aspectRatio(1, contentMode: .fit)
-                .overlay(
-                    Text("#\(post.legoSetNumber)")
-                        .font(.legoCaption)
-                        .foregroundColor(.legoYellow)
-                )
+        ZStack {
+            if let image = postStore.postImages[post.id] {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .aspectRatio(1, contentMode: .fill)
+                    .clipped()
+            } else {
+                Rectangle()
+                    .fill(Color.legoRed.opacity(0.25))
+                    .aspectRatio(1, contentMode: .fit)
+                    .overlay(
+                        Text("#\(post.legoSetNumber)")
+                            .font(.legoCaption)
+                            .foregroundColor(.legoYellow)
+                    )
+            }
+
+            // Video badge
+            if post.isVideoPost {
+                VStack {
+                    HStack {
+                        Spacer()
+                        Image(systemName: "play.circle.fill")
+                            .foregroundColor(.white)
+                            .padding(4)
+                    }
+                    Spacer()
+                }
+            }
         }
     }
-
-    // MARK: - Stat Cell
 
     private func statCell(value: String, label: String) -> some View {
         VStack(spacing: 4) {
@@ -230,7 +231,8 @@ struct ProfileView: View {
                 .font(.legoCaption)
                 .foregroundColor(.secondaryText)
         }
-        .frame(maxWidth: .infinity)
+        .frame(minWidth: 68)
+        .padding(.horizontal, 4)
     }
 }
 

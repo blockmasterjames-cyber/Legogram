@@ -1,46 +1,149 @@
 import SwiftUI
 
-/// The main navigation shell of the app.
-/// Think of it like a TV remote — tapping a button takes you to a different channel (screen).
-/// There are 5 channels: Home, Search, New Post, Leaderboard, and Profile.
-///
-/// The selected tab is stored in AppState.shared so that any screen in the app
-/// can switch tabs programmatically (e.g. NewPostView jumping back to Home after posting).
+/// The main navigation shell.
+/// Sprint 3 upgrade: on iPad in landscape / regular width, shows a sidebar instead of a bottom tab bar.
+/// On iPhone and iPad portrait (compact width), keeps the existing custom bottom tab bar.
 struct MainTabView: View {
 
     @ObservedObject private var appState = AppState.shared
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
+        if horizontalSizeClass == .regular {
+            iPadSidebarLayout
+        } else {
+            iPhoneTabLayout
+        }
+    }
+
+    // MARK: - iPhone / Compact Layout (existing custom tab bar)
+
+    private var iPhoneTabLayout: some View {
         ZStack(alignment: .bottom) {
-
-            // MARK: - Page Content
             TabView(selection: $appState.selectedTab) {
-                HomeView()
-                    .tag(AppTab.home)
-
-                SearchView()
-                    .tag(AppTab.search)
-
-                NewPostView()
-                    .tag(AppTab.newPost)
-
-                LeaderboardView()
-                    .tag(AppTab.leaderboard)
-
-                ProfileView()
-                    .tag(AppTab.profile)
+                HomeView()        .tag(AppTab.home)
+                SearchView()      .tag(AppTab.search)
+                NewPostView()     .tag(AppTab.newPost)
+                LeaderboardView() .tag(AppTab.leaderboard)
+                ProfileView()     .tag(AppTab.profile)
             }
-            // Hide the system tab bar — we draw our own custom one below.
             .tabViewStyle(.page(indexDisplayMode: .never))
 
-            // MARK: - Custom Tab Bar
             customTabBar
         }
         .background(Color.darkBackground)
         .ignoresSafeArea(edges: .bottom)
     }
 
-    // MARK: - Custom Tab Bar
+    // MARK: - iPad / Regular Layout (sidebar on left)
+
+    private var iPadSidebarLayout: some View {
+        HStack(spacing: 0) {
+
+            // MARK: Sidebar
+            VStack(alignment: .leading, spacing: 0) {
+
+                // Logo at top of sidebar
+                LegoGramLogo()
+                    .padding(.horizontal, 20)
+                    .padding(.top, 28)
+                    .padding(.bottom, 20)
+
+                Divider().background(Color.secondaryText.opacity(0.3))
+                    .padding(.bottom, 8)
+
+                // Navigation items
+                ForEach(sidebarItems, id: \.tab) { item in
+                    sidebarButton(item: item)
+                }
+
+                Spacer()
+
+                // New Post button at bottom of sidebar
+                Button {
+                    appState.selectedTab = .newPost
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundColor(.white)
+                        Text("New Post")
+                            .font(.legoBody)
+                            .foregroundColor(.white)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 14)
+                    .background(Color.legoRed)
+                    .cornerRadius(14)
+                    .padding(.horizontal, 12)
+                }
+                .buttonStyle(.plain)
+                .padding(.bottom, 24)
+            }
+            .frame(width: 220)
+            .background(Color.cardBackground)
+
+            Divider().background(Color.secondaryText.opacity(0.3))
+
+            // MARK: Content Area
+            Group {
+                switch appState.selectedTab {
+                case .home:        HomeView()
+                case .search:     SearchView()
+                case .newPost:    NewPostView()
+                case .leaderboard: LeaderboardView()
+                case .profile:    ProfileView()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .background(Color.darkBackground)
+        .ignoresSafeArea(edges: .bottom)
+    }
+
+    // MARK: - Sidebar Items
+
+    private struct SidebarItem {
+        let tab: AppTab
+        let icon: String
+        let label: String
+    }
+
+    private let sidebarItems: [SidebarItem] = [
+        SidebarItem(tab: .home,        icon: "house.fill",      label: "Home"),
+        SidebarItem(tab: .search,      icon: "magnifyingglass", label: "Search"),
+        SidebarItem(tab: .leaderboard, icon: "trophy.fill",     label: "Leaderboard"),
+        SidebarItem(tab: .profile,     icon: "person.fill",     label: "Profile"),
+    ]
+
+    private func sidebarButton(item: SidebarItem) -> some View {
+        Button {
+            appState.selectedTab = item.tab
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: item.icon)
+                    .font(.system(size: 20))
+                    .frame(width: 24)
+                Text(item.label)
+                    .font(.legoBody)
+            }
+            .foregroundColor(appState.selectedTab == item.tab ? .legoYellow : .secondaryText)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 14)
+            .background(
+                appState.selectedTab == item.tab
+                    ? Color.legoYellow.opacity(0.12)
+                    : Color.clear
+            )
+            .cornerRadius(10)
+            .padding(.horizontal, 8)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Custom Tab Bar (iPhone)
 
     private var customTabBar: some View {
         HStack(spacing: 0) {
@@ -52,21 +155,17 @@ struct MainTabView: View {
         }
         .padding(.horizontal, 8)
         .padding(.top, 12)
-        .padding(.bottom, 28) // Extra bottom padding for the Home Indicator on newer iPhones
+        .padding(.bottom, 28)
         .background(Color.cardBackground.shadow(radius: 8, y: -2))
     }
-
-    // MARK: - Regular Tab Button
 
     private func tabBarButton(tab: AppTab, icon: String, label: String) -> some View {
         Button {
             appState.selectedTab = tab
         } label: {
             VStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 22))
-                Text(label)
-                    .font(.legoCaption)
+                Image(systemName: icon).font(.system(size: 22))
+                Text(label).font(.legoCaption)
             }
             .foregroundColor(appState.selectedTab == tab ? .legoYellow : .secondaryText)
             .frame(maxWidth: .infinity)
@@ -74,8 +173,6 @@ struct MainTabView: View {
         }
         .buttonStyle(.plain)
     }
-
-    // MARK: - Centre Post Button (big LEGO-red circle, lifted above the bar)
 
     private var postButton: some View {
         Button {
@@ -86,7 +183,6 @@ struct MainTabView: View {
                     .fill(Color.legoRed)
                     .frame(width: 60, height: 60)
                     .shadow(color: .legoRed.opacity(0.5), radius: 8, y: 4)
-
                 Image(systemName: "plus.circle.fill")
                     .font(.system(size: 28, weight: .bold))
                     .foregroundColor(.white)
