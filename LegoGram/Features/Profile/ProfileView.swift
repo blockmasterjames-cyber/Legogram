@@ -65,20 +65,28 @@ struct ProfileView: View {
                         .padding(.top, 48)
                         .padding(.bottom, 16)
 
-                        // MARK: Stats Row (5 stats: Posts / Followers / Following / Earnings / Completed)
-                        ScrollView(.horizontal, showsIndicators: false) {
+                        // MARK: Stats Row — 2 rows so all 5 stats fit on every iPhone size
+                        VStack(spacing: 0) {
+                            // Row 1: Posts · Followers · Following
                             HStack(spacing: 0) {
                                 statCell(value: "\(myPosts.count)", label: "Posts")
                                 Divider().frame(height: 40)
                                 statCell(value: "1.2k",   label: "Followers")
                                 Divider().frame(height: 40)
                                 statCell(value: "348",    label: "Following")
-                                Divider().frame(height: 40)
-                                statCell(value: "$12.40", label: "Earnings")
+                            }
+                            .padding(.vertical, 10)
+
+                            Divider()
+                                .background(Color.secondaryText.opacity(0.3))
+
+                            // Row 2: Earnings · Sets Completed
+                            HStack(spacing: 0) {
+                                statCell(value: "$12.40",            label: "Earnings")
                                 Divider().frame(height: 40)
                                 statCell(value: "\(setsCompleted)", label: "Completed")
                             }
-                            .padding(.vertical, 12)
+                            .padding(.vertical, 10)
                         }
                         .background(Color.cardBackground)
                         .cornerRadius(12)

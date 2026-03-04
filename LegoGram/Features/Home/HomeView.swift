@@ -1,26 +1,31 @@
 import SwiftUI
 import AVKit
 
+/// Wrapper used as the navigation item so we can carry both the post
+/// and whether the detail view should auto-scroll to comments.
+struct FeedNavigation: Identifiable {
+    let post: LegoPost
+    let scrollToComments: Bool
+    var id: String { post.id + (scrollToComments ? "-c" : "") }
+}
+
 /// The Home screen — the scrolling feed of LEGO builds from the community.
-/// Sprint 3 upgrades:
-/// • Tap a post → full-screen PostDetailView
-/// • Double-tap a post → like it with an Instagram-style heart animation
-/// • Scroll to bottom → auto-loads more posts with a spinner
-/// • iPad → 2-column grid instead of 1-column
-/// • Post cards show the real LEGO set name from the database
-/// • Username / avatar taps navigate to that user's profile
+/// Sprint 4 upgrades:
+/// • Sticky logo header with notification bell that stays at top while scrolling
+/// • Real LEGO set images loaded with AsyncImage from Brickset CDN
+/// • Age rating badge on every post card
+/// • Polished card design with shadow
+/// • Tapping the comment bubble auto-scrolls to the comments section
 struct HomeView: View {
 
     @ObservedObject private var postStore = PostStore.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    // Navigation state
-    @State private var selectedPost: LegoPost?
+    @State private var navigation: FeedNavigation?
     @State private var selectedUsername: String?
 
     private var visiblePosts: [LegoPost] { postStore.visiblePosts }
 
-    // On iPad use a 2-column grid; on iPhone use 1-column
     private var gridColumns: [GridItem] {
         horizontalSizeClass == .regular
             ? [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)]
@@ -33,25 +38,8 @@ struct HomeView: View {
                 Color.darkBackground.ignoresSafeArea()
 
                 ScrollView {
-                    LazyVStack(spacing: 0) {
+                    LazyVStack(spacing: 16) {
 
-                        // MARK: Logo Header
-                        HStack {
-                            LegoGramLogo()
-                            Spacer()
-                            Button {
-                                // Notifications — Sprint 4
-                            } label: {
-                                Image(systemName: "bell.fill")
-                                    .font(.system(size: 22))
-                                    .foregroundColor(.legoYellow)
-                            }
-                        }
-                        .padding(.horizontal)
-                        .padding(.top, 8)
-                        .padding(.bottom, 12)
-
-                        // MARK: Feed (1-col iPhone, 2-col iPad)
                         if visiblePosts.isEmpty {
                             emptyState
                         } else {
@@ -59,7 +47,14 @@ struct HomeView: View {
                                 ForEach(visiblePosts) { post in
                                     PostCard(
                                         post: post,
-                                        onTap: { selectedPost = post },
+                                        onTap: {
+                                            navigation = FeedNavigation(post: post,
+                                                                        scrollToComments: false)
+                                        },
+                                        onCommentTap: {
+                                            navigation = FeedNavigation(post: post,
+                                                                        scrollToComments: true)
+                                        },
                                         onProfileTap: { selectedUsername = post.username }
                                     )
                                 }
@@ -67,21 +62,49 @@ struct HomeView: View {
                             .padding(.horizontal, horizontalSizeClass == .regular ? 16 : 0)
                         }
 
-                        // MARK: Infinite Scroll Trigger
+                        // Infinite scroll trigger
                         infiniteScrollTrigger
                     }
                     .padding(.bottom, 80)
+                    .padding(.top, 8)
+                }
+                // Sticky logo header — stays pinned at top while feed scrolls
+                .safeAreaInset(edge: .top) {
+                    feedHeader
                 }
             }
-            // Navigate to full-screen post detail
-            .navigationDestination(item: $selectedPost) { post in
-                PostDetailView(post: post)
+            .navigationDestination(item: $navigation) { nav in
+                PostDetailView(post: nav.post, scrollToComments: nav.scrollToComments)
             }
-            // Navigate to another user's profile
             .navigationDestination(item: $selectedUsername) { username in
                 OtherProfileView(username: username)
             }
         }
+    }
+
+    // MARK: - Sticky Feed Header
+
+    private var feedHeader: some View {
+        HStack(alignment: .center) {
+            LegoGramLogo()
+
+            Spacer()
+
+            Button {
+                // Notifications — future sprint
+            } label: {
+                Image(systemName: "bell.fill")
+                    .font(.system(size: 22))
+                    .foregroundColor(.legoYellow)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
+        .background(
+            Color.darkBackground
+                .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
+        )
     }
 
     // MARK: - Infinite Scroll Trigger
@@ -130,28 +153,28 @@ struct HomeView: View {
 
 // MARK: - Post Card
 
-/// One card in the feed. Shows photo/video, username, LEGO set name, likes, and Buy Set.
-/// Double-tapping the card fires the like heart animation.
+/// One card in the feed. Shows the real LEGO set image, username, age rating badge,
+/// likes, comments, and a Buy Set button. Double-tap to like. Tap comment bubble
+/// to open the detail view scrolled straight to the comments section.
 struct PostCard: View {
 
     let post: LegoPost
     let onTap: () -> Void
+    let onCommentTap: () -> Void
     let onProfileTap: () -> Void
 
     @ObservedObject private var postStore = PostStore.shared
     @State private var showHeart = false
 
     private var legoSet: LegoSet? { LegoSetDatabase.set(for: post.legoSetNumber) }
-    private var setName: String {
-        legoSet?.name ?? post.legoSetName
-    }
+    private var setName: String { legoSet?.name ?? post.legoSetName }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
 
-            // MARK: Photo / Video Area
+            // MARK: Image / Video Area
             ZStack {
-                photoArea
+                mediaArea
                     .onTapGesture(count: 2) {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
                             postStore.toggleLike(post)
@@ -189,7 +212,7 @@ struct PostCard: View {
             // MARK: Card Info
             VStack(alignment: .leading, spacing: 8) {
 
-                // Username row — tapping goes to that user's profile
+                // Username row (taps → profile)
                 Button(action: onProfileTap) {
                     HStack(spacing: 8) {
                         Circle()
@@ -210,10 +233,17 @@ struct PostCard: View {
                 }
                 .buttonStyle(.plain)
 
-                // LEGO set name (from database lookup, with fallback)
-                Text("Set #\(post.legoSetNumber)  ·  \(setName)")
-                    .font(.legoCaption)
-                    .foregroundColor(.legoYellow)
+                // Set name + age rating badge
+                HStack(spacing: 6) {
+                    Text(setName)
+                        .font(.legoCaption)
+                        .foregroundColor(.legoYellow)
+                        .lineLimit(1)
+
+                    if let set = legoSet {
+                        AgeRatingBadge(rating: set.ageRating)
+                    }
+                }
 
                 // Description
                 if !post.description.isEmpty {
@@ -223,10 +253,10 @@ struct PostCard: View {
                         .lineLimit(3)
                 }
 
-                // Action row: Likes / Comments / Buy Set
-                HStack(spacing: 20) {
+                // Action row: Like · Comment · Buy Set
+                HStack(spacing: 16) {
 
-                    // Like button
+                    // Heart / like button
                     Button {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
                             postStore.toggleLike(post)
@@ -234,25 +264,32 @@ struct PostCard: View {
                     } label: {
                         HStack(spacing: 5) {
                             Image(systemName: postStore.isLiked(post) ? "heart.fill" : "heart")
+                                .font(.system(size: 18))
                                 .scaleEffect(postStore.isLiked(post) ? 1.2 : 1.0)
+                                .animation(.spring(response: 0.3, dampingFraction: 0.5),
+                                           value: postStore.isLiked(post))
                             Text("\(currentLikeCount)")
+                                .font(.legoBody)
                         }
-                        .font(.legoBody)
                         .foregroundColor(postStore.isLiked(post) ? .legoRed : .secondaryText)
                     }
                     .buttonStyle(.plain)
 
-                    // Comment count — tapping opens detail
-                    Button(action: onTap) {
-                        Label("\(post.commentCount)", systemImage: "bubble.right.fill")
-                            .font(.legoBody)
-                            .foregroundColor(.secondaryText)
+                    // Comment bubble — tapping opens detail and scrolls to comments
+                    Button(action: onCommentTap) {
+                        HStack(spacing: 5) {
+                            Image(systemName: "bubble.right.fill")
+                                .font(.system(size: 16))
+                            Text("\(commentCount)")
+                                .font(.legoBody)
+                        }
+                        .foregroundColor(.secondaryText)
                     }
                     .buttonStyle(.plain)
 
                     Spacer()
 
-                    // Buy Set — uses legoStoreURL from database
+                    // Buy Set button
                     if let set = legoSet, let url = URL(string: set.legoStoreURL) {
                         Link(destination: url) {
                             Label("Buy · $\(String(format: "%.0f", set.retailPrice))",
@@ -277,7 +314,7 @@ struct PostCard: View {
                     }
                 }
 
-                // Earnings
+                // Earnings line
                 if post.estimatedEarnings > 0 {
                     HStack(spacing: 4) {
                         Image(systemName: "dollarsign.circle.fill")
@@ -288,55 +325,102 @@ struct PostCard: View {
                     .foregroundColor(.successGreen)
                 }
             }
-            .padding()
+            .padding(12)
         }
         .background(Color.cardBackground)
         .cornerRadius(16)
+        // Polished shadow around the card
+        .shadow(color: .black.opacity(0.35), radius: 10, x: 0, y: 4)
         .padding(.horizontal, 16)
     }
 
-    // Live like count from store
+    // Live values from the store
     private var currentLikeCount: Int {
         postStore.posts.first(where: { $0.id == post.id })?.likeCount ?? post.likeCount
     }
+    private var commentCount: Int {
+        postStore.comments(for: post.id).count
+    }
 
-    // MARK: - Photo / Video Area
+    // MARK: - Media Area (AsyncImage from CDN, then user photo, then placeholder)
 
     @ViewBuilder
-    private var photoArea: some View {
+    private var mediaArea: some View {
         if let image = postStore.postImages[post.id] {
+            // User uploaded a real photo
             Image(uiImage: image)
                 .resizable()
                 .scaledToFill()
-                .frame(height: 280)
+                .frame(height: 260)
                 .clipped()
         } else if let videoURL = postStore.postVideoURLs[post.id] {
             VideoPlayer(player: AVPlayer(url: videoURL))
-                .frame(height: 280)
-                .disabled(true) // Tapping controls detail view, not video controls
-        } else {
-            ZStack {
-                LinearGradient(
-                    colors: [Color.legoRed.opacity(0.3), Color.legoYellow.opacity(0.2)],
-                    startPoint: .topLeading, endPoint: .bottomTrailing
-                )
-                .frame(height: 280)
-
-                VStack(spacing: 8) {
-                    Image(systemName: "building.2.crop.circle")
-                        .font(.system(size: 52))
-                        .foregroundColor(.secondaryText)
-                    Text("Set #\(post.legoSetNumber)")
-                        .font(.legoCardTitle)
-                        .foregroundColor(.legoYellow)
-                    if let set = legoSet {
-                        Text(set.theme)
-                            .font(.legoCaption)
-                            .foregroundColor(.secondaryText)
+                .frame(height: 260)
+                .disabled(true)
+        } else if let imageURL = legoSet?.setImageURL {
+            // Load official set image from Brickset CDN
+            AsyncImage(url: imageURL) { phase in
+                switch phase {
+                case .success(let img):
+                    img.resizable()
+                        .scaledToFill()
+                        .frame(height: 260)
+                        .clipped()
+                case .failure:
+                    placeholderArea
+                case .empty:
+                    ZStack {
+                        Color.cardBackground.frame(height: 260)
+                        ProgressView().tint(.legoYellow)
                     }
+                @unknown default:
+                    placeholderArea
+                }
+            }
+        } else {
+            placeholderArea
+        }
+    }
+
+    private var placeholderArea: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color.legoRed.opacity(0.3), Color.legoYellow.opacity(0.2)],
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            )
+            .frame(height: 260)
+
+            VStack(spacing: 8) {
+                Image(systemName: "building.2.crop.circle")
+                    .font(.system(size: 48))
+                    .foregroundColor(.secondaryText)
+                Text("Set #\(post.legoSetNumber)")
+                    .font(.legoCardTitle)
+                    .foregroundColor(.legoYellow)
+                if let set = legoSet {
+                    Text(set.theme)
+                        .font(.legoCaption)
+                        .foregroundColor(.secondaryText)
                 }
             }
         }
+    }
+}
+
+// MARK: - Age Rating Badge
+
+/// A small LEGO-yellow rounded badge showing the recommended age, e.g. "9+" or "18+".
+struct AgeRatingBadge: View {
+    let rating: String
+
+    var body: some View {
+        Text(rating)
+            .font(.system(size: 10, weight: .bold, design: .rounded))
+            .foregroundColor(Color(red: 0.12, green: 0.12, blue: 0.12))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color.legoYellow)
+            .cornerRadius(4)
     }
 }
 
