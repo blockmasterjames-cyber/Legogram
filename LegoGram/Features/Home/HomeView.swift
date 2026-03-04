@@ -3,7 +3,7 @@ import AVKit
 
 /// Wrapper used as the navigation item so we can carry both the post
 /// and whether the detail view should auto-scroll to comments.
-struct FeedNavigation: Identifiable {
+struct FeedNavigation: Identifiable, Hashable {
     let post: LegoPost
     let scrollToComments: Bool
     var id: String { post.id + (scrollToComments ? "-c" : "") }
