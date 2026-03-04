@@ -23,8 +23,9 @@ final class PostStore: ObservableObject {
     /// IDs of posts the current user has liked.
     @Published var likedPostIDs: Set<String> = []
 
-    /// Comments keyed by post ID.
-    @Published var comments: [String: [Comment]] = PostStore.seedComments
+    /// Comments keyed by post ID (seed posts + batch posts combined).
+    @Published var comments: [String: [Comment]] =
+        PostStore.seedComments.merging(PostStore.batchComments) { a, _ in a }
 
     /// Usernames the current user has blocked (their posts are hidden from the feed).
     @Published var blockedUsers: Set<String> = []
@@ -285,6 +286,46 @@ final class PostStore: ObservableObject {
                     username: "speedkid42",
                     text: "The swirly colors look EXACTLY like the painting!",
                     postedDate: Date().addingTimeInterval(-38000)),
+        ],
+    ]
+
+    /// Seed comments for batch-loaded posts so the comments section is never empty.
+    static let batchComments: [String: [Comment]] = [
+        "batch1-1": [
+            Comment(id: "bc1", postId: "batch1-1", userId: "u1",
+                    username: "brickmaster99",
+                    text: "The Lamborghini is my dream Technic build! 🏎️",
+                    postedDate: Date().addingTimeInterval(-27000)),
+            Comment(id: "bc2", postId: "batch1-1", userId: "u5",
+                    username: "ideasfan_lily",
+                    text: "The suspension system on this is unreal!",
+                    postedDate: Date().addingTimeInterval(-26000)),
+        ],
+        "batch1-2": [
+            Comment(id: "bc3", postId: "batch1-2", userId: "u2",
+                    username: "citybuilder_max",
+                    text: "Hogwarts in LEGO form... perfection! ⚡️",
+                    postedDate: Date().addingTimeInterval(-13000)),
+            Comment(id: "bc4", postId: "batch1-2", userId: "u6",
+                    username: "speedkid42",
+                    text: "I need this for my LEGO shelf NOW 😍",
+                    postedDate: Date().addingTimeInterval(-12000)),
+        ],
+        "batch2-1": [
+            Comment(id: "bc5", postId: "batch2-1", userId: "u3",
+                    username: "technicjane",
+                    text: "Speed Champions sets are so cute and affordable!",
+                    postedDate: Date().addingTimeInterval(-49000)),
+        ],
+        "batch2-2": [
+            Comment(id: "bc6", postId: "batch2-2", userId: "u7",
+                    username: "legolover_emma",
+                    text: "Building ancient wonders one brick at a time! 🏛️",
+                    postedDate: Date().addingTimeInterval(-71000)),
+            Comment(id: "bc7", postId: "batch2-2", userId: "u8",
+                    username: "marvelfan_zoe",
+                    text: "The texture on the pyramid bricks is amazing!",
+                    postedDate: Date().addingTimeInterval(-70000)),
         ],
     ]
 }

@@ -167,37 +167,47 @@ struct SearchView: View {
 
 // MARK: - Search Set Row
 
-/// One result row: set thumbnail placeholder, name, theme, piece count, and price.
+/// One result row: real set image (AsyncImage), name, age rating badge, theme, piece count, price.
 struct SearchSetRow: View {
     let set: LegoSet
 
     var body: some View {
         HStack(spacing: 12) {
-            // Thumbnail placeholder
-            RoundedRectangle(cornerRadius: 8)
-                .fill(
-                    LinearGradient(
-                        colors: [Color.legoRed.opacity(0.3), Color.legoYellow.opacity(0.2)],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: 60, height: 60)
-                .overlay(
-                    VStack(spacing: 2) {
-                        Image(systemName: "building.2.crop.circle")
-                            .font(.system(size: 18))
-                            .foregroundColor(.secondaryText)
-                        Text(set.setNumber)
-                            .font(.legoCaption)
-                            .foregroundColor(.legoYellow)
-                            .minimumScaleFactor(0.7)
-                    }
-                )
 
+            // Thumbnail — loads official image from Brickset CDN
+            Group {
+                if let url = set.setImageURL {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let img):
+                            img.resizable()
+                                .scaledToFill()
+                                .frame(width: 64, height: 64)
+                                .clipped()
+                        case .failure, .empty:
+                            thumbnailPlaceholder
+                        @unknown default:
+                            thumbnailPlaceholder
+                        }
+                    }
+                } else {
+                    thumbnailPlaceholder
+                }
+            }
+            .frame(width: 64, height: 64)
+            .cornerRadius(8)
+            .clipped()
+
+            // Set details
             VStack(alignment: .leading, spacing: 4) {
-                Text(set.name)
-                    .font(.legoCardTitle)
-                    .foregroundColor(.lightText)
+                // Name + age badge on same line
+                HStack(spacing: 6) {
+                    Text(set.name)
+                        .font(.legoCardTitle)
+                        .foregroundColor(.lightText)
+                        .lineLimit(1)
+                    AgeRatingBadge(rating: set.ageRating)
+                }
                 Text("#\(set.setNumber)  ·  \(set.theme)")
                     .font(.legoCaption)
                     .foregroundColor(.secondaryText)
@@ -208,6 +218,7 @@ struct SearchSetRow: View {
 
             Spacer()
 
+            // Price + Shop link
             VStack(alignment: .trailing, spacing: 4) {
                 Text("$\(String(format: "%.2f", set.retailPrice))")
                     .font(.legoCardTitle)
@@ -227,6 +238,24 @@ struct SearchSetRow: View {
         }
         .padding(12)
         .background(Color.cardBackground)
+    }
+
+    private var thumbnailPlaceholder: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color.legoRed.opacity(0.3), Color.legoYellow.opacity(0.2)],
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            )
+            VStack(spacing: 2) {
+                Image(systemName: "building.2.crop.circle")
+                    .font(.system(size: 18))
+                    .foregroundColor(.secondaryText)
+                Text(set.setNumber)
+                    .font(.legoCaption)
+                    .foregroundColor(.legoYellow)
+                    .minimumScaleFactor(0.7)
+            }
+        }
     }
 }
 

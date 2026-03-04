@@ -2,16 +2,20 @@ import SwiftUI
 import AVKit
 
 /// The full-screen detail view for a single LEGO build post.
-/// Shows the photo or video, username, set info, likes, comments, and a Buy Set button.
-/// Users can also report a post here to keep LegoGram safe.
+/// Sprint 4 upgrades:
+/// • Full-size image loaded via AsyncImage from Brickset CDN
+/// • Age rating badge next to set name
+/// • scrollToComments flag auto-scrolls to comments section when opened via comment button
+/// • Polished layout with clean sections and dividers
 struct PostDetailView: View {
 
     let post: LegoPost
+    /// When true the view scrolls to the comments section as soon as it appears.
+    var scrollToComments: Bool = false
 
     @ObservedObject private var postStore = PostStore.shared
     @Environment(\.dismiss) private var dismiss
 
-    // Comment input
     @State private var commentText = ""
     @State private var showingReportAlert = false
     @State private var showHeartAnimation = false
@@ -20,21 +24,20 @@ struct PostDetailView: View {
     private var comments: [Comment] { postStore.comments(for: post.id) }
     private var legoSet: LegoSet? { LegoSetDatabase.set(for: post.legoSetNumber) }
 
-    // Affiliate earn estimate: ~0.4% of retail price
     private var estimatedEarn: Double {
         guard let set = legoSet else { return post.estimatedEarnings }
         return (set.retailPrice * 0.004).rounded(toPlaces: 2)
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.darkBackground.ignoresSafeArea()
+        ZStack {
+            Color.darkBackground.ignoresSafeArea()
 
+            ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
 
-                        // MARK: Media (Photo or Video)
+                        // MARK: Media — takes up roughly half the screen height
                         mediaSection
                             .gesture(
                                 TapGesture(count: 2).onEnded {
@@ -51,14 +54,14 @@ struct PostDetailView: View {
                             .overlay(heartOverlay)
 
                         // MARK: Post Info
-                        VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 14) {
 
-                            // Username row — tapping navigates to their profile
+                            // Username + date row
                             NavigationLink(value: post.username) {
                                 HStack(spacing: 10) {
                                     Circle()
                                         .fill(Color.legoRed)
-                                        .frame(width: 40, height: 40)
+                                        .frame(width: 42, height: 42)
                                         .overlay(
                                             Text(String(post.username.prefix(1)).uppercased())
                                                 .font(.legoCardTitle)
@@ -68,7 +71,8 @@ struct PostDetailView: View {
                                         Text("@\(post.username)")
                                             .font(.legoCardTitle)
                                             .foregroundColor(.lightText)
-                                        Text(post.postedDate.formatted(date: .abbreviated, time: .shortened))
+                                        Text(post.postedDate.formatted(date: .abbreviated,
+                                                                        time: .shortened))
                                             .font(.legoCaption)
                                             .foregroundColor(.secondaryText)
                                     }
@@ -77,16 +81,27 @@ struct PostDetailView: View {
                             }
                             .buttonStyle(.plain)
 
-                            // Set name + number
-                            Text("Set #\(post.legoSetNumber)  ·  \(post.legoSetName)")
-                                .font(.legoCardTitle)
-                                .foregroundColor(.legoYellow)
+                            // Set name + age rating badge on the same line
+                            HStack(spacing: 8) {
+                                Text(legoSet?.name ?? post.legoSetName)
+                                    .font(.legoCardTitle)
+                                    .foregroundColor(.legoYellow)
+                                if let set = legoSet {
+                                    AgeRatingBadge(rating: set.ageRating)
+                                }
+                                Spacer()
+                            }
 
-                            // Theme (from database)
+                            // Theme + piece count
                             if let set = legoSet {
-                                Text("\(set.theme)  ·  \(set.pieceCount) pieces")
-                                    .font(.legoCaption)
-                                    .foregroundColor(.secondaryText)
+                                HStack(spacing: 6) {
+                                    Label(set.theme, systemImage: "tag.fill")
+                                    Text("·")
+                                    Label("\(set.pieceCount) pieces",
+                                          systemImage: "square.grid.3x3.fill")
+                                }
+                                .font(.legoCaption)
+                                .foregroundColor(.secondaryText)
                             }
 
                             // Description
@@ -97,7 +112,7 @@ struct PostDetailView: View {
                                     .fixedSize(horizontal: false, vertical: true)
                             }
 
-                            // Likes + Comments row
+                            // Likes + Comments + Report row
                             HStack(spacing: 24) {
                                 // Like button
                                 Button {
@@ -106,30 +121,40 @@ struct PostDetailView: View {
                                     }
                                 } label: {
                                     HStack(spacing: 6) {
-                                        Image(systemName: postStore.isLiked(post) ? "heart.fill" : "heart")
+                                        Image(systemName: postStore.isLiked(post)
+                                              ? "heart.fill" : "heart")
                                             .font(.system(size: 20))
+                                            .scaleEffect(postStore.isLiked(post) ? 1.2 : 1.0)
+                                            .animation(.spring(response: 0.3, dampingFraction: 0.5),
+                                                       value: postStore.isLiked(post))
                                         Text("\(currentPost.likeCount)")
                                             .font(.legoBody)
                                     }
-                                    .foregroundColor(postStore.isLiked(post) ? .legoRed : .secondaryText)
+                                    .foregroundColor(postStore.isLiked(post)
+                                                    ? .legoRed : .secondaryText)
                                 }
                                 .buttonStyle(.plain)
 
-                                // Comment count
-                                HStack(spacing: 6) {
-                                    Image(systemName: "bubble.right.fill")
-                                        .font(.system(size: 20))
-                                    Text("\(comments.count)")
-                                        .font(.legoBody)
+                                // Comment count (tapping jumps to comments)
+                                Button {
+                                    withAnimation {
+                                        proxy.scrollTo("comments-anchor", anchor: .top)
+                                    }
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "bubble.right.fill")
+                                            .font(.system(size: 20))
+                                        Text("\(comments.count)")
+                                            .font(.legoBody)
+                                    }
+                                    .foregroundColor(.secondaryText)
                                 }
-                                .foregroundColor(.secondaryText)
+                                .buttonStyle(.plain)
 
                                 Spacer()
 
                                 // Report button
-                                Button {
-                                    showingReportAlert = true
-                                } label: {
+                                Button { showingReportAlert = true } label: {
                                     Image(systemName: "flag")
                                         .font(.system(size: 18))
                                         .foregroundColor(.secondaryText)
@@ -137,18 +162,16 @@ struct PostDetailView: View {
                                 .buttonStyle(.plain)
                             }
 
-                            // Buy Set Button
+                            // Buy Set button (LEGO yellow, full width)
                             if let set = legoSet {
                                 buySetSection(set: set)
-                            } else if !post.buyLink.isEmpty, let url = URL(string: post.buyLink) {
-                                Link(destination: url) {
-                                    buySetLabel(price: nil)
-                                }
+                            } else if !post.buyLink.isEmpty,
+                                      let url = URL(string: post.buyLink) {
+                                Link(destination: url) { buySetLabel(price: nil) }
                             }
 
                             // Earnings callout
                             earningsCallout
-
                         }
                         .padding(16)
 
@@ -156,50 +179,63 @@ struct PostDetailView: View {
                             .background(Color.secondaryText.opacity(0.4))
                             .padding(.horizontal)
 
-                        // MARK: Comments Section
+                        // MARK: Comments Section (anchor for scrolling)
                         commentsSection
+                            .id("comments-anchor")
 
+                        // Extra space so the last comment isn't hidden behind the input bar
                         Color.clear.frame(height: 100)
                     }
                 }
-
-                // MARK: Comment Input (pinned to bottom)
-                VStack {
-                    Spacer()
-                    commentInputBar
-                }
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(Color.cardBackground, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button { dismiss() } label: {
-                        Image(systemName: "chevron.left")
-                            .foregroundColor(.legoYellow)
+                .onAppear {
+                    if scrollToComments {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                            withAnimation {
+                                proxy.scrollTo("comments-anchor", anchor: .top)
+                            }
+                        }
                     }
                 }
-                ToolbarItem(placement: .principal) {
-                    Text(post.legoSetName)
-                        .font(.legoCardTitle)
-                        .foregroundColor(.lightText)
-                }
             }
-            .navigationDestination(for: String.self) { username in
-                OtherProfileView(username: username)
+
+            // Comment input bar — pinned to the bottom at all times
+            VStack {
+                Spacer()
+                commentInputBar
             }
         }
-        .alert("Report Post", isPresented: $showingReportAlert) {
-            Button("Report", role: .destructive) {
-                postStore.reportPost(post)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color.cardBackground, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button { dismiss() } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                        Text("Back")
+                    }
+                    .foregroundColor(.legoYellow)
+                }
             }
+            ToolbarItem(placement: .principal) {
+                Text(legoSet?.name ?? post.legoSetName)
+                    .font(.legoCardTitle)
+                    .foregroundColor(.lightText)
+                    .lineLimit(1)
+            }
+        }
+        .navigationDestination(for: String.self) { username in
+            OtherProfileView(username: username)
+        }
+        .alert("Report Post", isPresented: $showingReportAlert) {
+            Button("Report", role: .destructive) { postStore.reportPost(post) }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Thanks for helping keep LegoGram safe! Our team will review this post.")
         }
     }
 
-    // MARK: - Current Post (live from store for like count updates)
+    // MARK: - Live post from store
 
     private var currentPost: LegoPost {
         postStore.posts.first(where: { $0.id == post.id }) ?? post
@@ -218,22 +254,47 @@ struct PostDetailView: View {
         } else if let videoURL = postStore.postVideoURLs[post.id] {
             VideoPlayer(player: AVPlayer(url: videoURL))
                 .frame(height: 320)
-        } else {
-            ZStack {
-                LinearGradient(
-                    colors: [Color.legoRed.opacity(0.3), Color.legoYellow.opacity(0.2)],
-                    startPoint: .topLeading, endPoint: .bottomTrailing
-                )
-                .frame(height: 300)
-
-                VStack(spacing: 10) {
-                    Image(systemName: "building.2.crop.circle")
-                        .font(.system(size: 64))
-                        .foregroundColor(.secondaryText)
-                    Text("Set #\(post.legoSetNumber)")
-                        .font(.legoScreenTitle)
-                        .foregroundColor(.legoYellow)
+        } else if let imageURL = legoSet?.setImageURL {
+            // Load official set image from Brickset CDN — fills about half the screen
+            AsyncImage(url: imageURL) { phase in
+                switch phase {
+                case .success(let img):
+                    img.resizable()
+                        .scaledToFill()
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 320)
+                        .clipped()
+                case .failure:
+                    gradientPlaceholder
+                case .empty:
+                    ZStack {
+                        Color.black.frame(height: 320)
+                        ProgressView().tint(.legoYellow).scaleEffect(1.5)
+                    }
+                @unknown default:
+                    gradientPlaceholder
                 }
+            }
+        } else {
+            gradientPlaceholder
+        }
+    }
+
+    private var gradientPlaceholder: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color.legoRed.opacity(0.3), Color.legoYellow.opacity(0.2)],
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            )
+            .frame(height: 320)
+
+            VStack(spacing: 10) {
+                Image(systemName: "building.2.crop.circle")
+                    .font(.system(size: 64))
+                    .foregroundColor(.secondaryText)
+                Text("Set #\(post.legoSetNumber)")
+                    .font(.legoScreenTitle)
+                    .foregroundColor(.legoYellow)
             }
         }
     }
@@ -256,7 +317,7 @@ struct PostDetailView: View {
     // MARK: - Buy Set Section
 
     private func buySetSection(set: LegoSet) -> some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             if let url = URL(string: set.legoStoreURL) {
                 Link(destination: url) {
                     buySetLabel(price: set.retailPrice)
@@ -273,7 +334,7 @@ struct PostDetailView: View {
                 Text("Buy Set on LEGO.com")
                     .font(.legoCardTitle)
                 if let price = price {
-                    Text("$\(String(format: "%.2f", price)) retail")
+                    Text("$\(String(format: "%.2f", price)) retail · earn $\(String(format: "%.2f", estimatedEarn))")
                         .font(.legoCaption)
                 }
             }
@@ -317,11 +378,15 @@ struct PostDetailView: View {
                 .padding(.bottom, 8)
 
             if comments.isEmpty {
-                Text("No comments yet — be the first! 👇")
-                    .font(.legoBody)
-                    .foregroundColor(.secondaryText)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 12)
+                // Placeholder so the section never looks empty
+                CommentRow(comment: Comment(
+                    id: "placeholder",
+                    postId: post.id,
+                    userId: "legobot",
+                    username: "legobot",
+                    text: "Be the first to leave a comment on this amazing build! 🧱",
+                    postedDate: post.postedDate
+                ))
             } else {
                 ForEach(comments) { comment in
                     CommentRow(comment: comment)
@@ -350,23 +415,27 @@ struct PostDetailView: View {
             Button {
                 submitComment()
             } label: {
-                Image(systemName: "paperplane.fill")
-                    .font(.system(size: 20))
+                Text("Send")
+                    .font(.legoCaption.bold())
                     .foregroundColor(.white)
-                    .padding(10)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
                     .background(commentText.trimmingCharacters(in: .whitespaces).isEmpty
                                 ? Color.legoRed.opacity(0.4)
                                 : Color.legoRed)
-                    .clipShape(Circle())
+                    .cornerRadius(20)
             }
             .disabled(commentText.trimmingCharacters(in: .whitespaces).isEmpty)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(Color.darkBackground.opacity(0.95))
+        .background(
+            Color.darkBackground.opacity(0.97)
+                .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: -3)
+        )
     }
 
-    // MARK: - Actions
+    // MARK: - Submit Comment
 
     private func submitComment() {
         let trimmed = commentText.trimmingCharacters(in: .whitespaces)
@@ -379,18 +448,21 @@ struct PostDetailView: View {
 
 // MARK: - Comment Row
 
-/// A single comment bubble with username, text, and time.
 struct CommentRow: View {
     let comment: Comment
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
+            // Small avatar circle
             Circle()
-                .fill(Color.legoRed.opacity(0.8))
+                .fill(comment.username == "legobot"
+                      ? Color.legoYellow.opacity(0.8)
+                      : Color.legoRed.opacity(0.8))
                 .frame(width: 32, height: 32)
                 .overlay(
-                    Text(String(comment.username.prefix(1)).uppercased())
-                        .font(.legoCaption)
+                    Image(systemName: comment.username == "legobot"
+                          ? "sparkles" : "person.fill")
+                        .font(.system(size: comment.username == "legobot" ? 14 : 12))
                         .foregroundColor(.white)
                 )
 
@@ -416,6 +488,7 @@ struct CommentRow: View {
 }
 
 // MARK: - Double helper
+
 private extension Double {
     func rounded(toPlaces places: Int) -> Double {
         let divisor = pow(10.0, Double(places))
