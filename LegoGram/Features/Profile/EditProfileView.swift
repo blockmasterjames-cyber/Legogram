@@ -85,6 +85,8 @@ struct EditProfileView: View {
                         Color.clear.frame(height: 40)
                     }
                 }
+                // Tap outside text fields to dismiss keyboard
+                .onTapGesture { hideKeyboard() }
             }
             .navigationTitle("Edit Profile")
             .navigationBarTitleDisplayMode(.inline)

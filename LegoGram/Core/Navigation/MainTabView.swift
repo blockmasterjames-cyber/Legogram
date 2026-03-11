@@ -1,16 +1,31 @@
 import SwiftUI
 
 /// The main navigation shell.
-/// Sprint 3 upgrade: on iPad in landscape / regular width, shows a sidebar instead of a bottom tab bar.
-/// On iPhone and iPad portrait (compact width), keeps the existing custom bottom tab bar.
+/// Sprint 5 upgrade:
+/// • iPad landscape: sidebar navigation on left
+/// • iPad portrait: bottom tab bar with extra spacing
+/// • iPhone: custom bottom tab bar (unchanged)
 struct MainTabView: View {
 
     @ObservedObject private var appState = AppState.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+
+    /// True when we're on an iPad in landscape orientation (wide + short).
+    private var isIPadLandscape: Bool {
+        horizontalSizeClass == .regular && verticalSizeClass == .compact
+    }
+
+    /// True when we're on any iPad (portrait or landscape).
+    private var isIPad: Bool {
+        horizontalSizeClass == .regular
+    }
 
     var body: some View {
-        if horizontalSizeClass == .regular {
+        if isIPadLandscape {
             iPadSidebarLayout
+        } else if isIPad {
+            iPadPortraitLayout
         } else {
             iPhoneTabLayout
         }
@@ -35,7 +50,59 @@ struct MainTabView: View {
         .ignoresSafeArea(edges: .bottom)
     }
 
-    // MARK: - iPad / Regular Layout (sidebar on left)
+    // MARK: - iPad Portrait Layout (tab bar with extra spacing)
+
+    private var iPadPortraitLayout: some View {
+        ZStack(alignment: .bottom) {
+            TabView(selection: $appState.selectedTab) {
+                HomeView()        .tag(AppTab.home)
+                SearchView()      .tag(AppTab.search)
+                NewPostView()     .tag(AppTab.newPost)
+                LeaderboardView() .tag(AppTab.leaderboard)
+                ProfileView()     .tag(AppTab.profile)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+
+            iPadTabBar
+        }
+        .background(Color.darkBackground)
+        .ignoresSafeArea(edges: .bottom)
+    }
+
+    private var iPadTabBar: some View {
+        HStack(spacing: 0) {
+            tabBarButton(tab: .home,        icon: "house.fill",      label: "Home")
+            tabBarButton(tab: .search,      icon: "magnifyingglass", label: "Search")
+            iPadPostButton
+            tabBarButton(tab: .leaderboard, icon: "trophy.fill",     label: "Leaderboard")
+            tabBarButton(tab: .profile,     icon: "person.fill",     label: "Profile")
+        }
+        .padding(.horizontal, 40)   // more spacing on iPad
+        .padding(.top, 14)
+        .padding(.bottom, 32)
+        .background(Color.cardBackground.shadow(radius: 8, y: -2))
+    }
+
+    private var iPadPostButton: some View {
+        Button { appState.selectedTab = .newPost } label: {
+            ZStack {
+                Capsule()
+                    .fill(Color.legoRed)
+                    .frame(width: 80, height: 52)
+                    .shadow(color: .legoRed.opacity(0.5), radius: 8, y: 4)
+                HStack(spacing: 6) {
+                    Image(systemName: "plus").font(.system(size: 18, weight: .bold))
+                    Text("Post").font(.legoCaption.bold())
+                }
+                .foregroundColor(.white)
+            }
+            .offset(y: -10)
+        }
+        .frame(maxWidth: .infinity)
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - iPad Landscape / Regular Layout (sidebar on left)
 
     private var iPadSidebarLayout: some View {
         HStack(spacing: 0) {

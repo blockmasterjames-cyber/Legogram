@@ -182,6 +182,8 @@ struct NewPostView: View {
                     }
                     .padding(.top)
                 }
+                // Tap outside text fields to dismiss keyboard
+                .onTapGesture { hideKeyboard() }
             }
         }
         .sheet(isPresented: $showingCamera) {

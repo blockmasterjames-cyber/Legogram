@@ -1,18 +1,19 @@
 import Foundation
 
-/// A local database of 60 popular LEGO sets used for:
-/// • Auto-complete while typing a set number in the New Post screen
-/// • Powering the Search screen results
-/// Data covers 10 major LEGO themes as required by Sprint 3.
+/// A local database of 200+ popular LEGO sets.
+/// Covers all 20 major themes as required by Sprint 5.
+/// Each set's Brickset CDN image is loaded automatically via LegoSet.setImageURL.
 struct LegoSetDatabase {
 
-    // MARK: - All 60 Sets (10 themes × 6 sets each)
+    // MARK: - All Sets
 
     static let allSets: [LegoSet] =
-        starWars + technic + city + creator + ideas +
-        icons + harryPotter + marvel + speedChampions + architecture
+        starWars + technic + city + creator + ideas + icons +
+        harryPotter + marvel + speedChampions + architecture +
+        dc + ninjago + friends + disney + mindstorms +
+        botanicalCollection + art + classic + monkieKid + jurassicWorld
 
-    // MARK: - Star Wars (6 sets)
+    // MARK: - Star Wars (18 sets)
 
     static let starWars: [LegoSet] = [
         LegoSet(id: "75192", setNumber: "75192", name: "Millennium Falcon",
@@ -39,9 +40,57 @@ struct LegoSetDatabase {
                 theme: "Star Wars", pieceCount: 1890, retailPrice: 199.99,
                 buyLink: "https://www.lego.com/en-us/product/luke-skywalker-s-landspeeder-75341",
                 imageURL: "", releaseYear: 2022),
+        LegoSet(id: "75365", setNumber: "75365", name: "Yavin 4 Rebel Base",
+                theme: "Star Wars", pieceCount: 1066, retailPrice: 149.99,
+                buyLink: "https://www.lego.com/en-us/product/yavin-4-rebel-base-75365",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "75336", setNumber: "75336", name: "Inquisitor Transport Scythe",
+                theme: "Star Wars", pieceCount: 924, retailPrice: 99.99,
+                buyLink: "https://www.lego.com/en-us/product/inquisitor-transport-scythe-75336",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "75326", setNumber: "75326", name: "Boba Fett's Throne Room",
+                theme: "Star Wars", pieceCount: 732, retailPrice: 89.99,
+                buyLink: "https://www.lego.com/en-us/product/boba-fett-s-throne-room-75326",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "75355", setNumber: "75355", name: "X-wing Starfighter",
+                theme: "Star Wars", pieceCount: 1953, retailPrice: 239.99,
+                buyLink: "https://www.lego.com/en-us/product/x-wing-starfighter-75355",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "75349", setNumber: "75349", name: "Captain Rex Phase I Helmet",
+                theme: "Star Wars", pieceCount: 854, retailPrice: 69.99,
+                buyLink: "https://www.lego.com/en-us/product/captain-rex-phase-i-helmet-75349",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "75351", setNumber: "75351", name: "Princess Leia (Boushh) Helmet",
+                theme: "Star Wars", pieceCount: 534, retailPrice: 54.99,
+                buyLink: "https://www.lego.com/en-us/product/princess-leia-boushh-helmet-75351",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "75304", setNumber: "75304", name: "Darth Vader Helmet",
+                theme: "Star Wars", pieceCount: 834, retailPrice: 69.99,
+                buyLink: "https://www.lego.com/en-us/product/darth-vader-helmet-75304",
+                imageURL: "", releaseYear: 2021),
+        LegoSet(id: "75330", setNumber: "75330", name: "Dagobah Jedi Training Diorama",
+                theme: "Star Wars", pieceCount: 1000, retailPrice: 79.99,
+                buyLink: "https://www.lego.com/en-us/product/dagobah-jedi-training-diorama-75330",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "75335", setNumber: "75335", name: "BD-1",
+                theme: "Star Wars", pieceCount: 1062, retailPrice: 99.99,
+                buyLink: "https://www.lego.com/en-us/product/bd-1-75335",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "75332", setNumber: "75332", name: "AT-ST",
+                theme: "Star Wars", pieceCount: 586, retailPrice: 79.99,
+                buyLink: "https://www.lego.com/en-us/product/at-st-75332",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "75299", setNumber: "75299", name: "Trouble on Tatooine",
+                theme: "Star Wars", pieceCount: 277, retailPrice: 29.99,
+                buyLink: "https://www.lego.com/en-us/product/trouble-on-tatooine-75299",
+                imageURL: "", releaseYear: 2021),
+        LegoSet(id: "75345", setNumber: "75345", name: "Snowtrooper Battle Pack",
+                theme: "Star Wars", pieceCount: 105, retailPrice: 14.99,
+                buyLink: "https://www.lego.com/en-us/product/snowtrooper-battle-pack-75345",
+                imageURL: "", releaseYear: 2023),
     ]
 
-    // MARK: - Technic (6 sets)
+    // MARK: - Technic (12 sets)
 
     static let technic: [LegoSet] = [
         LegoSet(id: "42115", setNumber: "42115", name: "Lamborghini Sián FKP 37",
@@ -68,9 +117,33 @@ struct LegoSetDatabase {
                 theme: "Technic", pieceCount: 1580, retailPrice: 149.99,
                 buyLink: "https://www.lego.com/en-us/product/porsche-911-rsr-42096",
                 imageURL: "", releaseYear: 2018),
+        LegoSet(id: "42143", setNumber: "42143", name: "Ferrari Daytona SP3",
+                theme: "Technic", pieceCount: 3778, retailPrice: 449.99,
+                buyLink: "https://www.lego.com/en-us/product/ferrari-daytona-sp3-42143",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "42141", setNumber: "42141", name: "McLaren Formula 1 Race Car",
+                theme: "Technic", pieceCount: 1432, retailPrice: 179.99,
+                buyLink: "https://www.lego.com/en-us/product/mclaren-formula-1-race-car-42141",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "42100", setNumber: "42100", name: "Liebherr R 9800 Excavator",
+                theme: "Technic", pieceCount: 4108, retailPrice: 449.99,
+                buyLink: "https://www.lego.com/en-us/product/liebherr-r-9800-excavator-42100",
+                imageURL: "", releaseYear: 2019),
+        LegoSet(id: "42118", setNumber: "42118", name: "Monster Jam Grave Digger",
+                theme: "Technic", pieceCount: 212, retailPrice: 24.99,
+                buyLink: "https://www.lego.com/en-us/product/monster-jam-grave-digger-42118",
+                imageURL: "", releaseYear: 2021),
+        LegoSet(id: "42159", setNumber: "42159", name: "Yamaha MT-10 SP",
+                theme: "Technic", pieceCount: 1478, retailPrice: 189.99,
+                buyLink: "https://www.lego.com/en-us/product/yamaha-mt-10-sp-42159",
+                imageURL: "", releaseYear: 2024),
+        LegoSet(id: "42156", setNumber: "42156", name: "Peugeot 9X8 24H Le Mans Hybrid Hypercar",
+                theme: "Technic", pieceCount: 1775, retailPrice: 249.99,
+                buyLink: "https://www.lego.com/en-us/product/peugeot-9x8-42156",
+                imageURL: "", releaseYear: 2023),
     ]
 
-    // MARK: - City (6 sets)
+    // MARK: - City (12 sets)
 
     static let city: [LegoSet] = [
         LegoSet(id: "60380", setNumber: "60380", name: "Downtown",
@@ -97,9 +170,33 @@ struct LegoSetDatabase {
                 theme: "City", pieceCount: 269, retailPrice: 39.99,
                 buyLink: "https://www.lego.com/en-us/product/city-fun-park-60293",
                 imageURL: "", releaseYear: 2021),
+        LegoSet(id: "60337", setNumber: "60337", name: "Express Passenger Train",
+                theme: "City", pieceCount: 764, retailPrice: 129.99,
+                buyLink: "https://www.lego.com/en-us/product/express-passenger-train-60337",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "60319", setNumber: "60319", name: "Fire Rescue Boat",
+                theme: "City", pieceCount: 144, retailPrice: 29.99,
+                buyLink: "https://www.lego.com/en-us/product/fire-rescue-boat-60319",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "60390", setNumber: "60390", name: "Park and Garden",
+                theme: "City", pieceCount: 686, retailPrice: 79.99,
+                buyLink: "https://www.lego.com/en-us/product/park-and-garden-60390",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "60362", setNumber: "60362", name: "Car Wash",
+                theme: "City", pieceCount: 243, retailPrice: 39.99,
+                buyLink: "https://www.lego.com/en-us/product/car-wash-60362",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "60388", setNumber: "60388", name: "Gaming Tournament",
+                theme: "City", pieceCount: 344, retailPrice: 49.99,
+                buyLink: "https://www.lego.com/en-us/product/gaming-tournament-60388",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "60385", setNumber: "60385", name: "Construction Digger",
+                theme: "City", pieceCount: 148, retailPrice: 19.99,
+                buyLink: "https://www.lego.com/en-us/product/construction-digger-60385",
+                imageURL: "", releaseYear: 2023),
     ]
 
-    // MARK: - Creator 3-in-1 (6 sets)
+    // MARK: - Creator 3-in-1 (10 sets)
 
     static let creator: [LegoSet] = [
         LegoSet(id: "31120", setNumber: "31120", name: "Medieval Castle",
@@ -126,9 +223,25 @@ struct LegoSetDatabase {
                 theme: "Creator 3-in-1", pieceCount: 137, retailPrice: 14.99,
                 buyLink: "https://www.lego.com/en-us/product/dolphin-and-turtle-31128",
                 imageURL: "", releaseYear: 2022),
+        LegoSet(id: "31132", setNumber: "31132", name: "Viking Ship and the Midgard Serpent",
+                theme: "Creator 3-in-1", pieceCount: 1192, retailPrice: 99.99,
+                buyLink: "https://www.lego.com/en-us/product/viking-ship-31132",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "31142", setNumber: "31142", name: "Space Roller Coaster",
+                theme: "Creator 3-in-1", pieceCount: 507, retailPrice: 59.99,
+                buyLink: "https://www.lego.com/en-us/product/space-roller-coaster-31142",
+                imageURL: "", releaseYear: 2024),
+        LegoSet(id: "31136", setNumber: "31136", name: "Exotic Parrot",
+                theme: "Creator 3-in-1", pieceCount: 253, retailPrice: 19.99,
+                buyLink: "https://www.lego.com/en-us/product/exotic-parrot-31136",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "31141", setNumber: "31141", name: "Sports Car",
+                theme: "Creator 3-in-1", pieceCount: 134, retailPrice: 9.99,
+                buyLink: "https://www.lego.com/en-us/product/sports-car-31141",
+                imageURL: "", releaseYear: 2024),
     ]
 
-    // MARK: - Ideas (6 sets)
+    // MARK: - Ideas (10 sets)
 
     static let ideas: [LegoSet] = [
         LegoSet(id: "21325", setNumber: "21325", name: "Medieval Blacksmith",
@@ -155,9 +268,25 @@ struct LegoSetDatabase {
                 theme: "Ideas", pieceCount: 1671, retailPrice: 179.99,
                 buyLink: "https://www.lego.com/en-us/product/jazz-quartet-21334",
                 imageURL: "", releaseYear: 2022),
+        LegoSet(id: "21337", setNumber: "21337", name: "Table Football",
+                theme: "Ideas", pieceCount: 2339, retailPrice: 249.99,
+                buyLink: "https://www.lego.com/en-us/product/table-football-21337",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "21338", setNumber: "21338", name: "A-Frame Cabin",
+                theme: "Ideas", pieceCount: 2082, retailPrice: 179.99,
+                buyLink: "https://www.lego.com/en-us/product/a-frame-cabin-21338",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "21340", setNumber: "21340", name: "Tales of the Space Age",
+                theme: "Ideas", pieceCount: 688, retailPrice: 79.99,
+                buyLink: "https://www.lego.com/en-us/product/tales-of-the-space-age-21340",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "21341", setNumber: "21341", name: "Hocus Pocus: The Sanderson Sisters' Cottage",
+                theme: "Ideas", pieceCount: 2316, retailPrice: 199.99,
+                buyLink: "https://www.lego.com/en-us/product/hocus-pocus-21341",
+                imageURL: "", releaseYear: 2023),
     ]
 
-    // MARK: - Icons (6 sets)
+    // MARK: - Icons (10 sets)
 
     static let icons: [LegoSet] = [
         LegoSet(id: "10317", setNumber: "10317", name: "Classic Land Rover Defender 90",
@@ -184,9 +313,25 @@ struct LegoSetDatabase {
                 theme: "Icons", pieceCount: 1458, retailPrice: 149.99,
                 buyLink: "https://www.lego.com/en-us/product/porsche-911-10295",
                 imageURL: "", releaseYear: 2021),
+        LegoSet(id: "10302", setNumber: "10302", name: "Optimus Prime",
+                theme: "Icons", pieceCount: 1508, retailPrice: 169.99,
+                buyLink: "https://www.lego.com/en-us/product/optimus-prime-10302",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "10306", setNumber: "10306", name: "Atari 2600",
+                theme: "Icons", pieceCount: 2532, retailPrice: 239.99,
+                buyLink: "https://www.lego.com/en-us/product/atari-2600-10306",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "10308", setNumber: "10308", name: "Holiday Main Street",
+                theme: "Icons", pieceCount: 1514, retailPrice: 169.99,
+                buyLink: "https://www.lego.com/en-us/product/holiday-main-street-10308",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "10316", setNumber: "10316", name: "The Lord of the Rings: Rivendell",
+                theme: "Icons", pieceCount: 6167, retailPrice: 469.99,
+                buyLink: "https://www.lego.com/en-us/product/rivendell-10316",
+                imageURL: "", releaseYear: 2023),
     ]
 
-    // MARK: - Harry Potter (6 sets)
+    // MARK: - Harry Potter (10 sets)
 
     static let harryPotter: [LegoSet] = [
         LegoSet(id: "76419", setNumber: "76419", name: "Hogwarts Castle and Grounds",
@@ -213,9 +358,25 @@ struct LegoSetDatabase {
                 theme: "Harry Potter", pieceCount: 3010, retailPrice: 249.99,
                 buyLink: "https://www.lego.com/en-us/product/hogwarts-icons-collectors-edition-76391",
                 imageURL: "", releaseYear: 2021),
+        LegoSet(id: "76403", setNumber: "76403", name: "The Ministry of Magic",
+                theme: "Harry Potter", pieceCount: 990, retailPrice: 99.99,
+                buyLink: "https://www.lego.com/en-us/product/the-ministry-of-magic-76403",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "76407", setNumber: "76407", name: "The Shrieking Shack and the Whomping Willow",
+                theme: "Harry Potter", pieceCount: 777, retailPrice: 69.99,
+                buyLink: "https://www.lego.com/en-us/product/shrieking-shack-76407",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "76420", setNumber: "76420", name: "Triwizard Tournament: The Black Lake",
+                theme: "Harry Potter", pieceCount: 349, retailPrice: 39.99,
+                buyLink: "https://www.lego.com/en-us/product/triwizard-tournament-76420",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "76394", setNumber: "76394", name: "Fawkes, Dumbledore's Phoenix",
+                theme: "Harry Potter", pieceCount: 597, retailPrice: 59.99,
+                buyLink: "https://www.lego.com/en-us/product/fawkes-76394",
+                imageURL: "", releaseYear: 2022),
     ]
 
-    // MARK: - Marvel (6 sets)
+    // MARK: - Marvel (10 sets)
 
     static let marvel: [LegoSet] = [
         LegoSet(id: "76261", setNumber: "76261", name: "Spider-Man Final Battle",
@@ -242,9 +403,25 @@ struct LegoSetDatabase {
                 theme: "Marvel", pieceCount: 590, retailPrice: 69.99,
                 buyLink: "https://www.lego.com/en-us/product/nano-gauntlet-76223",
                 imageURL: "", releaseYear: 2022),
+        LegoSet(id: "76251", setNumber: "76251", name: "Spider-Man's Mask",
+                theme: "Marvel", pieceCount: 584, retailPrice: 79.99,
+                buyLink: "https://www.lego.com/en-us/product/spider-man-s-mask-76251",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "76191", setNumber: "76191", name: "Infinity Gauntlet",
+                theme: "Marvel", pieceCount: 590, retailPrice: 69.99,
+                buyLink: "https://www.lego.com/en-us/product/infinity-gauntlet-76191",
+                imageURL: "", releaseYear: 2021),
+        LegoSet(id: "76241", setNumber: "76241", name: "Hulk Mech Armor",
+                theme: "Marvel", pieceCount: 138, retailPrice: 14.99,
+                buyLink: "https://www.lego.com/en-us/product/hulk-mech-armor-76241",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "76260", setNumber: "76260", name: "Black Widow and Captain America Motorcycles",
+                theme: "Marvel", pieceCount: 130, retailPrice: 14.99,
+                buyLink: "https://www.lego.com/en-us/product/black-widow-captain-america-motorcycles-76260",
+                imageURL: "", releaseYear: 2023),
     ]
 
-    // MARK: - Speed Champions (6 sets)
+    // MARK: - Speed Champions (10 sets)
 
     static let speedChampions: [LegoSet] = [
         LegoSet(id: "76916", setNumber: "76916", name: "Porsche 963",
@@ -259,7 +436,7 @@ struct LegoSetDatabase {
                 theme: "Speed Champions", pieceCount: 291, retailPrice: 24.99,
                 buyLink: "https://www.lego.com/en-us/product/1970-ferrari-512-m-76906",
                 imageURL: "", releaseYear: 2022),
-        LegoSet(id: "76920", setNumber: "76920", name: "Fast & Furious 1970 Dodge Charger",
+        LegoSet(id: "76920", setNumber: "76920", name: "Fast & Furious 1970 Dodge Charger R/T",
                 theme: "Speed Champions", pieceCount: 345, retailPrice: 29.99,
                 buyLink: "https://www.lego.com/en-us/product/fast-furious-1970-dodge-charger-76920",
                 imageURL: "", releaseYear: 2023),
@@ -271,9 +448,25 @@ struct LegoSetDatabase {
                 theme: "Speed Champions", pieceCount: 298, retailPrice: 24.99,
                 buyLink: "https://www.lego.com/en-us/product/007-aston-martin-db5-76911",
                 imageURL: "", releaseYear: 2022),
+        LegoSet(id: "76919", setNumber: "76919", name: "2023 McLaren Formula 1 Race Car",
+                theme: "Speed Champions", pieceCount: 245, retailPrice: 24.99,
+                buyLink: "https://www.lego.com/en-us/product/2023-mclaren-formula-1-race-car-76919",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "76918", setNumber: "76918", name: "McLaren Solus GT & McLaren F1 LM",
+                theme: "Speed Champions", pieceCount: 581, retailPrice: 49.99,
+                buyLink: "https://www.lego.com/en-us/product/mclaren-solus-gt-mclaren-f1-lm-76918",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "76900", setNumber: "76900", name: "Koenigsegg Jesko",
+                theme: "Speed Champions", pieceCount: 280, retailPrice: 24.99,
+                buyLink: "https://www.lego.com/en-us/product/koenigsegg-jesko-76900",
+                imageURL: "", releaseYear: 2021),
+        LegoSet(id: "76921", setNumber: "76921", name: "Audi S1 e-tron quattro Race Car",
+                theme: "Speed Champions", pieceCount: 274, retailPrice: 24.99,
+                buyLink: "https://www.lego.com/en-us/product/audi-s1-e-tron-quattro-race-car-76921",
+                imageURL: "", releaseYear: 2023),
     ]
 
-    // MARK: - Architecture (6 sets)
+    // MARK: - Architecture (10 sets)
 
     static let architecture: [LegoSet] = [
         LegoSet(id: "21044", setNumber: "21044", name: "Paris",
@@ -300,12 +493,422 @@ struct LegoSetDatabase {
                 theme: "Architecture", pieceCount: 565, retailPrice: 59.99,
                 buyLink: "https://www.lego.com/en-us/product/san-francisco-21043",
                 imageURL: "", releaseYear: 2019),
+        LegoSet(id: "21045", setNumber: "21045", name: "Trafalgar Square",
+                theme: "Architecture", pieceCount: 1197, retailPrice: 79.99,
+                buyLink: "https://www.lego.com/en-us/product/trafalgar-square-21045",
+                imageURL: "", releaseYear: 2020),
+        LegoSet(id: "21046", setNumber: "21046", name: "Empire State Building",
+                theme: "Architecture", pieceCount: 1767, retailPrice: 119.99,
+                buyLink: "https://www.lego.com/en-us/product/empire-state-building-21046",
+                imageURL: "", releaseYear: 2020),
+        LegoSet(id: "21047", setNumber: "21047", name: "Las Vegas",
+                theme: "Architecture", pieceCount: 501, retailPrice: 49.99,
+                buyLink: "https://www.lego.com/en-us/product/las-vegas-21047",
+                imageURL: "", releaseYear: 2018),
+        LegoSet(id: "21059", setNumber: "21059", name: "Notre-Dame de Paris",
+                theme: "Architecture", pieceCount: 4383, retailPrice: 269.99,
+                buyLink: "https://www.lego.com/en-us/product/notre-dame-de-paris-21059",
+                imageURL: "", releaseYear: 2023),
+    ]
+
+    // MARK: - DC (10 sets)
+
+    static let dc: [LegoSet] = [
+        LegoSet(id: "76240", setNumber: "76240", name: "Batmobile Tumbler",
+                theme: "DC", pieceCount: 2049, retailPrice: 229.99,
+                buyLink: "https://www.lego.com/en-us/product/batmobile-tumbler-76240",
+                imageURL: "", releaseYear: 2021),
+        LegoSet(id: "76252", setNumber: "76252", name: "Batman Cowl",
+                theme: "DC", pieceCount: 3045, retailPrice: 199.99,
+                buyLink: "https://www.lego.com/en-us/product/batman-cowl-76252",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "76285", setNumber: "76285", name: "Batman's Batmobile",
+                theme: "DC", pieceCount: 438, retailPrice: 49.99,
+                buyLink: "https://www.lego.com/en-us/product/batman-s-batmobile-76285",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "76271", setNumber: "76271", name: "The Batman Movie Batmobile",
+                theme: "DC", pieceCount: 542, retailPrice: 59.99,
+                buyLink: "https://www.lego.com/en-us/product/the-batman-movie-batmobile-76271",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "76188", setNumber: "76188", name: "Batman Classic TV Series Batmobile",
+                theme: "DC", pieceCount: 345, retailPrice: 29.99,
+                buyLink: "https://www.lego.com/en-us/product/batman-classic-tv-series-batmobile-76188",
+                imageURL: "", releaseYear: 2021),
+        LegoSet(id: "76160", setNumber: "76160", name: "Mobile Bat Base",
+                theme: "DC", pieceCount: 743, retailPrice: 99.99,
+                buyLink: "https://www.lego.com/en-us/product/mobile-bat-base-76160",
+                imageURL: "", releaseYear: 2021),
+        LegoSet(id: "76224", setNumber: "76224", name: "Batmobile: Batman vs. The Joker Chase",
+                theme: "DC", pieceCount: 438, retailPrice: 49.99,
+                buyLink: "https://www.lego.com/en-us/product/batmobile-batman-vs-the-joker-chase-76224",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "76258", setNumber: "76258", name: "Batman Construction Figure",
+                theme: "DC", pieceCount: 270, retailPrice: 29.99,
+                buyLink: "https://www.lego.com/en-us/product/batman-construction-figure-76258",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "76161", setNumber: "76161", name: "1989 Batwing",
+                theme: "DC", pieceCount: 2363, retailPrice: 199.99,
+                buyLink: "https://www.lego.com/en-us/product/1989-batwing-76161",
+                imageURL: "", releaseYear: 2020),
+        LegoSet(id: "76183", setNumber: "76183", name: "Batcave: The Penguin Face-off",
+                theme: "DC", pieceCount: 392, retailPrice: 39.99,
+                buyLink: "https://www.lego.com/en-us/product/batcave-the-penguin-face-off-76183",
+                imageURL: "", releaseYear: 2022),
+    ]
+
+    // MARK: - Ninjago (10 sets)
+
+    static let ninjago: [LegoSet] = [
+        LegoSet(id: "71741", setNumber: "71741", name: "NINJAGO City Gardens",
+                theme: "Ninjago", pieceCount: 5685, retailPrice: 349.99,
+                buyLink: "https://www.lego.com/en-us/product/ninjago-city-gardens-71741",
+                imageURL: "", releaseYear: 2021),
+        LegoSet(id: "71799", setNumber: "71799", name: "NINJAGO City Markets",
+                theme: "Ninjago", pieceCount: 6163, retailPrice: 399.99,
+                buyLink: "https://www.lego.com/en-us/product/ninjago-city-markets-71799",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "71793", setNumber: "71793", name: "Heatwave Transforming Lava Dragon",
+                theme: "Ninjago", pieceCount: 479, retailPrice: 49.99,
+                buyLink: "https://www.lego.com/en-us/product/heatwave-transforming-lava-dragon-71793",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "71791", setNumber: "71791", name: "Zane's Dragon Power Spinjitzu Race Car",
+                theme: "Ninjago", pieceCount: 307, retailPrice: 34.99,
+                buyLink: "https://www.lego.com/en-us/product/zane-s-dragon-power-spinjitzu-race-car-71791",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "71780", setNumber: "71780", name: "Kai's Ninja Race Car EVO",
+                theme: "Ninjago", pieceCount: 94, retailPrice: 14.99,
+                buyLink: "https://www.lego.com/en-us/product/kai-s-ninja-race-car-evo-71780",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "71765", setNumber: "71765", name: "Ninja Ultra Combo Mech",
+                theme: "Ninjago", pieceCount: 1104, retailPrice: 109.99,
+                buyLink: "https://www.lego.com/en-us/product/ninja-ultra-combo-mech-71765",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "71772", setNumber: "71772", name: "The Crystal King",
+                theme: "Ninjago", pieceCount: 410, retailPrice: 39.99,
+                buyLink: "https://www.lego.com/en-us/product/the-crystal-king-71772",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "71794", setNumber: "71794", name: "Lloyd and Arin's Ninja Team Mechs",
+                theme: "Ninjago", pieceCount: 764, retailPrice: 89.99,
+                buyLink: "https://www.lego.com/en-us/product/lloyd-and-arin-s-ninja-team-mechs-71794",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "71796", setNumber: "71796", name: "Elemental Dragon vs. The Empress Mech",
+                theme: "Ninjago", pieceCount: 774, retailPrice: 79.99,
+                buyLink: "https://www.lego.com/en-us/product/elemental-dragon-vs-the-empress-mech-71796",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "71800", setNumber: "71800", name: "Nya's Speeder Bike EVO",
+                theme: "Ninjago", pieceCount: 356, retailPrice: 39.99,
+                buyLink: "https://www.lego.com/en-us/product/nya-s-speeder-bike-evo-71800",
+                imageURL: "", releaseYear: 2023),
+    ]
+
+    // MARK: - Friends (10 sets)
+
+    static let friends: [LegoSet] = [
+        LegoSet(id: "41711", setNumber: "41711", name: "Emma's Art School",
+                theme: "Friends", pieceCount: 844, retailPrice: 89.99,
+                buyLink: "https://www.lego.com/en-us/product/emma-s-art-school-41711",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "41735", setNumber: "41735", name: "Mobile Tiny House",
+                theme: "Friends", pieceCount: 785, retailPrice: 89.99,
+                buyLink: "https://www.lego.com/en-us/product/mobile-tiny-house-41735",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "41737", setNumber: "41737", name: "Beach Amusement Park",
+                theme: "Friends", pieceCount: 1348, retailPrice: 129.99,
+                buyLink: "https://www.lego.com/en-us/product/beach-amusement-park-41737",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "41732", setNumber: "41732", name: "Downtown Flower and Design Stores",
+                theme: "Friends", pieceCount: 1062, retailPrice: 109.99,
+                buyLink: "https://www.lego.com/en-us/product/downtown-flower-and-design-stores-41732",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "42617", setNumber: "42617", name: "Heartlake City Animal Sanctuary",
+                theme: "Friends", pieceCount: 489, retailPrice: 49.99,
+                buyLink: "https://www.lego.com/en-us/product/heartlake-city-animal-sanctuary-42617",
+                imageURL: "", releaseYear: 2024),
+        LegoSet(id: "42634", setNumber: "42634", name: "Horse and Pony Trailer",
+                theme: "Friends", pieceCount: 105, retailPrice: 14.99,
+                buyLink: "https://www.lego.com/en-us/product/horse-and-pony-trailer-42634",
+                imageURL: "", releaseYear: 2024),
+        LegoSet(id: "41715", setNumber: "41715", name: "Ice Cream Truck",
+                theme: "Friends", pieceCount: 296, retailPrice: 29.99,
+                buyLink: "https://www.lego.com/en-us/product/ice-cream-truck-41715",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "41687", setNumber: "41687", name: "Magical Funfair Stalls",
+                theme: "Friends", pieceCount: 361, retailPrice: 39.99,
+                buyLink: "https://www.lego.com/en-us/product/magical-funfair-stalls-41687",
+                imageURL: "", releaseYear: 2021),
+        LegoSet(id: "41729", setNumber: "41729", name: "Organic Grocery Store",
+                theme: "Friends", pieceCount: 1012, retailPrice: 99.99,
+                buyLink: "https://www.lego.com/en-us/product/organic-grocery-store-41729",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "41740", setNumber: "41740", name: "Aliya's Room",
+                theme: "Friends", pieceCount: 388, retailPrice: 39.99,
+                buyLink: "https://www.lego.com/en-us/product/aliya-s-room-41740",
+                imageURL: "", releaseYear: 2023),
+    ]
+
+    // MARK: - Disney (10 sets)
+
+    static let disney: [LegoSet] = [
+        LegoSet(id: "43222", setNumber: "43222", name: "Disney Castle",
+                theme: "Disney", pieceCount: 4837, retailPrice: 379.99,
+                buyLink: "https://www.lego.com/en-us/product/disney-castle-43222",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "43217", setNumber: "43217", name: "Up House",
+                theme: "Disney", pieceCount: 512, retailPrice: 79.99,
+                buyLink: "https://www.lego.com/en-us/product/up-house-43217",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "43230", setNumber: "43230", name: "Walt Disney Tribute Camera",
+                theme: "Disney", pieceCount: 811, retailPrice: 89.99,
+                buyLink: "https://www.lego.com/en-us/product/walt-disney-tribute-camera-43230",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "43225", setNumber: "43225", name: "The Little Mermaid Royal Clamshell",
+                theme: "Disney", pieceCount: 496, retailPrice: 59.99,
+                buyLink: "https://www.lego.com/en-us/product/the-little-mermaid-royal-clamshell-43225",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "43218", setNumber: "43218", name: "Magical Ferris Wheel and Slide",
+                theme: "Disney", pieceCount: 545, retailPrice: 89.99,
+                buyLink: "https://www.lego.com/en-us/product/magical-ferris-wheel-and-slide-43218",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "43220", setNumber: "43220", name: "Peter Pan & Wendy's Storybook Adventure",
+                theme: "Disney", pieceCount: 111, retailPrice: 14.99,
+                buyLink: "https://www.lego.com/en-us/product/peter-pan-wendy-s-storybook-adventure-43220",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "43224", setNumber: "43224", name: "King Magnifico's Castle",
+                theme: "Disney", pieceCount: 613, retailPrice: 69.99,
+                buyLink: "https://www.lego.com/en-us/product/king-magnifico-s-castle-43224",
+                imageURL: "", releaseYear: 2024),
+        LegoSet(id: "43228", setNumber: "43228", name: "Belle's Ballroom",
+                theme: "Disney", pieceCount: 209, retailPrice: 24.99,
+                buyLink: "https://www.lego.com/en-us/product/belle-s-ballroom-43228",
+                imageURL: "", releaseYear: 2024),
+        LegoSet(id: "43219", setNumber: "43219", name: "Disney Classic Animation Figures",
+                theme: "Disney", pieceCount: 1022, retailPrice: 99.99,
+                buyLink: "https://www.lego.com/en-us/product/disney-classic-animation-figures-43219",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "43214", setNumber: "43214", name: "Twirling Rapunzel",
+                theme: "Disney", pieceCount: 89, retailPrice: 9.99,
+                buyLink: "https://www.lego.com/en-us/product/twirling-rapunzel-43214",
+                imageURL: "", releaseYear: 2023),
+    ]
+
+    // MARK: - Mindstorms (6 sets)
+
+    static let mindstorms: [LegoSet] = [
+        LegoSet(id: "51515", setNumber: "51515", name: "Robot Inventor",
+                theme: "Mindstorms", pieceCount: 949, retailPrice: 359.99,
+                buyLink: "https://www.lego.com/en-us/product/robot-inventor-51515",
+                imageURL: "", releaseYear: 2020),
+        LegoSet(id: "31313", setNumber: "31313", name: "Mindstorms EV3",
+                theme: "Mindstorms", pieceCount: 601, retailPrice: 349.99,
+                buyLink: "https://www.lego.com/en-us/product/mindstorms-ev3-31313",
+                imageURL: "", releaseYear: 2013),
+        LegoSet(id: "45544", setNumber: "45544", name: "EV3 Core Set",
+                theme: "Mindstorms", pieceCount: 541, retailPrice: 329.99,
+                buyLink: "https://www.lego.com/en-us/product/ev3-core-set-45544",
+                imageURL: "", releaseYear: 2020),
+        LegoSet(id: "45678", setNumber: "45678", name: "SPIKE Prime Set",
+                theme: "Mindstorms", pieceCount: 523, retailPrice: 329.99,
+                buyLink: "https://www.lego.com/en-us/product/spike-prime-set-45678",
+                imageURL: "", releaseYear: 2019),
+        LegoSet(id: "45345", setNumber: "45345", name: "SPIKE Essential Set",
+                theme: "Mindstorms", pieceCount: 449, retailPrice: 179.99,
+                buyLink: "https://www.lego.com/en-us/product/spike-essential-set-45345",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "45300", setNumber: "45300", name: "WeDo 2.0 Core Set",
+                theme: "Mindstorms", pieceCount: 280, retailPrice: 129.99,
+                buyLink: "https://www.lego.com/en-us/product/wedo-2-0-core-set-45300",
+                imageURL: "", releaseYear: 2016),
+    ]
+
+    // MARK: - Botanical Collection (8 sets)
+
+    static let botanicalCollection: [LegoSet] = [
+        LegoSet(id: "10289", setNumber: "10289", name: "Bird of Paradise",
+                theme: "Botanical Collection", pieceCount: 1173, retailPrice: 99.99,
+                buyLink: "https://www.lego.com/en-us/product/bird-of-paradise-10289",
+                imageURL: "", releaseYear: 2021),
+        LegoSet(id: "10309", setNumber: "10309", name: "Succulents",
+                theme: "Botanical Collection", pieceCount: 771, retailPrice: 49.99,
+                buyLink: "https://www.lego.com/en-us/product/succulents-10309",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "10313", setNumber: "10313", name: "Wildflower Bouquet",
+                theme: "Botanical Collection", pieceCount: 939, retailPrice: 59.99,
+                buyLink: "https://www.lego.com/en-us/product/wildflower-bouquet-10313",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "10314", setNumber: "10314", name: "Dried Flower Centerpiece",
+                theme: "Botanical Collection", pieceCount: 812, retailPrice: 49.99,
+                buyLink: "https://www.lego.com/en-us/product/dried-flower-centerpiece-10314",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "10315", setNumber: "10315", name: "Tranquil Garden",
+                theme: "Botanical Collection", pieceCount: 1363, retailPrice: 99.99,
+                buyLink: "https://www.lego.com/en-us/product/tranquil-garden-10315",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "10311", setNumber: "10311", name: "Orchid",
+                theme: "Botanical Collection", pieceCount: 608, retailPrice: 49.99,
+                buyLink: "https://www.lego.com/en-us/product/orchid-10311",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "40524", setNumber: "40524", name: "Cherry Blossoms",
+                theme: "Botanical Collection", pieceCount: 430, retailPrice: 39.99,
+                buyLink: "https://www.lego.com/en-us/product/cherry-blossoms-40524",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "40646", setNumber: "40646", name: "Daffodil",
+                theme: "Botanical Collection", pieceCount: 216, retailPrice: 24.99,
+                buyLink: "https://www.lego.com/en-us/product/daffodil-40646",
+                imageURL: "", releaseYear: 2023),
+    ]
+
+    // MARK: - Art (8 sets)
+
+    static let art: [LegoSet] = [
+        LegoSet(id: "31203", setNumber: "31203", name: "World Map",
+                theme: "Art", pieceCount: 11695, retailPrice: 249.99,
+                buyLink: "https://www.lego.com/en-us/product/world-map-31203",
+                imageURL: "", releaseYear: 2021),
+        LegoSet(id: "31201", setNumber: "31201", name: "Disney's Mickey Mouse",
+                theme: "Art", pieceCount: 2658, retailPrice: 169.99,
+                buyLink: "https://www.lego.com/en-us/product/disney-s-mickey-mouse-31201",
+                imageURL: "", releaseYear: 2021),
+        LegoSet(id: "31205", setNumber: "31205", name: "Jim Lee Batman Collection",
+                theme: "Art", pieceCount: 4167, retailPrice: 239.99,
+                buyLink: "https://www.lego.com/en-us/product/jim-lee-batman-collection-31205",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "31206", setNumber: "31206", name: "The Rolling Stones",
+                theme: "Art", pieceCount: 1998, retailPrice: 119.99,
+                buyLink: "https://www.lego.com/en-us/product/the-rolling-stones-31206",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "31207", setNumber: "31207", name: "Floral Art",
+                theme: "Art", pieceCount: 2870, retailPrice: 119.99,
+                buyLink: "https://www.lego.com/en-us/product/floral-art-31207",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "31204", setNumber: "31204", name: "Nemo & Friends",
+                theme: "Art", pieceCount: 1665, retailPrice: 119.99,
+                buyLink: "https://www.lego.com/en-us/product/nemo-friends-31204",
+                imageURL: "", releaseYear: 2021),
+        LegoSet(id: "31202", setNumber: "31202", name: "Hogwarts Crests",
+                theme: "Art", pieceCount: 4249, retailPrice: 269.99,
+                buyLink: "https://www.lego.com/en-us/product/hogwarts-crests-31202",
+                imageURL: "", releaseYear: 2021),
+        LegoSet(id: "31208", setNumber: "31208", name: "Hokusai – The Great Wave",
+                theme: "Art", pieceCount: 1810, retailPrice: 119.99,
+                buyLink: "https://www.lego.com/en-us/product/hokusai-the-great-wave-31208",
+                imageURL: "", releaseYear: 2023),
+    ]
+
+    // MARK: - Classic (6 sets)
+
+    static let classic: [LegoSet] = [
+        LegoSet(id: "11030", setNumber: "11030", name: "Lots of Bricks",
+                theme: "Classic", pieceCount: 1500, retailPrice: 59.99,
+                buyLink: "https://www.lego.com/en-us/product/lots-of-bricks-11030",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "11031", setNumber: "11031", name: "Creative Monsters",
+                theme: "Classic", pieceCount: 1394, retailPrice: 59.99,
+                buyLink: "https://www.lego.com/en-us/product/creative-monsters-11031",
+                imageURL: "", releaseYear: 2024),
+        LegoSet(id: "11032", setNumber: "11032", name: "Creative Color Fun",
+                theme: "Classic", pieceCount: 1500, retailPrice: 59.99,
+                buyLink: "https://www.lego.com/en-us/product/creative-color-fun-11032",
+                imageURL: "", releaseYear: 2024),
+        LegoSet(id: "10698", setNumber: "10698", name: "Large Creative Brick Box",
+                theme: "Classic", pieceCount: 790, retailPrice: 59.99,
+                buyLink: "https://www.lego.com/en-us/product/large-creative-brick-box-10698",
+                imageURL: "", releaseYear: 2015),
+        LegoSet(id: "10696", setNumber: "10696", name: "Medium Creative Brick Box",
+                theme: "Classic", pieceCount: 484, retailPrice: 34.99,
+                buyLink: "https://www.lego.com/en-us/product/medium-creative-brick-box-10696",
+                imageURL: "", releaseYear: 2015),
+        LegoSet(id: "11021", setNumber: "11021", name: "90 Years of Play",
+                theme: "Classic", pieceCount: 1100, retailPrice: 79.99,
+                buyLink: "https://www.lego.com/en-us/product/90-years-of-play-11021",
+                imageURL: "", releaseYear: 2022),
+    ]
+
+    // MARK: - Monkie Kid (8 sets)
+
+    static let monkieKid: [LegoSet] = [
+        LegoSet(id: "80012", setNumber: "80012", name: "Monkey King Warrior Mech",
+                theme: "Monkie Kid", pieceCount: 1629, retailPrice: 139.99,
+                buyLink: "https://www.lego.com/en-us/product/monkey-king-warrior-mech-80012",
+                imageURL: "", releaseYear: 2020),
+        LegoSet(id: "80023", setNumber: "80023", name: "Monkie Kid's Team Hideout",
+                theme: "Monkie Kid", pieceCount: 1959, retailPrice: 199.99,
+                buyLink: "https://www.lego.com/en-us/product/monkie-kid-s-team-hideout-80023",
+                imageURL: "", releaseYear: 2021),
+        LegoSet(id: "80033", setNumber: "80033", name: "Evil Macaque's Mech",
+                theme: "Monkie Kid", pieceCount: 574, retailPrice: 59.99,
+                buyLink: "https://www.lego.com/en-us/product/evil-macaque-s-mech-80033",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "80041", setNumber: "80041", name: "Macaque's Triple Mech",
+                theme: "Monkie Kid", pieceCount: 264, retailPrice: 29.99,
+                buyLink: "https://www.lego.com/en-us/product/macaque-s-triple-mech-80041",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "80026", setNumber: "80026", name: "Pigsy's Noodle Tank",
+                theme: "Monkie Kid", pieceCount: 430, retailPrice: 39.99,
+                buyLink: "https://www.lego.com/en-us/product/pigsy-s-noodle-tank-80026",
+                imageURL: "", releaseYear: 2021),
+        LegoSet(id: "80037", setNumber: "80037", name: "Dragon of the East",
+                theme: "Monkie Kid", pieceCount: 1171, retailPrice: 149.99,
+                buyLink: "https://www.lego.com/en-us/product/dragon-of-the-east-80037",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "80046", setNumber: "80046", name: "Mei's Dragon Car",
+                theme: "Monkie Kid", pieceCount: 393, retailPrice: 44.99,
+                buyLink: "https://www.lego.com/en-us/product/mei-s-dragon-car-80046",
+                imageURL: "", releaseYear: 2023),
+        LegoSet(id: "80050", setNumber: "80050", name: "Sandy's Speedboat",
+                theme: "Monkie Kid", pieceCount: 175, retailPrice: 24.99,
+                buyLink: "https://www.lego.com/en-us/product/sandy-s-speedboat-80050",
+                imageURL: "", releaseYear: 2024),
+    ]
+
+    // MARK: - Jurassic World (10 sets)
+
+    static let jurassicWorld: [LegoSet] = [
+        LegoSet(id: "76956", setNumber: "76956", name: "T. rex Breakout",
+                theme: "Jurassic World", pieceCount: 391, retailPrice: 49.99,
+                buyLink: "https://www.lego.com/en-us/product/t-rex-breakout-76956",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "76957", setNumber: "76957", name: "Velociraptor Escape",
+                theme: "Jurassic World", pieceCount: 137, retailPrice: 24.99,
+                buyLink: "https://www.lego.com/en-us/product/velociraptor-escape-76957",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "76958", setNumber: "76958", name: "Dilophosaurus Ambush",
+                theme: "Jurassic World", pieceCount: 211, retailPrice: 29.99,
+                buyLink: "https://www.lego.com/en-us/product/dilophosaurus-ambush-76958",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "76959", setNumber: "76959", name: "Triceratops Research",
+                theme: "Jurassic World", pieceCount: 281, retailPrice: 34.99,
+                buyLink: "https://www.lego.com/en-us/product/triceratops-research-76959",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "76960", setNumber: "76960", name: "Brachiosaurus Discovery",
+                theme: "Jurassic World", pieceCount: 512, retailPrice: 59.99,
+                buyLink: "https://www.lego.com/en-us/product/brachiosaurus-discovery-76960",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "76961", setNumber: "76961", name: "Visitor Center: T. rex & Raptor Attack",
+                theme: "Jurassic World", pieceCount: 693, retailPrice: 79.99,
+                buyLink: "https://www.lego.com/en-us/product/visitor-center-t-rex-raptor-attack-76961",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "76948", setNumber: "76948", name: "T. rex & Atrociraptor Dinosaur Breakout",
+                theme: "Jurassic World", pieceCount: 466, retailPrice: 59.99,
+                buyLink: "https://www.lego.com/en-us/product/t-rex-atrociraptor-dinosaur-breakout-76948",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "76940", setNumber: "76940", name: "T. rex Dinosaur Fossil Exhibition",
+                theme: "Jurassic World", pieceCount: 198, retailPrice: 29.99,
+                buyLink: "https://www.lego.com/en-us/product/t-rex-dinosaur-fossil-exhibition-76940",
+                imageURL: "", releaseYear: 2021),
+        LegoSet(id: "76951", setNumber: "76951", name: "Pyroraptor & Dilophosaurus Transport",
+                theme: "Jurassic World", pieceCount: 211, retailPrice: 29.99,
+                buyLink: "https://www.lego.com/en-us/product/pyroraptor-dilophosaurus-transport-76951",
+                imageURL: "", releaseYear: 2022),
+        LegoSet(id: "76963", setNumber: "76963", name: "Baby Dinosaur Rescue Center",
+                theme: "Jurassic World", pieceCount: 139, retailPrice: 24.99,
+                buyLink: "https://www.lego.com/en-us/product/baby-dinosaur-rescue-center-76963",
+                imageURL: "", releaseYear: 2022),
     ]
 
     // MARK: - Search & Lookup
 
     /// Returns sets whose number starts with OR whose name/theme contains the query.
-    /// Works for both set number searches and name searches.
+    /// Supports searching by set number, name, partial name, or theme. Case-insensitive.
     static func search(_ query: String) -> [LegoSet] {
         let q = query.lowercased().trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return [] }
@@ -333,6 +936,5 @@ struct LegoSetDatabase {
 
 extension LegoSet {
     /// The official LEGO store URL for this set.
-    /// Aliases buyLink so all Sprint 3 code can use the descriptive field name.
     var legoStoreURL: String { buyLink }
 }
