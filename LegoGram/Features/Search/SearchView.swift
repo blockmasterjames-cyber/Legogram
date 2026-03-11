@@ -2,10 +2,12 @@ import SwiftUI
 
 /// The Search screen — find LEGO sets by number OR by name.
 /// Sprint 3: real search powered by LegoSetDatabase.
+/// Sprint 6 Feature 5: tapping any set row opens SetDetailView.
 /// On iPad, results appear in a side-by-side layout using the extra space.
 struct SearchView: View {
 
-    @State private var searchText = ""
+    @State private var searchText    = ""
+    @State private var selectedSet: LegoSet?
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private var searchResults: [LegoSet] {
@@ -30,6 +32,10 @@ struct SearchView: View {
             }
             // Tap anywhere outside search bar to dismiss keyboard
             .onTapGesture { hideKeyboard() }
+            // Feature 5: navigate to set detail when tapped
+            .navigationDestination(item: $selectedSet) { set in
+                SetDetailView(set: set)
+            }
         }
     }
 
@@ -123,7 +129,11 @@ struct SearchView: View {
 
             VStack(spacing: 1) {
                 ForEach(searchResults) { set in
-                    SearchSetRow(set: set)
+                    // Feature 5: tapping a result opens SetDetailView
+                    Button { selectedSet = set } label: {
+                        SearchSetRow(set: set)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .background(Color.cardBackground)
@@ -141,7 +151,11 @@ struct SearchView: View {
 
             VStack(spacing: 1) {
                 ForEach(popularSets) { set in
-                    SearchSetRow(set: set)
+                    // Feature 5: tapping a popular set opens SetDetailView
+                    Button { selectedSet = set } label: {
+                        SearchSetRow(set: set)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .background(Color.cardBackground)

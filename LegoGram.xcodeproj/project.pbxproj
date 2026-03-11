@@ -44,6 +44,9 @@
 		AA0001000000000000000024 /* DirectMessageListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000024 /* DirectMessageListView.swift */; };
 		AA0001000000000000000025 /* DirectMessageThreadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000025 /* DirectMessageThreadView.swift */; };
 		AA0001000000000000000026 /* AgeVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000026 /* AgeVerificationView.swift */; };
+		AA0001000000000000000027 /* CropView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000027 /* CropView.swift */; };
+		AA0001000000000000000028 /* SetDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000028 /* SetDetailView.swift */; };
+		AA0001000000000000000029 /* AppIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000029 /* AppIconView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -84,6 +87,9 @@
 		AA0002000000000000000024 /* DirectMessageListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectMessageListView.swift; sourceTree = "<group>"; };
 		AA0002000000000000000025 /* DirectMessageThreadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectMessageThreadView.swift; sourceTree = "<group>"; };
 		AA0002000000000000000026 /* AgeVerificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgeVerificationView.swift; sourceTree = "<group>"; };
+		AA0002000000000000000027 /* CropView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropView.swift; sourceTree = "<group>"; };
+		AA0002000000000000000028 /* SetDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetDetailView.swift; sourceTree = "<group>"; };
+		AA0002000000000000000029 /* AppIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconView.swift; sourceTree = "<group>"; };
 		AA0002000000000000000020 /* LegoGram.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LegoGram.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -221,6 +227,7 @@
 			isa = PBXGroup;
 			children = (
 				AA0002000000000000000009 /* SearchView.swift */,
+				AA0002000000000000000028 /* SetDetailView.swift */,
 			);
 			path = Search;
 			sourceTree = "<group>";
@@ -249,6 +256,7 @@
 				AA000200000000000000000C /* ProfileView.swift */,
 				AA0002000000000000000016 /* EditProfileView.swift */,
 				AA000200000000000000001D /* OtherProfileView.swift */,
+				AA0002000000000000000027 /* CropView.swift */,
 			);
 			path = Profile;
 			sourceTree = "<group>";
@@ -290,6 +298,7 @@
 			children = (
 				AA0002000000000000000012 /* Assets.xcassets */,
 				AA0002000000000000000013 /* GoogleService-Info.plist */,
+				AA0002000000000000000029 /* AppIconView.swift */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -408,6 +417,9 @@
 				AA0001000000000000000024 /* DirectMessageListView.swift in Sources */,
 				AA0001000000000000000025 /* DirectMessageThreadView.swift in Sources */,
 				AA0001000000000000000026 /* AgeVerificationView.swift in Sources */,
+				AA0001000000000000000027 /* CropView.swift in Sources */,
+				AA0001000000000000000028 /* SetDetailView.swift in Sources */,
+				AA0001000000000000000029 /* AppIconView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

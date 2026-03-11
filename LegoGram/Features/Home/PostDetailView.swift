@@ -20,7 +20,24 @@ struct PostDetailView: View {
     @State private var showingShareCard = false
     @FocusState private var commentFieldFocused: Bool
 
-    private var comments: [Comment] { postStore.comments(for: post.id) }
+    /// Comments sorted newest-first so new comments appear at the top (Feature 6).
+    private var comments: [Comment] {
+        (postStore.comments[post.id] ?? []).sorted { $0.postedDate > $1.postedDate }
+    }
+
+    /// Two default placeholder comments shown when a post has no real comments yet.
+    private var placeholderComments: [Comment] {
+        [
+            Comment(id: "ph-1", postId: post.id, userId: "legobot1",
+                    username: "brickmaster99",
+                    text: "This build is incredible! Love the attention to detail. 🧱🔥",
+                    postedDate: post.postedDate.addingTimeInterval(90)),
+            Comment(id: "ph-2", postId: post.id, userId: "legobot2",
+                    username: "legolover_emma",
+                    text: "Amazing work! How long did this take to build? 😍",
+                    postedDate: post.postedDate)
+        ]
+    }
     private var legoSet: LegoSet? { LegoSetDatabase.set(for: post.legoSetNumber) }
 
     private var estimatedEarn: Double {
@@ -75,9 +92,20 @@ struct PostDetailView: View {
                             .buttonStyle(.plain)
 
                             HStack(spacing: 8) {
-                                Text(legoSet?.name ?? post.legoSetName)
+                                Text(post.isCustomBuild
+                                     ? post.customBuildName
+                                     : (legoSet?.name ?? post.legoSetName))
                                     .font(.legoCardTitle).foregroundColor(.legoYellow)
-                                if let set = legoSet { AgeRatingBadge(rating: set.ageRating) }
+                                if post.isCustomBuild {
+                                    Text("Custom Build")
+                                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 6).padding(.vertical, 2)
+                                        .background(Color.blue)
+                                        .cornerRadius(4)
+                                } else if let set = legoSet {
+                                    AgeRatingBadge(rating: set.ageRating)
+                                }
                                 Spacer()
                             }
 
@@ -154,10 +182,13 @@ struct PostDetailView: View {
                             }
                             .buttonStyle(.plain)
 
+                            // Custom builds have no Buy Set link
+                        if !post.isCustomBuild {
                             if let set = legoSet { buySetSection(set: set) }
                             else if !post.buyLink.isEmpty, let url = URL(string: post.buyLink) {
                                 Link(destination: url) { buySetLabel(price: nil) }
                             }
+                        }
 
                             earningsCallout
                         }
@@ -199,7 +230,9 @@ struct PostDetailView: View {
                 }
             }
             ToolbarItem(placement: .principal) {
-                Text(legoSet?.name ?? post.legoSetName)
+                Text(post.isCustomBuild
+                     ? post.customBuildName
+                     : (legoSet?.name ?? post.legoSetName))
                     .font(.legoCardTitle).foregroundColor(.lightText).lineLimit(1)
             }
         }
@@ -334,7 +367,7 @@ struct PostDetailView: View {
         }
     }
 
-    // MARK: - Comments Section
+    // MARK: - Comments Section (Feature 6)
 
     private var commentsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -342,15 +375,10 @@ struct PostDetailView: View {
                 .font(.legoCardTitle).foregroundColor(.lightText)
                 .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 8)
 
-            if comments.isEmpty {
-                CommentRow(comment: Comment(
-                    id: "placeholder", postId: post.id, userId: "legobot",
-                    username: "legobot",
-                    text: "Be the first to leave a comment on this amazing build! 🧱",
-                    postedDate: post.postedDate
-                ))
-            } else {
-                ForEach(comments) { comment in CommentRow(comment: comment) }
+            // Always show at least 2 placeholder comments so the section never looks empty
+            let displayComments = comments.isEmpty ? placeholderComments : comments
+            ForEach(displayComments) { comment in
+                CommentRow(comment: comment)
             }
         }
     }
@@ -359,7 +387,7 @@ struct PostDetailView: View {
 
     private var commentInputBar: some View {
         HStack(spacing: 10) {
-            TextField("Add a comment...", text: $commentText)
+            TextField("Write a comment", text: $commentText)
                 .foregroundColor(.lightText).font(.legoBody)
                 .padding(12)
                 .background(Color.cardBackground)
