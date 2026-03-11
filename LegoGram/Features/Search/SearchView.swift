@@ -28,6 +28,8 @@ struct SearchView: View {
                     iPhoneLayout
                 }
             }
+            // Tap anywhere outside search bar to dismiss keyboard
+            .onTapGesture { hideKeyboard() }
         }
     }
 
@@ -92,6 +94,7 @@ struct SearchView: View {
                 .foregroundColor(.lightText)
                 .font(.legoBody)
                 .autocorrectionDisabled()
+                .onSubmit { hideKeyboard() }
 
             if !searchText.isEmpty {
                 Button { searchText = "" } label: {

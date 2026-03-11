@@ -188,9 +188,10 @@ final class PostStore: ObservableObject {
         }
     }
 
-    // MARK: - Seed Data (10 starter posts)
+    // MARK: - Seed Data (13 starter posts for a full-looking feed on first launch)
 
     static let seedPosts: [LegoPost] = [
+        // --- Followed user (brickmaster99) ---
         LegoPost(id: "preview-post-001", userId: "preview-user-001", username: "brickmaster99",
                  imageURL: "", legoSetNumber: "75192", legoSetName: "Millennium Falcon",
                  description: "Took me 3 weeks but it was worth every brick! 🚀",
@@ -199,6 +200,23 @@ final class PostStore: ObservableObject {
                  affiliateLink: "", estimatedEarnings: 1.84,
                  postedDate: Date().addingTimeInterval(-7200), tags: ["starwars", "ucs"]),
 
+        LegoPost(id: "preview-post-006", userId: "preview-user-001", username: "brickmaster99",
+                 imageURL: "", legoSetNumber: "10307", legoSetName: "Eiffel Tower",
+                 description: "10,001 pieces later and she stands tall! 🗼 The most satisfying build ever.",
+                 likeCount: 512, commentCount: 4,
+                 buyLink: "https://www.lego.com/en-us/product/eiffel-tower-10307",
+                 affiliateLink: "", estimatedEarnings: 2.52,
+                 postedDate: Date().addingTimeInterval(-1800), tags: ["icons"]),
+
+        LegoPost(id: "preview-post-007", userId: "preview-user-001", username: "brickmaster99",
+                 imageURL: "", legoSetNumber: "76210", legoSetName: "Hulkbuster",
+                 description: "Added this beast to my display shelf 💪 Iron Man fans — this is a must buy!",
+                 likeCount: 289, commentCount: 2,
+                 buyLink: "https://www.lego.com/en-us/product/hulkbuster-76210",
+                 affiliateLink: "", estimatedEarnings: 2.20,
+                 postedDate: Date().addingTimeInterval(-5400), tags: ["marvel"]),
+
+        // --- Recommended: non-followed users ---
         LegoPost(id: "preview-post-002", userId: "preview-user-002", username: "legolover_emma",
                  imageURL: "", legoSetNumber: "10300", legoSetName: "Back to the Future Time Machine",
                  description: "Classic! Every LEGO fan needs this one. 🚗⚡️",
@@ -208,12 +226,12 @@ final class PostStore: ObservableObject {
                  postedDate: Date().addingTimeInterval(-3600), tags: ["icons", "backtothefuture"]),
 
         LegoPost(id: "preview-post-003", userId: "u7", username: "marvelfan_zoe",
-                 imageURL: "", legoSetNumber: "76210", legoSetName: "Hulkbuster",
-                 description: "This thing is MASSIVE. My desk is officially a superhero HQ 💪",
+                 imageURL: "", legoSetNumber: "76215", legoSetName: "Black Panther",
+                 description: "Wakanda Forever 🐾 This build is stunning on my shelf!",
                  likeCount: 411, commentCount: 2,
-                 buyLink: "https://www.lego.com/en-us/product/hulkbuster-76210",
-                 affiliateLink: "", estimatedEarnings: 1.65,
-                 postedDate: Date().addingTimeInterval(-10800), tags: ["marvel", "hulkbuster"]),
+                 buyLink: "https://www.lego.com/en-us/product/black-panther-76215",
+                 affiliateLink: "", estimatedEarnings: 1.40,
+                 postedDate: Date().addingTimeInterval(-10800), tags: ["marvel"]),
 
         LegoPost(id: "preview-post-004", userId: "u8", username: "citybuilder_max",
                  imageURL: "", legoSetNumber: "60380", legoSetName: "Downtown",
@@ -230,9 +248,112 @@ final class PostStore: ObservableObject {
                  buyLink: "https://www.lego.com/en-us/product/vincent-van-gogh-the-starry-night-21333",
                  affiliateLink: "", estimatedEarnings: 3.57,
                  postedDate: Date().addingTimeInterval(-43200), tags: ["ideas", "art"]),
+
+        LegoPost(id: "preview-post-008", userId: "u10", username: "ninjafan_jake",
+                 imageURL: "", legoSetNumber: "71741", legoSetName: "NINJAGO City Gardens",
+                 description: "The most detailed Ninjago set I've ever built! 🐉 Worth every penny.",
+                 likeCount: 634, commentCount: 5,
+                 buyLink: "https://www.lego.com/en-us/product/ninjago-city-gardens-71741",
+                 affiliateLink: "", estimatedEarnings: 1.40,
+                 postedDate: Date().addingTimeInterval(-14400), tags: ["ninjago"]),
+
+        LegoPost(id: "preview-post-009", userId: "u11", username: "disneybuilder_sara",
+                 imageURL: "", legoSetNumber: "43222", legoSetName: "Disney Castle",
+                 description: "Dreams do come true — in LEGO! 🏰✨ Building this was pure magic.",
+                 likeCount: 755, commentCount: 8,
+                 buyLink: "https://www.lego.com/en-us/product/disney-castle-43222",
+                 affiliateLink: "", estimatedEarnings: 1.52,
+                 postedDate: Date().addingTimeInterval(-18000), tags: ["disney"]),
+
+        LegoPost(id: "preview-post-010", userId: "u12", username: "botanicalbuilder_kim",
+                 imageURL: "", legoSetNumber: "10313", legoSetName: "Wildflower Bouquet",
+                 description: "Perfect desk decoration 🌸 These LEGO flowers never wilt!",
+                 likeCount: 430, commentCount: 3,
+                 buyLink: "https://www.lego.com/en-us/product/wildflower-bouquet-10313",
+                 affiliateLink: "", estimatedEarnings: 0.24,
+                 postedDate: Date().addingTimeInterval(-32000), tags: ["botanical"]),
+
+        LegoPost(id: "preview-post-011", userId: "u13", username: "harrypotterfan_mia",
+                 imageURL: "", legoSetNumber: "71043", legoSetName: "Hogwarts Castle",
+                 description: "Accio LEGO! 🧙‍♀️ This 6,000-piece beast took me all summer but WOW.",
+                 likeCount: 921, commentCount: 11,
+                 buyLink: "https://www.lego.com/en-us/product/hogwarts-castle-71043",
+                 affiliateLink: "", estimatedEarnings: 1.88,
+                 postedDate: Date().addingTimeInterval(-54000), tags: ["harrypotter"]),
+
+        LegoPost(id: "preview-post-012", userId: "u14", username: "speedkid_ryan",
+                 imageURL: "", legoSetNumber: "76918", legoSetName: "McLaren Solus GT & F1 LM",
+                 description: "Two McLarens for the price of one set! 🏎️🏎️ Love Speed Champions.",
+                 likeCount: 198, commentCount: 2,
+                 buyLink: "https://www.lego.com/en-us/product/mclaren-solus-gt-mclaren-f1-lm-76918",
+                 affiliateLink: "", estimatedEarnings: 0.20,
+                 postedDate: Date().addingTimeInterval(-64000), tags: ["speedchampions"]),
+
+        LegoPost(id: "preview-post-013", userId: "u15", username: "technicpro_alex",
+                 imageURL: "", legoSetNumber: "42143", legoSetName: "Ferrari Daytona SP3",
+                 description: "The Ferrari Daytona SP3 is just absolutely stunning. Technic at its finest! 🔴",
+                 likeCount: 687, commentCount: 7,
+                 buyLink: "https://www.lego.com/en-us/product/ferrari-daytona-sp3-42143",
+                 affiliateLink: "", estimatedEarnings: 1.80,
+                 postedDate: Date().addingTimeInterval(-72000), tags: ["technic"]),
     ]
 
-    static let seedComments: [String: [Comment]] = [
+    static let seedComments: [String: [Comment]] = extraSeedComments.merging(originalSeedComments) { a, _ in a }
+
+    static let extraSeedComments: [String: [Comment]] = [
+        "preview-post-006": [
+            Comment(id: "ec1", postId: "preview-post-006", userId: "u2",
+                    username: "legolover_emma",
+                    text: "I've been wanting this set forever! How long did it take?",
+                    postedDate: Date().addingTimeInterval(-1200)),
+        ],
+        "preview-post-007": [
+            Comment(id: "ec2", postId: "preview-post-007", userId: "u3",
+                    username: "marvelfan_zoe",
+                    text: "This is the best Marvel set! The detail is incredible 🦾",
+                    postedDate: Date().addingTimeInterval(-4800)),
+        ],
+        "preview-post-008": [
+            Comment(id: "ec3", postId: "preview-post-008", userId: "u4",
+                    username: "brickmaster99",
+                    text: "NINJAGO City Gardens is my dream build! So many details.",
+                    postedDate: Date().addingTimeInterval(-13000)),
+            Comment(id: "ec4", postId: "preview-post-008", userId: "u5",
+                    username: "legolover_emma",
+                    text: "The garden sections look amazing! 🌺",
+                    postedDate: Date().addingTimeInterval(-12000)),
+        ],
+        "preview-post-009": [
+            Comment(id: "ec5", postId: "preview-post-009", userId: "u1",
+                    username: "brickmaster99",
+                    text: "This is incredible! Disney LEGO never disappoints 🏰",
+                    postedDate: Date().addingTimeInterval(-17000)),
+        ],
+        "preview-post-010": [
+            Comment(id: "ec6", postId: "preview-post-010", userId: "u7",
+                    username: "ideasfan_lily",
+                    text: "These botanical sets are so therapeutic to build! 🌸",
+                    postedDate: Date().addingTimeInterval(-30000)),
+        ],
+        "preview-post-011": [
+            Comment(id: "ec7", postId: "preview-post-011", userId: "u8",
+                    username: "hogwartsbuilder",
+                    text: "The Great Hall alone is worth the price! Amazing work 🏰",
+                    postedDate: Date().addingTimeInterval(-50000)),
+            Comment(id: "ec8", postId: "preview-post-011", userId: "u9",
+                    username: "brickmaster99",
+                    text: "This set is on my wish list! Did the towers come out okay?",
+                    postedDate: Date().addingTimeInterval(-48000)),
+        ],
+        "preview-post-013": [
+            Comment(id: "ec9", postId: "preview-post-013", userId: "u11",
+                    username: "technicjane",
+                    text: "The Technic Ferrari is a MASTERPIECE. Well done! 🔴🏎️",
+                    postedDate: Date().addingTimeInterval(-70000)),
+        ],
+    ]
+
+    static let originalSeedComments: [String: [Comment]] = [
         "preview-post-001": [
             Comment(id: "c1", postId: "preview-post-001", userId: "u2",
                     username: "legolover_emma",

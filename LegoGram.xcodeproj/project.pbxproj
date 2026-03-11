@@ -37,6 +37,13 @@
 		AA000100000000000000001C /* PostDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000001C /* PostDetailView.swift */; };
 		AA000100000000000000001D /* OtherProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000001D /* OtherProfileView.swift */; };
 		AA000100000000000000001E /* VideoPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000001E /* VideoPicker.swift */; };
+		AA000100000000000000001F /* View+HideKeyboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000001F /* View+HideKeyboard.swift */; };
+		AA0001000000000000000021 /* DMStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000021 /* DMStore.swift */; };
+		AA0001000000000000000022 /* DirectMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000022 /* DirectMessage.swift */; };
+		AA0001000000000000000023 /* StoryShareCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000023 /* StoryShareCardView.swift */; };
+		AA0001000000000000000024 /* DirectMessageListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000024 /* DirectMessageListView.swift */; };
+		AA0001000000000000000025 /* DirectMessageThreadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000025 /* DirectMessageThreadView.swift */; };
+		AA0001000000000000000026 /* AgeVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000026 /* AgeVerificationView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -70,6 +77,13 @@
 		AA000200000000000000001C /* PostDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailView.swift; sourceTree = "<group>"; };
 		AA000200000000000000001D /* OtherProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OtherProfileView.swift; sourceTree = "<group>"; };
 		AA000200000000000000001E /* VideoPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPicker.swift; sourceTree = "<group>"; };
+		AA000200000000000000001F /* View+HideKeyboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "View+HideKeyboard.swift"; sourceTree = "<group>"; };
+		AA0002000000000000000021 /* DMStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DMStore.swift; sourceTree = "<group>"; };
+		AA0002000000000000000022 /* DirectMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectMessage.swift; sourceTree = "<group>"; };
+		AA0002000000000000000023 /* StoryShareCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryShareCardView.swift; sourceTree = "<group>"; };
+		AA0002000000000000000024 /* DirectMessageListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectMessageListView.swift; sourceTree = "<group>"; };
+		AA0002000000000000000025 /* DirectMessageThreadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectMessageThreadView.swift; sourceTree = "<group>"; };
+		AA0002000000000000000026 /* AgeVerificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgeVerificationView.swift; sourceTree = "<group>"; };
 		AA0002000000000000000020 /* LegoGram.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LegoGram.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -138,6 +152,7 @@
 			children = (
 				AA0002000000000000000014 /* AppState.swift */,
 				AA0002000000000000000015 /* PostStore.swift */,
+				AA0002000000000000000021 /* DMStore.swift */,
 			);
 			path = Store;
 			sourceTree = "<group>";
@@ -165,6 +180,7 @@
 				AA0002000000000000000006 /* LegoGramLogo.swift */,
 				AA0002000000000000000007 /* LoadingView.swift */,
 				AA000200000000000000001B /* BadWordFilter.swift */,
+				AA000200000000000000001F /* View+HideKeyboard.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -178,6 +194,7 @@
 				AA000400000000000000000C /* Leaderboard */,
 				AA000400000000000000000D /* Profile */,
 				AA0004000000000000000013 /* Settings */,
+				AA0004000000000000000014 /* Messages */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -195,6 +212,7 @@
 			children = (
 				AA0002000000000000000008 /* HomeView.swift */,
 				AA000200000000000000001C /* PostDetailView.swift */,
+				AA0002000000000000000023 /* StoryShareCardView.swift */,
 			);
 			path = Home;
 			sourceTree = "<group>";
@@ -243,8 +261,19 @@
 				AA000200000000000000000F /* LegoSet.swift */,
 				AA0002000000000000000019 /* LegoSetDatabase.swift */,
 				AA000200000000000000001A /* Comment.swift */,
+				AA0002000000000000000022 /* DirectMessage.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		AA0004000000000000000014 /* Messages */ = {
+			isa = PBXGroup;
+			children = (
+				AA0002000000000000000024 /* DirectMessageListView.swift */,
+				AA0002000000000000000025 /* DirectMessageThreadView.swift */,
+				AA0002000000000000000026 /* AgeVerificationView.swift */,
+			);
+			path = Messages;
 			sourceTree = "<group>";
 		};
 		AA000400000000000000000F /* Services */ = {
@@ -372,6 +401,13 @@
 				AA000100000000000000001C /* PostDetailView.swift in Sources */,
 				AA000100000000000000001D /* OtherProfileView.swift in Sources */,
 				AA000100000000000000001E /* VideoPicker.swift in Sources */,
+				AA000100000000000000001F /* View+HideKeyboard.swift in Sources */,
+				AA0001000000000000000021 /* DMStore.swift in Sources */,
+				AA0001000000000000000022 /* DirectMessage.swift in Sources */,
+				AA0001000000000000000023 /* StoryShareCardView.swift in Sources */,
+				AA0001000000000000000024 /* DirectMessageListView.swift in Sources */,
+				AA0001000000000000000025 /* DirectMessageThreadView.swift in Sources */,
+				AA0001000000000000000026 /* AgeVerificationView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
