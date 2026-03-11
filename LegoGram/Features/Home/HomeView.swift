@@ -217,8 +217,13 @@ struct PostCard: View {
     @ObservedObject private var postStore = PostStore.shared
     @State private var showHeart = false
 
-    private var legoSet: LegoSet? { LegoSetDatabase.set(for: post.legoSetNumber) }
-    private var setName: String { legoSet?.name ?? post.legoSetName }
+    private var legoSet: LegoSet? {
+        post.isCustomBuild ? nil : LegoSetDatabase.set(for: post.legoSetNumber)
+    }
+    private var setName: String {
+        if post.isCustomBuild { return post.customBuildName }
+        return legoSet?.name ?? post.legoSetName
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -299,11 +304,20 @@ struct PostCard: View {
                 }
                 .buttonStyle(.plain)
 
-                // Set name + age rating badge
+                // Set name + age rating badge (or Custom Build badge)
                 HStack(spacing: 6) {
                     Text(setName)
                         .font(.legoCaption).foregroundColor(.legoYellow).lineLimit(1)
-                    if let set = legoSet { AgeRatingBadge(rating: set.ageRating) }
+                    if post.isCustomBuild {
+                        Text("Custom Build")
+                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 5).padding(.vertical, 2)
+                            .background(Color.blue)
+                            .cornerRadius(4)
+                    } else if let set = legoSet {
+                        AgeRatingBadge(rating: set.ageRating)
+                    }
                 }
 
                 // Description
@@ -339,7 +353,10 @@ struct PostCard: View {
 
                     Spacer()
 
-                    if let set = legoSet, let url = URL(string: set.legoStoreURL) {
+                    // No Buy button for custom builds
+                    if !post.isCustomBuild,
+                       let set = legoSet,
+                       let url = URL(string: set.legoStoreURL) {
                         Link(destination: url) {
                             Label("Buy · $\(String(format: "%.0f", set.retailPrice))", systemImage: "cart.fill")
                                 .font(.legoCaption)
@@ -420,11 +437,13 @@ struct PostCard: View {
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
             VStack(spacing: 8) {
-                Image(systemName: "building.2.crop.circle")
+                Image(systemName: post.isCustomBuild ? "hammer.fill" : "building.2.crop.circle")
                     .font(.system(size: 36)).foregroundColor(.secondaryText)
-                Text("Set #\(post.legoSetNumber)")
+                Text(post.isCustomBuild
+                     ? post.customBuildName
+                     : "Set #\(post.legoSetNumber)")
                     .font(.legoCardTitle).foregroundColor(.legoYellow)
-                if let set = legoSet {
+                if !post.isCustomBuild, let set = legoSet {
                     Text(set.theme).font(.legoCaption).foregroundColor(.secondaryText)
                 }
             }

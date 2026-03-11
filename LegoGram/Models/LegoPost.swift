@@ -55,6 +55,12 @@ struct LegoPost: Identifiable, Codable, Hashable {
     /// Tags the user added, like ["starwars", "ucs", "display"].
     var tags: [String]
 
+    // MARK: - Custom Build (Sprint 6 Feature 8)
+    /// True when this post is a custom LEGO build not based on any official set.
+    var isCustomBuild: Bool
+    /// The user-given name for their custom build (e.g. "My Space Castle").
+    var customBuildName: String
+
     // MARK: - Computed
 
     /// True when this post contains a video instead of just a photo.
@@ -77,30 +83,55 @@ struct LegoPost: Identifiable, Codable, Hashable {
         case estimatedEarnings  = "estimated_earnings"
         case postedDate         = "posted_date"
         case tags
+        case isCustomBuild      = "is_custom_build"
+        case customBuildName    = "custom_build_name"
     }
 
-    // MARK: - Convenience Init (with default videoURL for backward compat)
+    // MARK: - Custom Decoder (handles old Firestore docs that lack the new fields)
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id                = try c.decode(String.self,   forKey: .id)
+        userId            = try c.decode(String.self,   forKey: .userId)
+        username          = try c.decode(String.self,   forKey: .username)
+        imageURL          = try c.decode(String.self,   forKey: .imageURL)
+        videoURL          = try c.decode(String.self,   forKey: .videoURL)
+        legoSetNumber     = try c.decode(String.self,   forKey: .legoSetNumber)
+        legoSetName       = try c.decode(String.self,   forKey: .legoSetName)
+        description       = try c.decode(String.self,   forKey: .description)
+        likeCount         = try c.decode(Int.self,      forKey: .likeCount)
+        commentCount      = try c.decode(Int.self,      forKey: .commentCount)
+        buyLink           = try c.decode(String.self,   forKey: .buyLink)
+        affiliateLink     = try c.decode(String.self,   forKey: .affiliateLink)
+        estimatedEarnings = try c.decode(Double.self,   forKey: .estimatedEarnings)
+        postedDate        = try c.decode(Date.self,     forKey: .postedDate)
+        tags              = try c.decode([String].self, forKey: .tags)
+        isCustomBuild     = try c.decodeIfPresent(Bool.self,   forKey: .isCustomBuild)   ?? false
+        customBuildName   = try c.decodeIfPresent(String.self, forKey: .customBuildName) ?? ""
+    }
 
+    // MARK: - Convenience Init (Sprint 6: isCustomBuild/customBuildName default to false/"")
     init(id: String, userId: String, username: String, imageURL: String,
          videoURL: String = "", legoSetNumber: String, legoSetName: String,
          description: String, likeCount: Int, commentCount: Int, buyLink: String,
          affiliateLink: String, estimatedEarnings: Double, postedDate: Date,
-         tags: [String]) {
-        self.id = id
-        self.userId = userId
-        self.username = username
-        self.imageURL = imageURL
-        self.videoURL = videoURL
-        self.legoSetNumber = legoSetNumber
-        self.legoSetName = legoSetName
-        self.description = description
-        self.likeCount = likeCount
-        self.commentCount = commentCount
-        self.buyLink = buyLink
-        self.affiliateLink = affiliateLink
+         tags: [String], isCustomBuild: Bool = false, customBuildName: String = "") {
+        self.id                = id
+        self.userId            = userId
+        self.username          = username
+        self.imageURL          = imageURL
+        self.videoURL          = videoURL
+        self.legoSetNumber     = legoSetNumber
+        self.legoSetName       = legoSetName
+        self.description       = description
+        self.likeCount         = likeCount
+        self.commentCount      = commentCount
+        self.buyLink           = buyLink
+        self.affiliateLink     = affiliateLink
         self.estimatedEarnings = estimatedEarnings
-        self.postedDate = postedDate
-        self.tags = tags
+        self.postedDate        = postedDate
+        self.tags              = tags
+        self.isCustomBuild     = isCustomBuild
+        self.customBuildName   = customBuildName
     }
 }
 
