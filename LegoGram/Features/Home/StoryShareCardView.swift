@@ -191,13 +191,13 @@ struct StoryCardContent: View {
 
                 // MARK: Logo at top
                 HStack {
-                    Text("LEGO")
+                    Text("Brick")
                         .font(.system(size: 18, weight: .black, design: .rounded))
                         .foregroundColor(.white)
                         .padding(.horizontal, 8).padding(.vertical, 4)
                         .background(Color.legoRed)
                         .cornerRadius(6)
-                    Text("Gram")
+                    Text("Feed")
                         .font(.system(size: 18, weight: .black, design: .rounded))
                         .foregroundColor(.legoYellow)
                 }
@@ -307,7 +307,7 @@ struct StoryCardContent: View {
                 Spacer()
 
                 // MARK: Website URL at bottom
-                Text("legogram.app  ·  Share Your Builds!")
+                Text("brickfeed.app  ·  Share Your Builds!")
                     .font(.system(size: 10, weight: .medium, design: .rounded))
                     .foregroundColor(.white.opacity(0.5))
                     .padding(.bottom, 20)

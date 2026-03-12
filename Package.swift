@@ -5,14 +5,14 @@
 import PackageDescription
 
 let package = Package(
-    name: "LegoGram",
+    name: "BrickFeed",
     platforms: [
         .iOS(.v17)
     ],
     dependencies: [],
     targets: [
         .target(
-            name: "LegoGram",
+            name: "BrickFeed",
             dependencies: [],
             path: "LegoGram"
         )

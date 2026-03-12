@@ -54,7 +54,7 @@ struct SettingsView: View {
                         }
 
                         // Version footer
-                        Text("LegoGram · Sprint 3 Build")
+                        Text("BrickFeed · Sprint 3 Build")
                             .font(.legoCaption)
                             .foregroundColor(.secondaryText)
                             .frame(maxWidth: .infinity)
@@ -77,7 +77,7 @@ struct SettingsView: View {
                 Button("Sign Out", role: .destructive) { dismiss() }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Are you sure you want to sign out of LegoGram?")
+                Text("Are you sure you want to sign out of BrickFeed?")
             }
             .alert("Delete Account", isPresented: $showingDeleteConfirm) {
                 Button("Delete Forever", role: .destructive) { dismiss() }

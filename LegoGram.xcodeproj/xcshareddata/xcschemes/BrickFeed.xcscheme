@@ -15,8 +15,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "AA0005000000000000000001"
-               BuildableName = "LegoGram.app"
-               BlueprintName = "LegoGram"
+               BuildableName = "BrickFeed.app"
+               BlueprintName = "BrickFeed"
                ReferencedContainer = "container:LegoGram.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -44,8 +44,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "AA0005000000000000000001"
-            BuildableName = "LegoGram.app"
-            BlueprintName = "LegoGram"
+            BuildableName = "BrickFeed.app"
+            BlueprintName = "BrickFeed"
             ReferencedContainer = "container:LegoGram.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -61,8 +61,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "AA0005000000000000000001"
-            BuildableName = "LegoGram.app"
-            BlueprintName = "LegoGram"
+            BuildableName = "BrickFeed.app"
+            BlueprintName = "BrickFeed"
             ReferencedContainer = "container:LegoGram.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

@@ -1,15 +1,15 @@
 import SwiftUI
 
 // =============================================================
-// HOW TO GENERATE AND INSTALL THE LEGOGRAM APP ICON
+// HOW TO GENERATE AND INSTALL THE BRICKFEED APP ICON
 // =============================================================
 //
 // Run this ONE terminal command from the project root directory:
 //
-//   xcodebuild -project LegoGram.xcodeproj -scheme LegoGram \
+//   xcodebuild -project LegoGram.xcodeproj -scheme BrickFeed \
 //     -destination 'platform=iOS Simulator,name=iPhone 15' build \
 //   && xcrun simctl boot "iPhone 15" 2>/dev/null; \
-//   xcrun simctl install booted /path/to/LegoGram.app
+//   xcrun simctl install booted /path/to/BrickFeed.app
 //
 // ------ SIMPLER OPTION (recommended for dad) ------
 //
@@ -24,7 +24,7 @@ import SwiftUI
 //
 // =============================================================
 
-/// SwiftUI rendering of the LegoGram app icon.
+/// SwiftUI rendering of the BrickFeed app icon.
 /// Use the #Preview below to screenshot it and install it in Assets.
 struct AppIconView: View {
     let size: CGFloat
@@ -37,12 +37,12 @@ struct AppIconView: View {
             VStack(spacing: size * 0.05) {
                 // Camera-brick design
                 cameraBrick
-                // LegoGram logotype
+                // BrickFeed logotype
                 HStack(spacing: 0) {
-                    Text("Lego")
+                    Text("Brick")
                         .font(.system(size: size * 0.13, weight: .black, design: .rounded))
                         .foregroundColor(.white)
-                    Text("Gram")
+                    Text("Feed")
                         .font(.system(size: size * 0.13, weight: .black, design: .rounded))
                         .foregroundColor(.legoYellow)
                 }

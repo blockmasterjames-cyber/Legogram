@@ -44,7 +44,7 @@ struct OtherProfileView: View {
                             .font(.legoScreenTitle)
                             .foregroundColor(.lightText)
 
-                        Text("LEGO fan sharing builds on LegoGram 🧱")
+                        Text("LEGO fan sharing builds on BrickFeed 🧱")
                             .font(.legoBody)
                             .foregroundColor(.secondaryText)
                             .fixedSize(horizontal: false, vertical: true)
@@ -103,7 +103,7 @@ struct OtherProfileView: View {
         .alert("@\(username) has been blocked.", isPresented: $showingBlockedConfirm) {
             Button("OK") {}
         } message: {
-            Text("You won't see their posts anymore. Thanks for keeping LegoGram safe!")
+            Text("You won't see their posts anymore. Thanks for keeping BrickFeed safe!")
         }
     }
 

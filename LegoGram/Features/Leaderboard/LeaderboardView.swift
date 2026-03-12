@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The Leaderboard screen — shows who the best LEGO builders on LegoGram are!
+/// The Leaderboard screen — shows who the best LEGO builders on BrickFeed are!
 /// Sprint 6 Feature 10: every row is now tappable → opens that user's profile.
 struct LeaderboardView: View {
 

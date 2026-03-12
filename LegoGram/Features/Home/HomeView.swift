@@ -120,7 +120,7 @@ struct HomeView: View {
 
     private var feedHeader: some View {
         HStack(alignment: .center) {
-            LegoGramLogo()
+            BrickFeedLogo()
             Spacer()
 
             // DM button (Sprint 5)
