@@ -1,23 +1,24 @@
 import SwiftUI
 
-/// The LegoGram logo shown at the top of the Home feed.
-/// Sprint 6: Drawn entirely in SwiftUI — no image asset needed, never requires manual setup.
-/// Shows "LEGO" in white text on a LEGO-red rounded rectangle, followed by "Gram" in LEGO yellow.
+/// LegoGram app logo — 100% pure SwiftUI, zero image files required.
+/// No asset catalog entries, no manual Xcode steps.
+/// Renders a LEGO-red rounded rectangle with "LEGO" in white bold text,
+/// followed by "Gram" in LEGO yellow bold text.
 struct LegoGramLogo: View {
 
     var body: some View {
         HStack(spacing: 0) {
             Text("LEGO")
-                .font(.legoAppTitle)
+                .font(.system(size: 32, weight: .bold, design: .rounded))
                 .foregroundColor(.white)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(Color.legoRed)
+                .background(Color(hex: "#E3000B"))
                 .cornerRadius(6)
 
             Text("Gram")
-                .font(.legoAppTitle)
-                .foregroundColor(.legoYellow)
+                .font(.system(size: 32, weight: .bold, design: .rounded))
+                .foregroundColor(Color(hex: "#FFD700"))
                 .padding(.leading, 6)
         }
     }
@@ -25,7 +26,7 @@ struct LegoGramLogo: View {
 
 #Preview {
     ZStack {
-        Color.darkBackground
+        Color(hex: "#1A1A1A")
         LegoGramLogo()
     }
 }
