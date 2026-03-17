@@ -6,11 +6,15 @@ struct SettingsView: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    @AppStorage("profile_displayName") private var displayName = "blockmasterjames"
-    @AppStorage("profile_username")    private var username    = "blockmasterjames"
-
-    @AppStorage("settings_kidSafeMode")    private var kidSafeMode:    Bool = true
-    @AppStorage("settings_notifications") private var notificationsOn: Bool = true
+    @AppStorage("hasSeenOnboarding")       private var hasSeenOnboarding = false
+    @AppStorage("profile_displayName")     private var displayName       = "blockmasterjames"
+    @AppStorage("profile_username")        private var username          = "blockmasterjames"
+    @AppStorage("profile_bio")             private var bio               = "Building one brick at a time 🧱 | LEGO fan since 2010"
+    @AppStorage("profile_hasAvatar")       private var hasAvatar:        Bool = false
+    @AppStorage("profile_hasBackground")   private var hasBackground:    Bool = false
+    @AppStorage("settings_kidSafeMode")    private var kidSafeMode:      Bool = true
+    @AppStorage("settings_notifications")  private var notificationsOn:  Bool = true
+    @AppStorage("dm_ageVerified")          private var ageVerified:      Bool = false
 
     @State private var showingSignOutConfirm = false
     @State private var showingDeleteConfirm  = false
@@ -74,7 +78,7 @@ struct SettingsView: View {
                 }
             }
             .alert("Sign Out", isPresented: $showingSignOutConfirm) {
-                Button("Sign Out", role: .destructive) { dismiss() }
+                Button("Sign Out", role: .destructive) { performSignOut() }
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("Are you sure you want to sign out of LegoGram?")
@@ -192,6 +196,28 @@ struct SettingsView: View {
         .tint(tint)
         .padding(.horizontal).padding(.vertical, 12)
         .background(Color.cardBackground).cornerRadius(12)
+    }
+
+    // MARK: - Sign Out
+
+    private func performSignOut() {
+        // Delete saved profile images from disk
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        try? FileManager.default.removeItem(at: docs.appendingPathComponent("profile_avatar.jpg"))
+        try? FileManager.default.removeItem(at: docs.appendingPathComponent("profile_background.jpg"))
+
+        // Reset all session data stored in UserDefaults
+        displayName    = "blockmasterjames"
+        username       = "blockmasterjames"
+        bio            = "Building one brick at a time 🧱 | LEGO fan since 2010"
+        hasAvatar      = false
+        hasBackground  = false
+        kidSafeMode    = true
+        notificationsOn = true
+        ageVerified    = false
+
+        // Setting this last triggers LegoGramApp to swap in OnboardingView immediately
+        hasSeenOnboarding = false
     }
 }
 
