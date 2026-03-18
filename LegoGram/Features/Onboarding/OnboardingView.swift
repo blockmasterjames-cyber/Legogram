@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The first-launch onboarding experience for LegoGram.
+/// The first-launch onboarding experience for BrickFeed.
 /// Three swipeable slides introduce the app. A Skip button appears on slides 1–2.
 /// Tapping "Get Started" on slide 3 (or Skip at any time) sets the
 /// @AppStorage flag so onboarding never shows again.
@@ -47,18 +47,19 @@ private struct OnboardingSlide1: View {
             Spacer()
 
             // Logo (scaled up)
-            LegoGramLogo()
+            BrickFeedLogo()
                 .scaleEffect(1.6)
                 .padding(.bottom, 24)
 
             // Headline
             VStack(spacing: 10) {
-                Text("Welcome to LegoGram!")
+                Text("Welcome to BrickFeed!")
                     .font(.legoScreenTitle)
                     .foregroundColor(.lightText)
                     .multilineTextAlignment(.center)
 
                 Text("The home for LEGO builders 🧱")
+
                     .font(.legoCardTitle)
                     .foregroundColor(.legoYellow)
                     .multilineTextAlignment(.center)
@@ -174,7 +175,7 @@ private struct OnboardingSlide3: View {
                     .foregroundColor(.lightText)
                     .multilineTextAlignment(.center)
 
-                Text("LegoGram is designed to be safe and fun for builders of all ages.")
+                Text("BrickFeed is designed to be safe and fun for builders of all ages.")
                     .font(.legoBody)
                     .foregroundColor(.secondaryText)
                     .multilineTextAlignment(.center)

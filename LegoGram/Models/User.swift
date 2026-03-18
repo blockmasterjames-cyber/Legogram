@@ -1,6 +1,6 @@
 import Foundation
 
-/// Represents a LegoGram user — a real person who logs in and posts LEGO builds.
+/// Represents a BrickFeed user — a real person who logs in and posts LEGO builds.
 /// Every field maps directly to a document in the Firestore "users" collection.
 struct User: Identifiable, Codable, Hashable {
 

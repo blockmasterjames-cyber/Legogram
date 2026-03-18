@@ -1,6 +1,6 @@
 import Foundation
 
-/// A kid-safe bad word filter for LegoGram.
+/// A kid-safe bad word filter for BrickFeed.
 /// Replaces inappropriate words with stars so the app stays fun and safe for everyone.
 /// Applied to all comments, bios, and post descriptions before they are stored or displayed.
 struct BadWordFilter {

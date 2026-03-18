@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct LegoGramApp: App {
+struct BrickFeedApp: App {
 
     /// Tracks whether the user has already completed onboarding.
     /// Stored in UserDefaults so it persists across launches.

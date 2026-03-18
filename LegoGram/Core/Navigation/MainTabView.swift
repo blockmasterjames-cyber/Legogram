@@ -111,7 +111,7 @@ struct MainTabView: View {
             VStack(alignment: .leading, spacing: 0) {
 
                 // Logo at top of sidebar
-                LegoGramLogo()
+                BrickFeedLogo()
                     .padding(.horizontal, 20)
                     .padding(.top, 28)
                     .padding(.bottom, 20)

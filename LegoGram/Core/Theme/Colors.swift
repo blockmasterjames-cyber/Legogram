@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// LegoGram's official color palette.
+/// BrickFeed's official color palette.
 /// Every screen in the app uses these colors so everything looks the same.
 extension Color {
 

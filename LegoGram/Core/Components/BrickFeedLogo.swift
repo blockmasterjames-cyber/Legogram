@@ -1,14 +1,14 @@
 import SwiftUI
 
-/// LegoGram app logo — 100% pure SwiftUI, zero image files required.
+/// BrickFeed app logo — 100% pure SwiftUI, zero image files required.
 /// No asset catalog entries, no manual Xcode steps.
-/// Renders a LEGO-red rounded rectangle with "LEGO" in white bold text,
-/// followed by "Gram" in LEGO yellow bold text.
-struct LegoGramLogo: View {
+/// Renders a LEGO-red rounded rectangle with "Brick" in white bold text,
+/// followed by "Feed" in LEGO yellow bold text.
+struct BrickFeedLogo: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            Text("LEGO")
+            Text("Brick")
                 .font(.system(size: 32, weight: .bold, design: .rounded))
                 .foregroundColor(.white)
                 .padding(.horizontal, 8)
@@ -16,7 +16,7 @@ struct LegoGramLogo: View {
                 .background(Color(hex: "#E3000B"))
                 .cornerRadius(6)
 
-            Text("Gram")
+            Text("Feed")
                 .font(.system(size: 32, weight: .bold, design: .rounded))
                 .foregroundColor(Color(hex: "#FFD700"))
                 .padding(.leading, 6)
@@ -27,6 +27,6 @@ struct LegoGramLogo: View {
 #Preview {
     ZStack {
         Color(hex: "#1A1A1A")
-        LegoGramLogo()
+        BrickFeedLogo()
     }
 }

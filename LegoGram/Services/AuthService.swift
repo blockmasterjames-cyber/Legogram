@@ -1,7 +1,7 @@
 import Foundation
 
 /// AuthService handles everything to do with signing in, signing out,
-/// and creating new LegoGram accounts.
+/// and creating new BrickFeed accounts.
 ///
 /// NOTE: Firebase has been temporarily removed. These are placeholder
 /// implementations that print messages. Real Firebase Auth will be
@@ -36,7 +36,7 @@ final class AuthService: ObservableObject {
     // MARK: - Sign Up
     // =========================================================================
 
-    /// Creates a brand new LegoGram account with email and password.
+    /// Creates a brand new BrickFeed account with email and password.
     func signUp(email: String, password: String, username: String) async throws {
         isLoading = true
         errorMessage = nil

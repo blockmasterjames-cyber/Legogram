@@ -241,7 +241,7 @@ struct PostDetailView: View {
             Button("Report", role: .destructive) { postStore.reportPost(post) }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Thanks for helping keep LegoGram safe! Our team will review this post.")
+            Text("Thanks for helping keep BrickFeed safe! Our team will review this post.")
         }
         .sheet(isPresented: $showingShareCard) {
             StoryShareCardView(post: post)

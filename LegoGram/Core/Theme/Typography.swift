@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// LegoGram's text size and weight rules.
+/// BrickFeed's text size and weight rules.
 /// Using these keeps every screen's text looking the same.
 extension Font {
 

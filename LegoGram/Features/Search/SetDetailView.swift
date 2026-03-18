@@ -3,7 +3,7 @@ import SwiftUI
 /// Sprint 6 Feature 5 — Set Detail screen.
 /// Shown when the user taps any set in the Popular Sets list (or search results).
 /// Displays the official set image, all set details, and a ranked list of
-/// LegoGram users who have posted that set, ordered by most likes first.
+/// BrickFeed users who have posted that set, ordered by most likes first.
 /// Each builder row has a Follow button and a tappable username → OtherProfileView.
 struct SetDetailView: View {
 
