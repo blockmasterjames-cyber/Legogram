@@ -195,7 +195,7 @@ struct HomeView: View {
                 .font(.system(size: 64)).foregroundColor(.secondaryText)
             Text("No posts yet!")
                 .font(.legoCardTitle).foregroundColor(.lightText)
-            Text("Be the first to share your LEGO build!\nTap the red + button below.")
+            Text("Be the first to share your Brick build!\nTap the red + button below.")
                 .font(.legoBody).foregroundColor(.secondaryText).multilineTextAlignment(.center)
         }
         .padding(.top, 80).padding(.horizontal)

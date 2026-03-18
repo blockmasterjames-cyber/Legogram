@@ -44,7 +44,7 @@ struct OtherProfileView: View {
                             .font(.legoScreenTitle)
                             .foregroundColor(.lightText)
 
-                        Text("LEGO fan sharing builds on BrickFeed 🧱")
+                        Text("Brick fan sharing builds on BrickFeed 🧱")
                             .font(.legoBody)
                             .foregroundColor(.secondaryText)
                             .fixedSize(horizontal: false, vertical: true)
@@ -244,7 +244,7 @@ struct OtherProfileView: View {
             Text("@\(username) hasn't posted yet")
                 .font(.legoCardTitle)
                 .foregroundColor(.lightText)
-            Text("Check back later for some awesome LEGO builds!")
+            Text("Check back later for some awesome brick builds!")
                 .font(.legoBody)
                 .foregroundColor(.secondaryText)
                 .multilineTextAlignment(.center)

@@ -141,6 +141,7 @@ struct PostDetailView: View {
                                 .buttonStyle(.plain)
 
                                 Button {
+                                    commentFieldFocused = true
                                     withAnimation { proxy.scrollTo("comments-anchor", anchor: .top) }
                                 } label: {
                                     HStack(spacing: 6) {
@@ -199,22 +200,24 @@ struct PostDetailView: View {
                         // MARK: Comments Section
                         commentsSection.id("comments-anchor")
 
-                        Color.clear.frame(height: 100)
+                        Color.clear.frame(height: 16)
                     }
                 }
                 .onAppear {
                     if scrollToComments {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                             withAnimation { proxy.scrollTo("comments-anchor", anchor: .top) }
+                            commentFieldFocused = true
                         }
                     }
                 }
                 // Tap outside to dismiss keyboard
                 .onTapGesture { hideKeyboard() }
+                // Comment input bar — safeAreaInset keeps it above the keyboard automatically
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    commentInputBar
+                }
             }
-
-            // Comment input bar pinned to bottom
-            VStack { Spacer(); commentInputBar }
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color.cardBackground, for: .navigationBar)
@@ -336,7 +339,7 @@ struct PostDetailView: View {
         HStack {
             Image(systemName: "cart.fill").font(.system(size: 18, weight: .bold))
             VStack(alignment: .leading, spacing: 2) {
-                Text("Buy Set on LEGO.com").font(.legoCardTitle)
+                Text("Buy Set").font(.legoCardTitle)
                 if let price = price {
                     Text("$\(String(format: "%.2f", price)) retail · earn $\(String(format: "%.2f", estimatedEarn))")
                         .font(.legoCaption)
@@ -409,8 +412,11 @@ struct PostDetailView: View {
             .disabled(commentText.trimmingCharacters(in: .whitespaces).isEmpty)
         }
         .padding(.horizontal, 12).padding(.vertical, 10)
-        .background(Color.darkBackground.opacity(0.97)
-            .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: -3))
+        .background(
+            Color.darkBackground
+                .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: -3)
+                .ignoresSafeArea(edges: .bottom)
+        )
     }
 
     // MARK: - Submit Comment

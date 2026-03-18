@@ -58,7 +58,7 @@ private struct OnboardingSlide1: View {
                     .foregroundColor(.lightText)
                     .multilineTextAlignment(.center)
 
-                Text("The home for LEGO builders 🧱")
+                Text("The home for Brick builders 🧱")
 
                     .font(.legoCardTitle)
                     .foregroundColor(.legoYellow)
@@ -140,7 +140,7 @@ private struct OnboardingSlide2: View {
                     .foregroundColor(.lightText)
                     .multilineTextAlignment(.center)
 
-                Text("Snap a photo of your LEGO creation, tag the set number, and share it with builders around the world! Earn rewards when other fans buy the set through your post.")
+                Text("Snap a photo of your brick creation, tag the set number, and share it with builders around the world! Earn rewards when other fans buy the set through your post.")
                     .font(.legoBody)
                     .foregroundColor(.secondaryText)
                     .multilineTextAlignment(.center)

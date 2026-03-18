@@ -9,7 +9,7 @@ struct EditProfileView: View {
 
     // Persisted profile fields (shared with ProfileView via @AppStorage)
     @AppStorage("profile_displayName") private var savedDisplayName = "blockmasterjames"
-    @AppStorage("profile_bio")         private var savedBio         = "Building one brick at a time 🧱 | LEGO fan since 2010"
+    @AppStorage("profile_bio")         private var savedBio         = "Building one brick at a time 🧱 | Brick fan since 2010"
 
     // Local draft — only written back when the user taps Save
     @State private var draftDisplayName = ""
@@ -51,7 +51,7 @@ struct EditProfileView: View {
                                 .font(.legoCardTitle)
                                 .foregroundColor(.legoYellow)
 
-                            TextField("Tell the world about your LEGO hobby…", text: $draftBio, axis: .vertical)
+                            TextField("Tell the world about your Brick hobby…", text: $draftBio, axis: .vertical)
                                 .lineLimit(3, reservesSpace: true)
                                 .foregroundColor(.lightText)
                                 .font(.legoBody)
