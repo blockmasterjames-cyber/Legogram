@@ -7,6 +7,7 @@ import SwiftUI
 struct OnboardingView: View {
 
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
+    @AppStorage("isLoggedIn")        private var isLoggedIn        = false
     @State private var currentPage = 0
 
     var body: some View {
@@ -17,7 +18,10 @@ struct OnboardingView: View {
             TabView(selection: $currentPage) {
                 OnboardingSlide1().tag(0)
                 OnboardingSlide2().tag(1)
-                OnboardingSlide3 { hasSeenOnboarding = true }.tag(2)
+                OnboardingSlide3 {
+                    hasSeenOnboarding = true
+                    isLoggedIn = true
+                }.tag(2)
             }
             .tabViewStyle(.page(indexDisplayMode: .always))
             .indexViewStyle(.page(backgroundDisplayMode: .always))
@@ -28,6 +32,7 @@ struct OnboardingView: View {
                     Spacer()
                     Button("Skip") {
                         hasSeenOnboarding = true
+                        isLoggedIn = true
                     }
                     .font(.legoBody)
                     .foregroundColor(.secondaryText)
