@@ -6,9 +6,6 @@ struct SettingsView: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    @AppStorage("isLoggedIn")                 private var isLoggedIn            = false
-    @AppStorage("hasSeenOnboarding")          private var hasSeenOnboarding     = false
-    @AppStorage("hasSeenSuggestedBuilders")   private var hasSeenSuggestedBuilders = false
     @AppStorage("profile_displayName")        private var displayName           = ""
     @AppStorage("profile_username")           private var username              = ""
     @AppStorage("profile_bio")                private var bio                   = ""
@@ -208,21 +205,23 @@ struct SettingsView: View {
         try? FileManager.default.removeItem(at: docs.appendingPathComponent("profile_avatar.jpg"))
         try? FileManager.default.removeItem(at: docs.appendingPathComponent("profile_background.jpg"))
 
-        // Reset every AppStorage key to its default empty value
-        hasSeenOnboarding        = false
-        hasSeenSuggestedBuilders = false
-        displayName              = ""
-        username                 = ""
-        bio                      = ""
-        hasAvatar                = false
-        hasBackground            = false
-        kidSafeMode              = true
-        notificationsOn          = true
-        ageVerified              = false
+        // Reset local AppStorage keys
+        displayName     = ""
+        username        = ""
+        bio             = ""
+        hasAvatar       = false
+        hasBackground   = false
+        kidSafeMode     = true
+        notificationsOn = true
+        ageVerified     = false
 
-        // Setting isLoggedIn to false causes ContentView to immediately
-        // navigate to OnboardingView — no delay or dismiss needed.
-        isLoggedIn = false
+        // Sign out via Firebase Auth — ContentView's auth state listener
+        // automatically navigates to LoginView when the user becomes nil.
+        do {
+            try AuthService.shared.signOut()
+        } catch {
+            print("[SettingsView] Firebase signOut error: \(error.localizedDescription)")
+        }
     }
 }
 
