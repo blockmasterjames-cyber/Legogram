@@ -47,6 +47,10 @@
 		AA0001000000000000000027 /* CropView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000027 /* CropView.swift */; };
 		AA0001000000000000000028 /* SetDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000028 /* SetDetailView.swift */; };
 		AA0001000000000000000029 /* AppIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000029 /* AppIconView.swift */; };
+		AA000100000000000000002A /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000002A /* LoginView.swift */; };
+		AA000100000000000000002B /* SignUpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000002B /* SignUpView.swift */; };
+		AA000100000000000000002C /* ForgotPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000002C /* ForgotPasswordView.swift */; };
+		AA000100000000000000002D /* UserSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000002D /* UserSession.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -90,6 +94,10 @@
 		AA0002000000000000000027 /* CropView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropView.swift; sourceTree = "<group>"; };
 		AA0002000000000000000028 /* SetDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetDetailView.swift; sourceTree = "<group>"; };
 		AA0002000000000000000029 /* AppIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconView.swift; sourceTree = "<group>"; };
+		AA000200000000000000002A /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		AA000200000000000000002B /* SignUpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignUpView.swift; sourceTree = "<group>"; };
+		AA000200000000000000002C /* ForgotPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordView.swift; sourceTree = "<group>"; };
+		AA000200000000000000002D /* UserSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSession.swift; sourceTree = "<group>"; };
 		AA0002000000000000000020 /* BrickFeed.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BrickFeed.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -194,6 +202,7 @@
 		AA0004000000000000000008 /* Features */ = {
 			isa = PBXGroup;
 			children = (
+				AA000400000000000000002E /* Auth */,
 				AA0004000000000000000009 /* Home */,
 				AA000400000000000000000A /* Search */,
 				AA000400000000000000000B /* Post */,
@@ -203,6 +212,16 @@
 				AA0004000000000000000014 /* Messages */,
 			);
 			path = Features;
+			sourceTree = "<group>";
+		};
+		AA000400000000000000002E /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				AA000200000000000000002A /* LoginView.swift */,
+				AA000200000000000000002B /* SignUpView.swift */,
+				AA000200000000000000002C /* ForgotPasswordView.swift */,
+			);
+			path = Auth;
 			sourceTree = "<group>";
 		};
 		AA0004000000000000000013 /* Settings */ = {
@@ -289,6 +308,7 @@
 			children = (
 				AA0002000000000000000010 /* FirebaseService.swift */,
 				AA0002000000000000000011 /* AuthService.swift */,
+				AA000200000000000000002D /* UserSession.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -420,6 +440,10 @@
 				AA0001000000000000000027 /* CropView.swift in Sources */,
 				AA0001000000000000000028 /* SetDetailView.swift in Sources */,
 				AA0001000000000000000029 /* AppIconView.swift in Sources */,
+				AA000100000000000000002A /* LoginView.swift in Sources */,
+				AA000100000000000000002B /* SignUpView.swift in Sources */,
+				AA000100000000000000002C /* ForgotPasswordView.swift in Sources */,
+				AA000100000000000000002D /* UserSession.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
