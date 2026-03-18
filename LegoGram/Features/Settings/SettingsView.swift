@@ -6,11 +6,12 @@ struct SettingsView: View {
 
     @Environment(\.dismiss) private var dismiss
 
+    @AppStorage("isLoggedIn")                 private var isLoggedIn            = false
     @AppStorage("hasSeenOnboarding")          private var hasSeenOnboarding     = false
     @AppStorage("hasSeenSuggestedBuilders")   private var hasSeenSuggestedBuilders = false
-    @AppStorage("profile_displayName")        private var displayName           = "blockmasterjames"
-    @AppStorage("profile_username")           private var username              = "blockmasterjames"
-    @AppStorage("profile_bio")                private var bio                   = "Building one brick at a time 🧱 | Brick fan since 2010"
+    @AppStorage("profile_displayName")        private var displayName           = ""
+    @AppStorage("profile_username")           private var username              = ""
+    @AppStorage("profile_bio")                private var bio                   = ""
     @AppStorage("profile_hasAvatar")          private var hasAvatar:            Bool = false
     @AppStorage("profile_hasBackground")      private var hasBackground:        Bool = false
     @AppStorage("settings_kidSafeMode")       private var kidSafeMode:          Bool = true
@@ -207,23 +208,21 @@ struct SettingsView: View {
         try? FileManager.default.removeItem(at: docs.appendingPathComponent("profile_avatar.jpg"))
         try? FileManager.default.removeItem(at: docs.appendingPathComponent("profile_background.jpg"))
 
-        // Reset all session data stored in UserDefaults
-        displayName          = "blockmasterjames"
-        username             = "blockmasterjames"
-        bio                  = "Building one brick at a time 🧱 | Brick fan since 2010"
-        hasAvatar            = false
-        hasBackground        = false
-        kidSafeMode          = true
-        notificationsOn      = true
-        ageVerified          = false
+        // Reset every AppStorage key to its default empty value
+        hasSeenOnboarding        = false
         hasSeenSuggestedBuilders = false
+        displayName              = ""
+        username                 = ""
+        bio                      = ""
+        hasAvatar                = false
+        hasBackground            = false
+        kidSafeMode              = true
+        notificationsOn          = true
+        ageVerified              = false
 
-        // Dismiss sheet first, then flip the onboarding flag so BrickFeedApp
-        // swaps in OnboardingView immediately with no stale sheet on top.
-        dismiss()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            hasSeenOnboarding = false
-        }
+        // Setting isLoggedIn to false causes ContentView to immediately
+        // navigate to OnboardingView — no delay or dismiss needed.
+        isLoggedIn = false
     }
 }
 
