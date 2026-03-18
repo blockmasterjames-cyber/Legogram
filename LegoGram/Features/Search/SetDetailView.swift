@@ -121,7 +121,7 @@ struct SetDetailView: View {
 
                 if let url = URL(string: set.legoStoreURL) {
                     Link(destination: url) {
-                        Label("Buy on LEGO.com", systemImage: "cart.fill")
+                        Label("Buy Set", systemImage: "cart.fill")
                             .font(.system(size: 13, weight: .bold, design: .rounded))
                             .foregroundColor(.darkBackground)
                             .padding(.horizontal, 14).padding(.vertical, 9)

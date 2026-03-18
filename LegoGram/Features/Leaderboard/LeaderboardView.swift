@@ -1,11 +1,14 @@
 import SwiftUI
 
-/// The Leaderboard screen — shows who the best LEGO builders on BrickFeed are!
-/// Sprint 6 Feature 10: every row is now tappable → opens that user's profile.
+/// The Leaderboard screen — shows who the best brick builders on BrickFeed are!
+/// Sprint 7: Kid Safe Mode scopes the leaderboard to friends-only when ON.
 struct LeaderboardView: View {
 
+    @AppStorage("settings_kidSafeMode") private var kidSafeMode: Bool = true
+    @ObservedObject private var postStore = PostStore.shared
+
     @State private var selectedCategory: LeaderboardCategory = .topLikes
-    /// Username navigation state — set to open OtherProfileView (Feature 10)
+    /// Username navigation state — set to open OtherProfileView
     @State private var selectedUsername: String?
 
     enum LeaderboardCategory: String, CaseIterable {
@@ -14,14 +17,29 @@ struct LeaderboardView: View {
         case topBuilders  = "Top Builders"
     }
 
-    /// Placeholder leaderboard entries — real ones will come from Firebase.
-    private let placeholderBuilders: [BuilderEntry] = [
-        BuilderEntry(rank: 1, username: "brickwizard",     score: 24_501),
-        BuilderEntry(rank: 2, username: "legoking_max",    score: 18_342),
-        BuilderEntry(rank: 3, username: "starwars_bricks", score: 15_877),
-        BuilderEntry(rank: 4, username: "castle_builder",  score: 11_209),
-        BuilderEntry(rank: 5, username: "technic_tommy",   score:  9_654)
+    /// All builders (global leaderboard).
+    private let allBuilders: [BuilderEntry] = [
+        BuilderEntry(rank: 1, username: "brickwizard",      score: 24_501),
+        BuilderEntry(rank: 2, username: "legoking_max",     score: 18_342),
+        BuilderEntry(rank: 3, username: "starwars_bricks",  score: 15_877),
+        BuilderEntry(rank: 4, username: "castle_builder",   score: 11_209),
+        BuilderEntry(rank: 5, username: "technic_tommy",    score:  9_654)
     ]
+
+    /// Friends-only leaderboard — only builders the current user follows, re-ranked.
+    private var friendBuilders: [BuilderEntry] {
+        let followed = postStore.followingUsernames
+        let filtered = allBuilders.filter { followed.contains($0.username) }
+        // Re-rank the filtered list
+        return filtered.enumerated().map { idx, entry in
+            BuilderEntry(rank: idx + 1, username: entry.username, score: entry.score)
+        }
+    }
+
+    /// The active list depending on Kid Safe Mode.
+    private var activeBuilders: [BuilderEntry] {
+        kidSafeMode ? friendBuilders : allBuilders
+    }
 
     var body: some View {
         NavigationStack {
@@ -37,7 +55,20 @@ struct LeaderboardView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal)
                         .padding(.top, 8)
-                        .padding(.bottom, 16)
+                        .padding(.bottom, 4)
+
+                    // MARK: - Scope Label (Kid Safe Mode)
+                    HStack(spacing: 6) {
+                        Image(systemName: kidSafeMode ? "person.2.fill" : "globe")
+                            .font(.system(size: 13))
+                            .foregroundColor(.legoYellow)
+                        Text(kidSafeMode ? "Friends Leaderboard" : "Global Leaderboard")
+                            .font(.legoCaption)
+                            .foregroundColor(.legoYellow)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                    .padding(.bottom, 12)
 
                     // MARK: - Category Tabs
                     HStack(spacing: 0) {
@@ -65,12 +96,22 @@ struct LeaderboardView: View {
                     // MARK: - Builder List
                     ScrollView {
                         VStack(spacing: 12) {
-                            ForEach(placeholderBuilders) { builder in
-                                // Feature 10: tapping opens that user's profile
-                                Button { selectedUsername = builder.username } label: {
-                                    BuilderRow(builder: builder, category: selectedCategory)
+                            if activeBuilders.isEmpty {
+                                VStack(spacing: 12) {
+                                    Image(systemName: "person.2")
+                                        .font(.system(size: 48)).foregroundColor(.secondaryText)
+                                    Text("Follow some builders to see the Friends Leaderboard!")
+                                        .font(.legoBody).foregroundColor(.secondaryText)
+                                        .multilineTextAlignment(.center)
                                 }
-                                .buttonStyle(.plain)
+                                .padding(.top, 40).padding(.horizontal)
+                            } else {
+                                ForEach(activeBuilders) { builder in
+                                    Button { selectedUsername = builder.username } label: {
+                                        BuilderRow(builder: builder, category: selectedCategory)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
                         }
                         .padding(.horizontal)
@@ -79,7 +120,6 @@ struct LeaderboardView: View {
                     }
                 }
             }
-            // Feature 10: destination is OtherProfileView
             .navigationDestination(item: $selectedUsername) { username in
                 OtherProfileView(username: username)
             }

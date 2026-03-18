@@ -10,7 +10,7 @@ import PhotosUI
 struct ProfileView: View {
 
     @AppStorage("profile_displayName")   private var displayName   = "blockmasterjames"
-    @AppStorage("profile_bio")           private var bio           = "Building one brick at a time 🧱 | LEGO fan since 2010"
+    @AppStorage("profile_bio")           private var bio           = "Building one brick at a time 🧱 | Brick fan since 2010"
     @AppStorage("profile_username")      private var username      = "blockmasterjames"
     @AppStorage("profile_hasBackground") private var hasBackground = false
     @AppStorage("profile_hasAvatar")     private var hasAvatar     = false
@@ -20,11 +20,10 @@ struct ProfileView: View {
     @State private var backgroundImage: UIImage?
     @State private var avatarImage: UIImage?
 
-    // Background picker + crop
+    // Background picker
     @State private var selectedBgItem: PhotosPickerItem?
     @State private var showingBgPicker    = false
-    @State private var showingCropView    = false
-    @State private var imageToCrop: UIImage?
+    @State private var isLoadingBg        = false
 
     // Avatar picker (Feature 1 & 2)
     @State private var selectedAvatarItem: PhotosPickerItem?
@@ -121,34 +120,20 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showingEditProfile) { EditProfileView() }
         .sheet(isPresented: $showingSettings)    { SettingsView() }
-        // CropView for background photo (Feature 3)
-        .fullScreenCover(isPresented: $showingCropView) {
-            if let img = imageToCrop {
-                CropView(
-                    image: img,
-                    onDone: { cropped in
-                        backgroundImage   = cropped
-                        saveBackground(cropped)
-                        showingCropView   = false
-                        imageToCrop       = nil
-                    },
-                    onCancel: {
-                        showingCropView = false
-                        imageToCrop     = nil
-                    }
-                )
-            }
-        }
-        // Background photo picker
+        // Background photo picker — saves directly, no crop sheet to avoid freeze
         .photosPicker(isPresented: $showingBgPicker,
                       selection: $selectedBgItem,
                       matching: .images)
         .onChange(of: selectedBgItem) { _, newItem in
+            guard let newItem, !isLoadingBg else { return }
+            isLoadingBg = true
             Task {
-                if let data = try? await newItem?.loadTransferable(type: Data.self),
-                   let img  = UIImage(data: data) {
-                    imageToCrop     = img
-                    showingCropView = true
+                defer { Task { @MainActor in isLoadingBg = false } }
+                guard let data = try? await newItem.loadTransferable(type: Data.self),
+                      let img  = UIImage(data: data) else { return }
+                await MainActor.run {
+                    backgroundImage = img
+                    saveBackground(img)
                 }
             }
         }
@@ -353,7 +338,7 @@ struct ProfileView: View {
                 .font(.system(size: 56)).foregroundColor(.secondaryText)
             Text("No posts yet")
                 .font(.legoCardTitle).foregroundColor(.lightText)
-            Text("Share your first LEGO build using the + button!")
+            Text("Share your first Brick build using the + button!")
                 .font(.legoBody).foregroundColor(.secondaryText).multilineTextAlignment(.center)
         }
         .padding(.top, 40).padding(.horizontal)

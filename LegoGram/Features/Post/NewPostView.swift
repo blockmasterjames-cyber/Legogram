@@ -57,53 +57,66 @@ struct NewPostView: View {
             ZStack {
                 Color.darkBackground.ignoresSafeArea()
 
-                ScrollView {
-                    VStack(spacing: 24) {
+                ScrollViewReader { scrollProxy in
+                    ScrollView {
+                        VStack(spacing: 24) {
 
-                        // Screen Title
-                        Text("New Post")
-                            .font(.legoScreenTitle)
-                            .foregroundColor(.lightText)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            // Screen Title
+                            Text("New Post")
+                                .font(.legoScreenTitle)
+                                .foregroundColor(.lightText)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal)
+                                .padding(.top, 8)
+
+                            // Media Area
+                            mediaArea
+
+                            // MARK: Set Field / Custom Build Toggle
+                            VStack(alignment: .leading, spacing: 12) {
+
+                                // Feature 8: Custom Build toggle
+                                customBuildToggle
+
+                                if isCustomBuild {
+                                    // Custom build name field
+                                    customBuildNameField
+                                } else {
+                                    // Searchable Brick set field
+                                    setSearchField
+                                }
+                            }
                             .padding(.horizontal)
-                            .padding(.top, 8)
 
-                        // Media Area
-                        mediaArea
+                            // Description
+                            descriptionField
+                                .id("description-field")
 
-                        // MARK: Set Field / Custom Build Toggle
-                        VStack(alignment: .leading, spacing: 12) {
+                            // Post Button
+                            postButton
+                                .id("post-button")
 
-                            // Feature 8: Custom Build toggle
-                            customBuildToggle
-
-                            if isCustomBuild {
-                                // Custom build name field
-                                customBuildNameField
-                            } else {
-                                // Feature 7: Searchable LEGO set field
-                                setSearchField
+                            Color.clear.frame(height: 80)
+                        }
+                        .padding(.top)
+                    }
+                    // Scroll up when description field is focused so it's above keyboard
+                    .onChange(of: descriptionFocused) { _, focused in
+                        if focused {
+                            withAnimation {
+                                scrollProxy.scrollTo("description-field", anchor: .center)
                             }
                         }
-                        .padding(.horizontal)
-
-                        // Description
-                        descriptionField
-
-                        // Post Button
-                        postButton
-
-                        Color.clear.frame(height: 80)
                     }
-                    .padding(.top)
-                }
-                // Tap outside to dismiss keyboard (Feature 9)
-                .onTapGesture {
-                    hideKeyboard()
-                    showingSetDropdown = false
+                    // Tap outside to dismiss keyboard (Feature 9)
+                    .onTapGesture {
+                        hideKeyboard()
+                        showingSetDropdown = false
+                    }
+                    .scrollDismissesKeyboard(.interactively)
                 }
             }
-            // Feature 9: keyboard Done toolbar (shown whenever any field is focused)
+            // Keyboard Done toolbar
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
@@ -199,7 +212,7 @@ struct NewPostView: View {
                     Text("Custom Build")
                         .font(.legoCardTitle)
                         .foregroundColor(isCustomBuild ? .white : .lightText)
-                    Text("Not based on an official LEGO set")
+                    Text("Not based on an official set")
                         .font(.legoCaption)
                         .foregroundColor(.secondaryText)
                 }
@@ -251,7 +264,7 @@ struct NewPostView: View {
 
     private var setSearchField: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("LEGO Set", systemImage: "magnifyingglass.circle.fill")
+            Label("Brick Set", systemImage: "magnifyingglass.circle.fill")
                 .font(.legoCardTitle)
                 .foregroundColor(.legoYellow)
 

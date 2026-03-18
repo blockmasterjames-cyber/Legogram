@@ -6,15 +6,16 @@ struct SettingsView: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    @AppStorage("hasSeenOnboarding")       private var hasSeenOnboarding = false
-    @AppStorage("profile_displayName")     private var displayName       = "blockmasterjames"
-    @AppStorage("profile_username")        private var username          = "blockmasterjames"
-    @AppStorage("profile_bio")             private var bio               = "Building one brick at a time 🧱 | LEGO fan since 2010"
-    @AppStorage("profile_hasAvatar")       private var hasAvatar:        Bool = false
-    @AppStorage("profile_hasBackground")   private var hasBackground:    Bool = false
-    @AppStorage("settings_kidSafeMode")    private var kidSafeMode:      Bool = true
-    @AppStorage("settings_notifications")  private var notificationsOn:  Bool = true
-    @AppStorage("dm_ageVerified")          private var ageVerified:      Bool = false
+    @AppStorage("hasSeenOnboarding")          private var hasSeenOnboarding     = false
+    @AppStorage("hasSeenSuggestedBuilders")   private var hasSeenSuggestedBuilders = false
+    @AppStorage("profile_displayName")        private var displayName           = "blockmasterjames"
+    @AppStorage("profile_username")           private var username              = "blockmasterjames"
+    @AppStorage("profile_bio")                private var bio                   = "Building one brick at a time 🧱 | Brick fan since 2010"
+    @AppStorage("profile_hasAvatar")          private var hasAvatar:            Bool = false
+    @AppStorage("profile_hasBackground")      private var hasBackground:        Bool = false
+    @AppStorage("settings_kidSafeMode")       private var kidSafeMode:          Bool = true
+    @AppStorage("settings_notifications")     private var notificationsOn:      Bool = true
+    @AppStorage("dm_ageVerified")             private var ageVerified:          Bool = false
 
     @State private var showingSignOutConfirm = false
     @State private var showingDeleteConfirm  = false
@@ -58,7 +59,7 @@ struct SettingsView: View {
                         }
 
                         // Version footer
-                        Text("BrickFeed · Sprint 3 Build")
+                        Text("BrickFeed · Sprint 7 Build")
                             .font(.legoCaption)
                             .foregroundColor(.secondaryText)
                             .frame(maxWidth: .infinity)
@@ -207,17 +208,22 @@ struct SettingsView: View {
         try? FileManager.default.removeItem(at: docs.appendingPathComponent("profile_background.jpg"))
 
         // Reset all session data stored in UserDefaults
-        displayName    = "blockmasterjames"
-        username       = "blockmasterjames"
-        bio            = "Building one brick at a time 🧱 | LEGO fan since 2010"
-        hasAvatar      = false
-        hasBackground  = false
-        kidSafeMode    = true
-        notificationsOn = true
-        ageVerified    = false
+        displayName          = "blockmasterjames"
+        username             = "blockmasterjames"
+        bio                  = "Building one brick at a time 🧱 | Brick fan since 2010"
+        hasAvatar            = false
+        hasBackground        = false
+        kidSafeMode          = true
+        notificationsOn      = true
+        ageVerified          = false
+        hasSeenSuggestedBuilders = false
 
-        // Setting this last triggers LegoGramApp to swap in OnboardingView immediately
-        hasSeenOnboarding = false
+        // Dismiss sheet first, then flip the onboarding flag so BrickFeedApp
+        // swaps in OnboardingView immediately with no stale sheet on top.
+        dismiss()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            hasSeenOnboarding = false
+        }
     }
 }
 
