@@ -9,10 +9,12 @@ struct StoryShareCardView: View {
     let post: LegoPost
 
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var postStore = PostStore.shared
     @State private var renderedImage: UIImage?
     @State private var showingShareSheet = false
     @State private var isRendering = false
     @State private var savedSuccessfully = false
+    @State private var resolvedPostImage: UIImage?
 
     private var legoSet: LegoSet? { LegoSetDatabase.set(for: post.legoSetNumber) }
 
@@ -36,7 +38,7 @@ struct StoryShareCardView: View {
                             .padding(.horizontal)
 
                         // Preview of the card
-                        StoryCardContent(post: post, legoSet: legoSet)
+                        StoryCardContent(post: post, legoSet: legoSet, postImage: resolvedPostImage)
                             .frame(width: 300, height: 300 * (16.0 / 9.0))
                             .cornerRadius(20)
                             .shadow(color: .black.opacity(0.5), radius: 16, x: 0, y: 8)
@@ -110,13 +112,39 @@ struct StoryShareCardView: View {
                 ShareSheet(activityItems: [img])
             }
         }
+        .onAppear { resolvePostImage() }
+    }
+
+    // MARK: - Resolve Post Image
+
+    /// Pre-fetches the post image so the card renderer (which is synchronous)
+    /// has a real UIImage to draw instead of relying on AsyncImage.
+    private func resolvePostImage() {
+        // 1. User-taken photo stored in PostStore
+        if let img = postStore.postImages[post.id] {
+            resolvedPostImage = img
+            return
+        }
+        // 2. Catalog image from LEGO set database
+        if let imageURL = legoSet?.setImageURL {
+            Task {
+                do {
+                    let (data, _) = try await URLSession.shared.data(from: imageURL)
+                    if let img = UIImage(data: data) {
+                        await MainActor.run { resolvedPostImage = img }
+                    }
+                } catch {
+                    // Fall through — card will show placeholder
+                }
+            }
+        }
     }
 
     // MARK: - Render Card
 
     @MainActor
     private func renderCard() -> UIImage? {
-        let cardView = StoryCardContent(post: post, legoSet: legoSet)
+        let cardView = StoryCardContent(post: post, legoSet: legoSet, postImage: resolvedPostImage)
             .frame(width: 390, height: 390 * (16.0 / 9.0))
 
         let renderer = ImageRenderer(content: cardView)
@@ -159,6 +187,8 @@ struct StoryCardContent: View {
 
     let post: LegoPost
     let legoSet: LegoSet?
+    /// Pre-resolved UIImage so ImageRenderer can draw a real photo synchronously.
+    var postImage: UIImage? = nil
 
     var body: some View {
         ZStack {
@@ -205,19 +235,14 @@ struct StoryCardContent: View {
 
                 Spacer()
 
-                // MARK: Set Image (square)
-                if let imageURL = legoSet?.setImageURL {
-                    AsyncImage(url: imageURL) { phase in
-                        switch phase {
-                        case .success(let img):
-                            img.resizable().scaledToFill()
-                                .frame(width: 220, height: 220)
-                                .cornerRadius(16)
-                                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.legoYellow, lineWidth: 2))
-                        default:
-                            imagePlaceholder
-                        }
-                    }
+                // MARK: Set Image (square) — uses pre-resolved UIImage for reliable rendering
+                if let uiImage = postImage {
+                    Image(uiImage: uiImage)
+                        .resizable().scaledToFill()
+                        .frame(width: 220, height: 220)
+                        .clipped()
+                        .cornerRadius(16)
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.legoYellow, lineWidth: 2))
                 } else {
                     imagePlaceholder
                 }

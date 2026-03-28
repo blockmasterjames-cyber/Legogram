@@ -1,0 +1,90 @@
+rules_version = '2';
+
+// BrickFeed Firestore Security Rules
+// Deploy these rules in the Firebase Console > Firestore > Rules tab
+// These rules ensure users can only modify their own data and that
+// all writes are authenticated.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Users ──────────────────────────────────────────────────────
+    match /users/{userId} {
+      // Anyone signed in can read user profiles (needed for feed, profiles)
+      allow read: if request.auth != null;
+
+      // Users can only create/update their own profile
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+
+      // Only the user themselves can delete their profile
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ── Posts ──────────────────────────────────────────────────────
+    match /posts/{postId} {
+      // Any authenticated user can read posts (feed)
+      allow read: if request.auth != null;
+
+      // Authenticated users can create posts; user_id must match auth uid
+      allow create: if request.auth != null
+                    && request.resource.data.user_id == request.auth.uid;
+
+      // Only the post author can update or delete their post
+      allow update: if request.auth != null
+                    && resource.data.user_id == request.auth.uid;
+      allow delete: if request.auth != null
+                    && resource.data.user_id == request.auth.uid;
+    }
+
+    // ── Comments ──────────────────────────────────────────────────
+    match /comments/{commentId} {
+      // Any authenticated user can read comments
+      allow read: if request.auth != null;
+
+      // Authenticated users can create comments; user_id must match
+      allow create: if request.auth != null
+                    && request.resource.data.user_id == request.auth.uid;
+
+      // Only the comment author can update or delete
+      allow update: if request.auth != null
+                    && resource.data.user_id == request.auth.uid;
+      allow delete: if request.auth != null
+                    && resource.data.user_id == request.auth.uid;
+    }
+
+    // ── Direct Messages ───────────────────────────────────────────
+    match /messages/{messageId} {
+      // Only sender and recipient can read messages
+      allow read: if request.auth != null
+                  && (resource.data.sender_id == request.auth.uid
+                      || resource.data.recipient_id == request.auth.uid);
+
+      // Authenticated users can send messages; sender_id must match
+      allow create: if request.auth != null
+                    && request.resource.data.sender_id == request.auth.uid;
+
+      // Messages cannot be edited after sending
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ── LEGO Sets (read-only catalog) ─────────────────────────────
+    match /lego_sets/{setId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Admin-only via Firebase Console
+    }
+
+    // ── Reports ───────────────────────────────────────────────────
+    match /reports/{reportId} {
+      // Users can create reports but not read or modify them
+      allow create: if request.auth != null;
+      allow read, update, delete: if false; // Admin-only
+    }
+
+    // ── Deny everything else ──────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

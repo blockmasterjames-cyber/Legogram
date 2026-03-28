@@ -11,6 +11,7 @@ struct ContentView: View {
 
     /// Received from BrickFeedApp via .environmentObject — do NOT redeclare as @StateObject.
     @EnvironmentObject private var userSession: UserSession
+    @ObservedObject private var networkMonitor = NetworkMonitor.shared
 
     private enum AuthState { case loading, loggedIn, loggedOut }
     @State private var authState: AuthState = .loading
@@ -19,22 +20,40 @@ struct ContentView: View {
     @State private var authListenerHandle: AuthStateDidChangeListenerHandle?
 
     var body: some View {
-        Group {
-            switch authState {
-            case .loading:
-                ZStack {
-                    Color.darkBackground.ignoresSafeArea()
-                    ProgressView()
-                        .tint(.legoYellow)
-                        .scaleEffect(1.6)
+        ZStack(alignment: .top) {
+            Group {
+                switch authState {
+                case .loading:
+                    ZStack {
+                        Color.darkBackground.ignoresSafeArea()
+                        ProgressView()
+                            .tint(.legoYellow)
+                            .scaleEffect(1.6)
+                    }
+
+                case .loggedIn:
+                    MainTabView()
+                        .environmentObject(userSession)
+
+                case .loggedOut:
+                    LoginView()
                 }
+            }
 
-            case .loggedIn:
-                MainTabView()
-                    .environmentObject(userSession)
-
-            case .loggedOut:
-                LoginView()
+            // Offline banner — shows when device has no network connection
+            if !networkMonitor.isConnected {
+                HStack(spacing: 8) {
+                    Image(systemName: "wifi.slash")
+                        .font(.system(size: 14, weight: .bold))
+                    Text("No Internet Connection")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(Color.legoRed)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .animation(.easeInOut, value: networkMonitor.isConnected)
             }
         }
         .onAppear(perform: listenToAuthState)
