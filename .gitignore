@@ -24,3 +24,5 @@ Pods/
 *.p12
 *.mobileprovision
 AuthKey_*.p8
+LegoGram/GoogleService-Info.plist
+LegoGram/GoogleService-Info.plist
