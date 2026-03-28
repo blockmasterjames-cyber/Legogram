@@ -1,28 +1,21 @@
 import SwiftUI
 import Firebase
 
-@main
-struct BrickFeedApp: App {
+// MARK: - App Delegate
+// Firebase MUST be configured in the App Delegate's didFinishLaunchingWithOptions,
+// which runs BEFORE SwiftUI @StateObject property wrappers are initialized.
+// Placing it in the App struct's init() is too late — @StateObject closures
+// evaluate before init() body, so any singleton that touches Auth.auth() would crash.
 
-    @StateObject private var userSession = UserSession.shared
-
-    init() {
+class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
         configureFirebase()
+        return true
     }
 
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-                .environmentObject(userSession)
-        }
-    }
-
-    // MARK: - Firebase Setup
-
-    /// Configures Firebase safely:
-    /// 1. Guards against double-configure (second call would fatalError).
-    /// 2. Guards against placeholder plist values — Firebase Analytics crashes on
-    ///    launch if GOOGLE_APP_ID is not a real app identifier.
     private func configureFirebase() {
         // Guard: Firebase is already configured (e.g. during SwiftUI preview refresh)
         guard FirebaseApp.app() == nil else { return }
@@ -43,5 +36,19 @@ struct BrickFeedApp: App {
         }
 
         FirebaseApp.configure()
+    }
+}
+
+@main
+struct BrickFeedApp: App {
+
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @StateObject private var userSession = UserSession.shared
+
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+                .environmentObject(userSession)
+        }
     }
 }

@@ -121,16 +121,18 @@ struct LoginView: View {
 
                             // Sign in with Apple (required by App Store for apps with social login)
                             SignInWithAppleButton(.signIn) { request in
-                                let nonce = AuthService.shared.randomNonceString()
-                                AuthService.shared.currentNonce = nonce
+                                guard let hashedNonce = AuthService.shared.prepareAppleSignIn() else {
+                                    errorMessage = "Unable to generate a secure nonce. Please try again."
+                                    return
+                                }
                                 request.requestedScopes = [.fullName, .email]
-                                request.nonce = AuthService.shared.sha256(nonce)
+                                request.nonce = hashedNonce
                             } onCompletion: { result in
                                 switch result {
                                 case .success(let authorization):
                                     isLoading = true
                                     errorMessage = nil
-                                    Task {
+                                    Task { @MainActor in
                                         do {
                                             try await AuthService.shared.signInWithApple(authorization: authorization)
                                         } catch {
@@ -139,6 +141,10 @@ struct LoginView: View {
                                         isLoading = false
                                     }
                                 case .failure(let error):
+                                    // User cancelled (ASAuthorizationError.canceled) is not a real error
+                                    if (error as? ASAuthorizationError)?.code == .canceled {
+                                        return
+                                    }
                                     errorMessage = error.localizedDescription
                                 }
                             }
@@ -165,12 +171,13 @@ struct LoginView: View {
     // MARK: - Login Action
 
     private func performLogin() {
-        guard !email.isEmpty, !password.isEmpty else { return }
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedEmail.isEmpty, !password.isEmpty else { return }
         isLoading    = true
         errorMessage = nil
-        Task {
+        Task { @MainActor in
             do {
-                try await AuthService.shared.signIn(email: email, password: password)
+                try await AuthService.shared.signIn(email: trimmedEmail, password: password)
             } catch {
                 errorMessage = error.localizedDescription
             }
