@@ -1,7 +1,8 @@
 import SwiftUI
+import AuthenticationServices
 
 /// The main login screen shown when the user is not authenticated.
-/// Allows sign in with email/password, navigation to sign up, and forgot password.
+/// Allows sign in with email/password, Sign in with Apple, navigation to sign up, and forgot password.
 struct LoginView: View {
 
     @State private var email        = ""
@@ -117,6 +118,33 @@ struct LoginView: View {
                                     .background(Color.legoYellow)
                                     .cornerRadius(14)
                             }
+
+                            // Sign in with Apple (required by App Store for apps with social login)
+                            SignInWithAppleButton(.signIn) { request in
+                                let nonce = AuthService.shared.randomNonceString()
+                                AuthService.shared.currentNonce = nonce
+                                request.requestedScopes = [.fullName, .email]
+                                request.nonce = AuthService.shared.sha256(nonce)
+                            } onCompletion: { result in
+                                switch result {
+                                case .success(let authorization):
+                                    isLoading = true
+                                    errorMessage = nil
+                                    Task {
+                                        do {
+                                            try await AuthService.shared.signInWithApple(authorization: authorization)
+                                        } catch {
+                                            errorMessage = error.localizedDescription
+                                        }
+                                        isLoading = false
+                                    }
+                                case .failure(let error):
+                                    errorMessage = error.localizedDescription
+                                }
+                            }
+                            .signInWithAppleButtonStyle(.white)
+                            .frame(height: 52)
+                            .cornerRadius(14)
                         }
                         .padding(.horizontal, 24)
 

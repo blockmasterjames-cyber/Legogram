@@ -1,6 +1,8 @@
 import Foundation
 import FirebaseAuth
 import FirebaseFirestore
+import AuthenticationServices
+import CryptoKit
 
 /// AuthService handles everything to do with signing in, signing out,
 /// and creating new BrickFeed accounts using Firebase Authentication.
@@ -108,5 +110,80 @@ final class AuthService: ObservableObject {
     /// Sends a Firebase password-reset email to the given address.
     func sendPasswordReset(to email: String) async throws {
         try await Auth.auth().sendPasswordReset(withEmail: email)
+    }
+
+    // =========================================================================
+    // MARK: - Sign in with Apple
+    // =========================================================================
+
+    /// A random nonce used for the current Sign in with Apple request.
+    /// Must be set before starting the Apple auth flow and read in the delegate callback.
+    var currentNonce: String?
+
+    /// Generates a cryptographically secure random nonce string.
+    func randomNonceString(length: Int = 32) -> String {
+        precondition(length > 0)
+        var randomBytes = [UInt8](repeating: 0, count: length)
+        let errorCode = SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, &randomBytes)
+        guard errorCode == errSecSuccess else { fatalError("Unable to generate nonce.") }
+        let charset: [Character] = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        return String(randomBytes.map { charset[Int($0) % charset.count] })
+    }
+
+    /// Returns the SHA256 hash of the input string, hex-encoded.
+    func sha256(_ input: String) -> String {
+        let data = Data(input.utf8)
+        let hash = SHA256.hash(data: data)
+        return hash.compactMap { String(format: "%02x", $0) }.joined()
+    }
+
+    /// Signs in (or creates an account) using Apple credential from ASAuthorization.
+    func signInWithApple(authorization: ASAuthorization) async throws {
+        guard let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential,
+              let appleIDToken = appleIDCredential.identityToken,
+              let idTokenString = String(data: appleIDToken, encoding: .utf8),
+              let nonce = currentNonce else {
+            throw NSError(domain: "AuthService", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Unable to fetch Apple ID token."])
+        }
+
+        let credential = OAuthProvider.appleCredential(
+            withIDToken: idTokenString,
+            rawNonce: nonce,
+            fullName: appleIDCredential.fullName
+        )
+
+        let result = try await Auth.auth().signIn(with: credential)
+        let uid = result.user.uid
+
+        // If this is a new user, save a Firestore profile
+        let isNewUser = result.additionalUserInfo?.isNewUser ?? false
+        if isNewUser {
+            let displayName = [
+                appleIDCredential.fullName?.givenName,
+                appleIDCredential.fullName?.familyName
+            ].compactMap { $0 }.joined(separator: " ")
+
+            let username = "builder_\(uid.prefix(8))"
+
+            let newUser = User(
+                id:             uid,
+                username:       username,
+                displayName:    displayName.isEmpty ? "BrickFeed Builder" : displayName,
+                bio:            "",
+                avatarURL:      "",
+                followerCount:  0,
+                followingCount: 0,
+                postCount:      0,
+                totalLikes:     0,
+                totalEarnings:  0,
+                isKidAccount:   false,
+                parentEmail:    "",
+                joinDate:       Date()
+            )
+            try await FirebaseService.shared.saveUser(newUser)
+        }
+
+        isSignedIn = true
     }
 }

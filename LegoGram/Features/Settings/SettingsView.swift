@@ -17,6 +17,8 @@ struct SettingsView: View {
 
     @State private var showingSignOutConfirm = false
     @State private var showingDeleteConfirm  = false
+    @State private var showingPrivacyPolicy  = false
+    @State private var showingTermsOfService = false
 
     // MARK: - Body
 
@@ -46,6 +48,16 @@ struct SettingsView: View {
                                       tint: .legoYellow, isOn: $notificationsOn)
                         }
 
+                        // MARK: Legal
+                        settingsSection("Legal") {
+                            actionRow(label: "Privacy Policy", icon: "hand.raised.fill", color: .legoYellow) {
+                                showingPrivacyPolicy = true
+                            }
+                            actionRow(label: "Terms of Service", icon: "doc.text.fill", color: .legoYellow) {
+                                showingTermsOfService = true
+                            }
+                        }
+
                         // MARK: Account Actions
                         settingsSection("Account Actions") {
                             actionRow(label: "Sign Out", icon: "arrow.right.square.fill", color: .legoRed) {
@@ -57,7 +69,7 @@ struct SettingsView: View {
                         }
 
                         // Version footer
-                        Text("BrickFeed · Sprint 7 Build")
+                        Text("BrickFeed · Sprint 8 Build")
                             .font(.legoCaption)
                             .foregroundColor(.secondaryText)
                             .frame(maxWidth: .infinity)
@@ -87,6 +99,12 @@ struct SettingsView: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("This will permanently delete your account and all your posts. This cannot be undone!")
+            }
+            .sheet(isPresented: $showingPrivacyPolicy) {
+                LegalWebView(filename: "PrivacyPolicy", title: "Privacy Policy")
+            }
+            .sheet(isPresented: $showingTermsOfService) {
+                LegalWebView(filename: "TermsOfService", title: "Terms of Service")
             }
         }
     }
@@ -201,7 +219,8 @@ struct SettingsView: View {
 
     private func performSignOut() {
         // Delete saved profile images from disk
-        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+                   ?? FileManager.default.temporaryDirectory
         try? FileManager.default.removeItem(at: docs.appendingPathComponent("profile_avatar.jpg"))
         try? FileManager.default.removeItem(at: docs.appendingPathComponent("profile_background.jpg"))
 
@@ -223,6 +242,48 @@ struct SettingsView: View {
             print("[SettingsView] Firebase signOut error: \(error.localizedDescription)")
         }
     }
+}
+
+// MARK: - Legal Web View
+
+/// Displays a bundled HTML file (Privacy Policy or Terms of Service) using WKWebView.
+import WebKit
+
+struct LegalWebView: View {
+    let filename: String
+    let title: String
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            LegalHTMLView(filename: filename)
+                .ignoresSafeArea(edges: .bottom)
+                .navigationTitle(title)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbarColorScheme(.dark)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Done") { dismiss() }.foregroundColor(.legoYellow)
+                    }
+                }
+        }
+    }
+}
+
+struct LegalHTMLView: UIViewRepresentable {
+    let filename: String
+
+    func makeUIView(context: Context) -> WKWebView {
+        let webView = WKWebView()
+        webView.isOpaque = false
+        webView.backgroundColor = UIColor(red: 0.1, green: 0.1, blue: 0.18, alpha: 1)
+        if let url = Bundle.main.url(forResource: filename, withExtension: "html") {
+            webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+        }
+        return webView
+    }
+
+    func updateUIView(_ uiView: WKWebView, context: Context) {}
 }
 
 #Preview {

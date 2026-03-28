@@ -50,14 +50,17 @@ struct ProfileView: View {
 
     // MARK: - FileManager URLs
 
+    private static let documentsDirectory: URL = {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+    }()
+
     private var backgroundPhotoURL: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("profile_background.jpg")
+        Self.documentsDirectory.appendingPathComponent("profile_background.jpg")
     }
 
     private var avatarPhotoURL: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("profile_avatar.jpg")
+        Self.documentsDirectory.appendingPathComponent("profile_avatar.jpg")
     }
 
     // MARK: - Persistence

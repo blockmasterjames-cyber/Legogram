@@ -51,6 +51,9 @@
 		AA000100000000000000002B /* SignUpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000002B /* SignUpView.swift */; };
 		AA000100000000000000002C /* ForgotPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000002C /* ForgotPasswordView.swift */; };
 		AA000100000000000000002D /* UserSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000002D /* UserSession.swift */; };
+		AA000100000000000000002E /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000002E /* NetworkMonitor.swift */; };
+		AA000100000000000000002F /* PrivacyPolicy.html in Resources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000002F /* PrivacyPolicy.html */; };
+		AA0001000000000000000030 /* TermsOfService.html in Resources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000030 /* TermsOfService.html */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -99,6 +102,9 @@
 		AA000200000000000000002C /* ForgotPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordView.swift; sourceTree = "<group>"; };
 		AA000200000000000000002D /* UserSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSession.swift; sourceTree = "<group>"; };
 		AA0002000000000000000020 /* BrickFeed.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BrickFeed.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA000200000000000000002E /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
+		AA000200000000000000002F /* PrivacyPolicy.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = PrivacyPolicy.html; sourceTree = "<group>"; };
+		AA0002000000000000000030 /* TermsOfService.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = TermsOfService.html; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -195,6 +201,7 @@
 				AA0002000000000000000007 /* LoadingView.swift */,
 				AA000200000000000000001B /* BadWordFilter.swift */,
 				AA000200000000000000001F /* View+HideKeyboard.swift */,
+				AA000200000000000000002E /* NetworkMonitor.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -319,6 +326,8 @@
 				AA0002000000000000000012 /* Assets.xcassets */,
 				AA0002000000000000000013 /* GoogleService-Info.plist */,
 				AA0002000000000000000029 /* AppIconView.swift */,
+				AA000200000000000000002F /* PrivacyPolicy.html */,
+				AA0002000000000000000030 /* TermsOfService.html */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -392,6 +401,8 @@
 			files = (
 				AA0001000000000000000012 /* Assets.xcassets in Resources */,
 				AA0001000000000000000013 /* GoogleService-Info.plist in Resources */,
+				AA000100000000000000002F /* PrivacyPolicy.html in Resources */,
+				AA0001000000000000000030 /* TermsOfService.html in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -444,6 +455,7 @@
 				AA000100000000000000002B /* SignUpView.swift in Sources */,
 				AA000100000000000000002C /* ForgotPasswordView.swift in Sources */,
 				AA000100000000000000002D /* UserSession.swift in Sources */,
+				AA000100000000000000002E /* NetworkMonitor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -532,6 +544,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = BrickFeed;
 				INFOPLIST_KEY_NSCameraUsageDescription = "BrickFeed needs your camera so you can photograph your LEGO builds.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "BrickFeed needs microphone access when recording video of your LEGO builds.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "BrickFeed needs permission to save story cards and build photos to your photo library.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "BrickFeed needs photo access so you can pick a photo of your LEGO build.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -563,6 +576,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = BrickFeed;
 				INFOPLIST_KEY_NSCameraUsageDescription = "BrickFeed needs your camera so you can photograph your LEGO builds.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "BrickFeed needs microphone access when recording video of your LEGO builds.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "BrickFeed needs permission to save story cards and build photos to your photo library.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "BrickFeed needs photo access so you can pick a photo of your LEGO build.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
