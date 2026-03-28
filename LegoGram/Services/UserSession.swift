@@ -1,4 +1,5 @@
 import Foundation
+import Firebase
 import FirebaseAuth
 import FirebaseFirestore
 
@@ -24,7 +25,10 @@ final class UserSession: ObservableObject {
 
     // MARK: - Computed Helpers
 
-    var uid:         String { Auth.auth().currentUser?.uid ?? "" }
+    var uid:         String {
+        guard FirebaseApp.app() != nil else { return "" }
+        return Auth.auth().currentUser?.uid ?? ""
+    }
     var username:    String { currentUser?.username    ?? "" }
     var displayName: String { currentUser?.displayName ?? "" }
     var bio:         String { currentUser?.bio         ?? "" }

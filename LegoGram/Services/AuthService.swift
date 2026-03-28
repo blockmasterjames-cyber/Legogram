@@ -1,5 +1,6 @@
 import Foundation
 import FirebaseAuth
+import Firebase
 import FirebaseFirestore
 import AuthenticationServices
 import CryptoKit
@@ -24,15 +25,19 @@ final class AuthService: ObservableObject {
     @Published var errorMessage: String?
 
     private init() {
-        // Reflect the current Firebase auth state on init
-        isSignedIn = Auth.auth().currentUser != nil
+        // Only check auth state if Firebase has been configured;
+        // otherwise Auth.auth() will crash with "no default FirebaseApp".
+        if FirebaseApp.app() != nil {
+            isSignedIn = Auth.auth().currentUser != nil
+        }
     }
 
     // MARK: - Computed Properties
 
     /// The UID of the currently signed-in user, or nil.
     var userId: String? {
-        Auth.auth().currentUser?.uid
+        guard FirebaseApp.app() != nil else { return nil }
+        return Auth.auth().currentUser?.uid
     }
 
     // =========================================================================
@@ -47,6 +52,10 @@ final class AuthService: ObservableObject {
         username: String,
         displayName: String
     ) async throws {
+        guard FirebaseApp.app() != nil else {
+            throw authError("Firebase is not configured. Check GoogleService-Info.plist.")
+        }
+
         isLoading    = true
         errorMessage = nil
         defer { isLoading = false }
@@ -84,6 +93,10 @@ final class AuthService: ObservableObject {
 
     /// Signs in an existing user with their email and password.
     func signIn(email: String, password: String) async throws {
+        guard FirebaseApp.app() != nil else {
+            throw authError("Firebase is not configured. Check GoogleService-Info.plist.")
+        }
+
         isLoading    = true
         errorMessage = nil
         defer { isLoading = false }
@@ -99,6 +112,7 @@ final class AuthService: ObservableObject {
     /// Signs the current user out of Firebase Auth.
     /// ContentView's auth state listener automatically navigates to LoginView.
     func signOut() throws {
+        guard FirebaseApp.app() != nil else { return }
         try Auth.auth().signOut()
         isSignedIn = false
     }
@@ -109,6 +123,9 @@ final class AuthService: ObservableObject {
 
     /// Sends a Firebase password-reset email to the given address.
     func sendPasswordReset(to email: String) async throws {
+        guard FirebaseApp.app() != nil else {
+            throw authError("Firebase is not configured. Check GoogleService-Info.plist.")
+        }
         try await Auth.auth().sendPasswordReset(withEmail: email)
     }
 
@@ -118,14 +135,18 @@ final class AuthService: ObservableObject {
 
     /// A random nonce used for the current Sign in with Apple request.
     /// Must be set before starting the Apple auth flow and read in the delegate callback.
-    var currentNonce: String?
+    private(set) var currentNonce: String?
 
     /// Generates a cryptographically secure random nonce string.
-    func randomNonceString(length: Int = 32) -> String {
+    /// Returns nil if the system random number generator fails.
+    func randomNonceString(length: Int = 32) -> String? {
         precondition(length > 0)
         var randomBytes = [UInt8](repeating: 0, count: length)
         let errorCode = SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, &randomBytes)
-        guard errorCode == errSecSuccess else { fatalError("Unable to generate nonce.") }
+        guard errorCode == errSecSuccess else {
+            print("[AuthService] SecRandomCopyBytes failed with code \(errorCode)")
+            return nil
+        }
         let charset: [Character] = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
         return String(randomBytes.map { charset[Int($0) % charset.count] })
     }
@@ -137,14 +158,39 @@ final class AuthService: ObservableObject {
         return hash.compactMap { String(format: "%02x", $0) }.joined()
     }
 
+    /// Prepares the Apple sign-in request by generating a fresh nonce.
+    /// Returns the SHA256-hashed nonce to embed in the ASAuthorizationAppleIDRequest,
+    /// or nil if nonce generation fails.
+    func prepareAppleSignIn() -> String? {
+        guard let nonce = randomNonceString() else { return nil }
+        currentNonce = nonce
+        return sha256(nonce)
+    }
+
     /// Signs in (or creates an account) using Apple credential from ASAuthorization.
     func signInWithApple(authorization: ASAuthorization) async throws {
-        guard let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential,
-              let appleIDToken = appleIDCredential.identityToken,
-              let idTokenString = String(data: appleIDToken, encoding: .utf8),
-              let nonce = currentNonce else {
-            throw NSError(domain: "AuthService", code: -1,
-                          userInfo: [NSLocalizedDescriptionKey: "Unable to fetch Apple ID token."])
+        guard FirebaseApp.app() != nil else {
+            throw authError("Firebase is not configured. Check GoogleService-Info.plist.")
+        }
+
+        guard let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+            throw authError("Invalid Apple credential type.")
+        }
+
+        guard let appleIDToken = appleIDCredential.identityToken,
+              let idTokenString = String(data: appleIDToken, encoding: .utf8) else {
+            throw authError("Unable to retrieve Apple ID token.")
+        }
+
+        guard let nonce = currentNonce else {
+            throw authError("Missing nonce. The Sign in with Apple request was not prepared correctly.")
+        }
+
+        isLoading = true
+        errorMessage = nil
+        defer {
+            isLoading = false
+            currentNonce = nil   // consumed — prevent replay
         }
 
         let credential = OAuthProvider.appleCredential(
@@ -185,5 +231,12 @@ final class AuthService: ObservableObject {
         }
 
         isSignedIn = true
+    }
+
+    // MARK: - Helpers
+
+    private func authError(_ message: String) -> NSError {
+        NSError(domain: "AuthService", code: -1,
+                userInfo: [NSLocalizedDescriptionKey: message])
     }
 }
