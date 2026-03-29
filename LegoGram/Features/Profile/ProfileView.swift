@@ -2,18 +2,13 @@ import SwiftUI
 import PhotosUI
 
 /// The Profile screen — your personal LEGO portfolio page.
-/// Sprint 6 upgrades:
-/// Feature 1: Tapping the avatar opens the photo picker immediately.
-/// Feature 2: Avatar saved to FileManager so it persists between launches.
-/// Feature 3: Picking a background photo shows CropView before saving.
-/// Feature 4: Every post tile in the grid is tappable → PostDetailView.
+/// Sprint 9: All stats come from real Firestore data via UserSession. No fake/hardcoded numbers.
 struct ProfileView: View {
 
-    @AppStorage("profile_displayName")   private var displayName   = "blockmasterjames"
-    @AppStorage("profile_bio")           private var bio           = "Building one brick at a time 🧱 | Brick fan since 2010"
-    @AppStorage("profile_username")      private var username      = "blockmasterjames"
+    @ObservedObject private var userSession = UserSession.shared
     @AppStorage("profile_hasBackground") private var hasBackground = false
     @AppStorage("profile_hasAvatar")     private var hasAvatar     = false
+    @AppStorage("settings_kidSafeMode")  private var kidSafeMode:  Bool = true
 
     @State private var showingEditProfile  = false
     @State private var showingSettings     = false
@@ -25,18 +20,29 @@ struct ProfileView: View {
     @State private var showingBgPicker    = false
     @State private var isLoadingBg        = false
 
-    // Avatar picker (Feature 1 & 2)
+    // Avatar picker
     @State private var selectedAvatarItem: PhotosPickerItem?
     @State private var showingAvatarPicker = false
 
-    // Navigation to post detail (Feature 4)
+    // Navigation to post detail
     @State private var selectedPost: LegoPost?
+
+    // Sign out
+    @State private var showingSignOutConfirm = false
 
     @ObservedObject private var postStore = PostStore.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
+    private var currentUser: User? { userSession.currentUser }
+
+    private var username: String { currentUser?.username ?? "" }
+    private var displayName: String { currentUser?.displayName ?? "" }
+    private var bio: String { currentUser?.bio ?? "" }
+
     private var myPosts: [LegoPost] {
-        postStore.posts.filter { $0.userId == "current-user" || $0.username == "brickmaster99" }
+        let uid = userSession.uid
+        let uname = username
+        return postStore.posts.filter { $0.userId == uid || (!uname.isEmpty && $0.username == uname) }
     }
 
     private var setsCompleted: Int {
@@ -105,6 +111,7 @@ struct ProfileView: View {
                         userInfoSection
                         statsGrid
                         postGrid
+                        signOutSection
                         Color.clear.frame(height: 80)
                     }
                 }
@@ -116,14 +123,12 @@ struct ProfileView: View {
                     }
                 }
             }
-            // Feature 4: navigate to post detail when tile tapped
             .navigationDestination(item: $selectedPost) { post in
                 PostDetailView(post: post)
             }
         }
         .sheet(isPresented: $showingEditProfile) { EditProfileView() }
         .sheet(isPresented: $showingSettings)    { SettingsView() }
-        // Background photo picker — saves directly, no crop sheet to avoid freeze
         .photosPicker(isPresented: $showingBgPicker,
                       selection: $selectedBgItem,
                       matching: .images)
@@ -140,7 +145,6 @@ struct ProfileView: View {
                 }
             }
         }
-        // Avatar photo picker (Features 1 & 2)
         .photosPicker(isPresented: $showingAvatarPicker,
                       selection: $selectedAvatarItem,
                       matching: .images)
@@ -149,9 +153,15 @@ struct ProfileView: View {
                 if let data = try? await newItem?.loadTransferable(type: Data.self),
                    let img  = UIImage(data: data) {
                     avatarImage = img
-                    saveAvatar(img)        // Feature 2: persist immediately
+                    saveAvatar(img)
                 }
             }
+        }
+        .alert("Sign Out", isPresented: $showingSignOutConfirm) {
+            Button("Sign Out", role: .destructive) { performSignOut() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to sign out of BrickFeed?")
         }
         .onAppear {
             loadBackground()
@@ -159,7 +169,7 @@ struct ProfileView: View {
         }
     }
 
-    // MARK: - Cover Photo (tappable background)
+    // MARK: - Cover Photo
 
     private var coverPhoto: some View {
         ZStack(alignment: .bottomLeading) {
@@ -188,7 +198,6 @@ struct ProfileView: View {
                         alignment: .bottomLeading
                     )
             }
-            // Camera hint (bottom-right corner)
             VStack {
                 HStack {
                     Spacer()
@@ -208,12 +217,10 @@ struct ProfileView: View {
     }
 
     // MARK: - Avatar Row
-    // Feature 1: tapping the avatar opens the photo picker immediately
 
     private var avatarRow: some View {
         HStack(alignment: .bottom) {
 
-            // Tappable avatar (Feature 1)
             Button { showingAvatarPicker = true } label: {
                 ZStack(alignment: .bottomTrailing) {
                     Circle()
@@ -235,7 +242,6 @@ struct ProfileView: View {
                         )
                         .overlay(Circle().stroke(Color.darkBackground, lineWidth: 4))
 
-                    // Camera badge in bottom-right
                     Circle()
                         .fill(Color.legoRed)
                         .frame(width: 26, height: 26)
@@ -252,7 +258,6 @@ struct ProfileView: View {
 
             Spacer()
 
-            // Edit Profile button (name/bio only — avatar is now tappable directly)
             Button { showingEditProfile = true } label: {
                 Text("Edit Profile")
                     .font(.legoCaption)
@@ -271,15 +276,33 @@ struct ProfileView: View {
 
     private var userInfoSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("@\(username)")
-                .font(.legoScreenTitle).foregroundColor(.lightText)
+            HStack(spacing: 8) {
+                Text("@\(username)")
+                    .font(.legoScreenTitle).foregroundColor(.lightText)
+                // Kid Safe Mode badge
+                if currentUser?.isKidAccount == true || kidSafeMode {
+                    HStack(spacing: 3) {
+                        Image(systemName: "shield.checkmark.fill")
+                            .font(.system(size: 10))
+                        Text("Kid Safe")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.successGreen)
+                    .cornerRadius(6)
+                }
+            }
             if !displayName.isEmpty {
                 Text(displayName)
                     .font(.legoCardTitle).foregroundColor(.legoYellow)
             }
-            Text(BadWordFilter.filter(bio))
-                .font(.legoBody).foregroundColor(.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
+            if !bio.isEmpty {
+                Text(BadWordFilter.filter(bio))
+                    .font(.legoBody).foregroundColor(.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
@@ -287,23 +310,23 @@ struct ProfileView: View {
         .padding(.bottom, 16)
     }
 
-    // MARK: - Stats Grid
+    // MARK: - Stats Grid (real data only)
 
     private var statsGrid: some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                statCell(value: "\(myPosts.count)", label: "Posts")
+                statCell(value: "\(currentUser?.postCount ?? myPosts.count)", label: "Posts")
                 Divider().frame(height: 40)
-                statCell(value: "1.2k",  label: "Followers")
+                statCell(value: "\(currentUser?.followerCount ?? 0)", label: "Followers")
                 Divider().frame(height: 40)
-                statCell(value: "348",   label: "Following")
+                statCell(value: "\(currentUser?.followingCount ?? 0)", label: "Following")
             }
             .padding(.vertical, 10)
 
             Divider().background(Color.secondaryText.opacity(0.3))
 
             HStack(spacing: 0) {
-                statCell(value: "$12.40",          label: "Earnings")
+                statCell(value: String(format: "$%.2f", currentUser?.totalEarnings ?? 0), label: "Earnings")
                 Divider().frame(height: 40)
                 statCell(value: "\(setsCompleted)", label: "Completed")
             }
@@ -315,7 +338,7 @@ struct ProfileView: View {
         .padding(.bottom, 20)
     }
 
-    // MARK: - Post Grid (Feature 4: every tile is tappable)
+    // MARK: - Post Grid
 
     @ViewBuilder
     private var postGrid: some View {
@@ -347,6 +370,27 @@ struct ProfileView: View {
         .padding(.top, 40).padding(.horizontal)
     }
 
+    // MARK: - Sign Out Section
+
+    private var signOutSection: some View {
+        Button { showingSignOutConfirm = true } label: {
+            HStack {
+                Image(systemName: "arrow.right.square.fill")
+                    .foregroundColor(.legoRed)
+                Text("Sign Out")
+                    .font(.legoBody).foregroundColor(.legoRed)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.legoCaption).foregroundColor(.secondaryText)
+            }
+            .padding(.horizontal).padding(.vertical, 14)
+            .background(Color.cardBackground).cornerRadius(12)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .padding(.top, 24)
+    }
+
     // MARK: - Grid Tile
 
     @ViewBuilder
@@ -359,7 +403,6 @@ struct ProfileView: View {
                         if let image = postStore.postImages[post.id] {
                             Image(uiImage: image).resizable().scaledToFill()
                         } else if post.isCustomBuild {
-                            // Custom build placeholder
                             ZStack {
                                 Color.blue.opacity(0.22)
                                 VStack(spacing: 4) {
@@ -391,7 +434,6 @@ struct ProfileView: View {
                 }
                 .clipped()
 
-            // Video badge
             if post.isVideoPost {
                 VStack {
                     HStack {
@@ -403,7 +445,6 @@ struct ProfileView: View {
                 }
             }
 
-            // Custom build badge
             if post.isCustomBuild {
                 VStack {
                     Spacer()
@@ -438,6 +479,35 @@ struct ProfileView: View {
             Text(label).font(.legoCaption).foregroundColor(.secondaryText)
         }
         .frame(minWidth: 68).padding(.horizontal, 4)
+    }
+
+    // MARK: - Sign Out
+
+    private func performSignOut() {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+                   ?? FileManager.default.temporaryDirectory
+        try? FileManager.default.removeItem(at: docs.appendingPathComponent("profile_avatar.jpg"))
+        try? FileManager.default.removeItem(at: docs.appendingPathComponent("profile_background.jpg"))
+
+        hasAvatar     = false
+        hasBackground = false
+
+        // Clear AppStorage profile keys
+        UserDefaults.standard.removeObject(forKey: "profile_displayName")
+        UserDefaults.standard.removeObject(forKey: "profile_username")
+        UserDefaults.standard.removeObject(forKey: "profile_bio")
+        UserDefaults.standard.removeObject(forKey: "settings_kidSafeMode")
+        UserDefaults.standard.removeObject(forKey: "settings_notifications")
+        UserDefaults.standard.removeObject(forKey: "dm_ageVerified")
+
+        userSession.clear()
+        PostStore.shared.followingUsernames.removeAll()
+
+        do {
+            try AuthService.shared.signOut()
+        } catch {
+            print("[ProfileView] Firebase signOut error: \(error.localizedDescription)")
+        }
     }
 }
 

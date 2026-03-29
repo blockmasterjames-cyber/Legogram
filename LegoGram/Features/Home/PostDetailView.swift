@@ -25,19 +25,8 @@ struct PostDetailView: View {
         (postStore.comments[post.id] ?? []).sorted { $0.postedDate > $1.postedDate }
     }
 
-    /// Two default placeholder comments shown when a post has no real comments yet.
-    private var placeholderComments: [Comment] {
-        [
-            Comment(id: "ph-1", postId: post.id, userId: "legobot1",
-                    username: "brickmaster99",
-                    text: "This build is incredible! Love the attention to detail. 🧱🔥",
-                    postedDate: post.postedDate.addingTimeInterval(90)),
-            Comment(id: "ph-2", postId: post.id, userId: "legobot2",
-                    username: "legolover_emma",
-                    text: "Amazing work! How long did this take to build? 😍",
-                    postedDate: post.postedDate)
-        ]
-    }
+    /// Empty placeholder — no fake comments.
+    private var placeholderComments: [Comment] { [] }
     private var legoSet: LegoSet? { LegoSetDatabase.set(for: post.legoSetNumber) }
 
     private var estimatedEarn: Double {

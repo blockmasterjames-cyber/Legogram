@@ -234,6 +234,11 @@ struct SettingsView: View {
         notificationsOn = true
         ageVerified     = false
 
+        // Clear session and post data
+        UserSession.shared.clear()
+        PostStore.shared.followingUsernames.removeAll()
+        PostStore.shared.posts.removeAll()
+
         // Sign out via Firebase Auth — ContentView's auth state listener
         // automatically navigates to LoginView when the user becomes nil.
         do {

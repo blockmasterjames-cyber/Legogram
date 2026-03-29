@@ -511,13 +511,16 @@ struct NewPostView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
             let filteredDesc = BadWordFilter.filter(description.trimmingCharacters(in: .whitespaces))
 
+            let currentUid = UserSession.shared.uid
+            let currentUsername = UserSession.shared.username
+
             let newPost: LegoPost
             if isCustomBuild {
                 let name = customBuildName.trimmingCharacters(in: .whitespaces)
                 newPost = LegoPost(
                     id: UUID().uuidString,
-                    userId: "current-user",
-                    username: "blockmasterjames",
+                    userId: currentUid,
+                    username: currentUsername,
                     imageURL: "", videoURL: "",
                     legoSetNumber: "",
                     legoSetName: name,
@@ -541,8 +544,8 @@ struct NewPostView: View {
 
                 newPost = LegoPost(
                     id: UUID().uuidString,
-                    userId: "current-user",
-                    username: "blockmasterjames",
+                    userId: currentUid,
+                    username: currentUsername,
                     imageURL: "", videoURL: "",
                     legoSetNumber: setNum,
                     legoSetName: setName,

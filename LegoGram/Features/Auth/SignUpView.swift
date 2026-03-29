@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// The account creation screen.
-/// Creates a Firebase Auth account, saves the user profile to Firestore,
-/// then navigates the user directly to the main app via the auth state listener.
+/// Sprint 9: Added birthday field for COPPA compliance and Kid Safe Mode.
+/// Username is saved to AppStorage immediately so it appears on the profile.
 struct SignUpView: View {
 
     @Environment(\.dismiss) private var dismiss
@@ -12,8 +12,18 @@ struct SignUpView: View {
     @State private var email            = ""
     @State private var password         = ""
     @State private var confirmPassword  = ""
+    @State private var birthday         = Calendar.current.date(byAdding: .year, value: -13, to: Date()) ?? Date()
+    @State private var hasBirthday      = false
     @State private var isLoading        = false
     @State private var errorMessage: String?
+
+    /// Range: users must be at least 4 years old and not more than 120
+    private var birthdayRange: ClosedRange<Date> {
+        let calendar = Calendar.current
+        let oldest = calendar.date(byAdding: .year, value: -120, to: Date()) ?? Date()
+        let youngest = calendar.date(byAdding: .year, value: -4, to: Date()) ?? Date()
+        return oldest...youngest
+    }
 
     var body: some View {
         ZStack {
@@ -69,6 +79,50 @@ struct SignUpView: View {
                             text: $email,
                             keyboardType: .emailAddress
                         )
+
+                        // Birthday
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "birthday.cake.fill")
+                                    .foregroundColor(.secondaryText)
+                                    .frame(width: 20)
+                                    .padding(.leading, 14)
+
+                                Text("Birthday")
+                                    .font(.legoBody)
+                                    .foregroundColor(hasBirthday ? .lightText : .secondaryText)
+
+                                Spacer()
+
+                                DatePicker("", selection: $birthday,
+                                           in: birthdayRange,
+                                           displayedComponents: .date)
+                                    .labelsHidden()
+                                    .colorScheme(.dark)
+                                    .onChange(of: birthday) { _, _ in
+                                        hasBirthday = true
+                                    }
+                            }
+                            .padding(.vertical, 10)
+                            .padding(.trailing, 14)
+                            .background(Color.cardBackground)
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.secondaryText.opacity(0.3), lineWidth: 1)
+                            )
+
+                            // COPPA notice
+                            HStack(spacing: 6) {
+                                Image(systemName: "shield.checkmark.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.successGreen)
+                                Text("Users under 13 get Kid Safe Mode for extra protection")
+                                    .font(.system(size: 11, design: .rounded))
+                                    .foregroundColor(.secondaryText)
+                            }
+                            .padding(.horizontal, 4)
+                        }
 
                         // Password
                         secureFieldView(placeholder: "Password", text: $password)
@@ -189,6 +243,10 @@ struct SignUpView: View {
             errorMessage = "Please enter your email."
             return
         }
+        guard hasBirthday else {
+            errorMessage = "Please select your birthday."
+            return
+        }
         guard password.count >= 6 else {
             errorMessage = "Password must be at least 6 characters."
             return
@@ -207,7 +265,8 @@ struct SignUpView: View {
                     email: email,
                     password: password,
                     username: trimmedUsername,
-                    displayName: displayName.trimmingCharacters(in: .whitespaces)
+                    displayName: displayName.trimmingCharacters(in: .whitespaces),
+                    birthday: birthday
                 )
                 // ContentView's auth state listener handles navigation automatically
             } catch {

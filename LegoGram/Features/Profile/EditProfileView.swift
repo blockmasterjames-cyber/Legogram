@@ -1,15 +1,12 @@
 import SwiftUI
 import PhotosUI
 
-/// The Edit Profile screen — lets the user update their display name, bio, and avatar photo.
-/// Changes are saved with @AppStorage so they survive app restarts.
+/// The Edit Profile screen — lets the user update their display name and bio.
+/// Sprint 9: Saves changes to both Firestore (via UserSession) and AppStorage.
 struct EditProfileView: View {
 
     @Environment(\.dismiss) private var dismiss
-
-    // Persisted profile fields (shared with ProfileView via @AppStorage)
-    @AppStorage("profile_displayName") private var savedDisplayName = "blockmasterjames"
-    @AppStorage("profile_bio")         private var savedBio         = "Building one brick at a time 🧱 | Brick fan since 2010"
+    @ObservedObject private var userSession = UserSession.shared
 
     // Local draft — only written back when the user taps Save
     @State private var draftDisplayName = ""
@@ -51,7 +48,7 @@ struct EditProfileView: View {
                                 .font(.legoCardTitle)
                                 .foregroundColor(.legoYellow)
 
-                            TextField("Tell the world about your Brick hobby…", text: $draftBio, axis: .vertical)
+                            TextField("Tell the world about your Brick hobby...", text: $draftBio, axis: .vertical)
                                 .lineLimit(3, reservesSpace: true)
                                 .foregroundColor(.lightText)
                                 .font(.legoBody)
@@ -68,7 +65,7 @@ struct EditProfileView: View {
                             HStack(spacing: 10) {
                                 if isSaving {
                                     ProgressView().tint(.white)
-                                    Text("Saving…").font(.legoCardTitle)
+                                    Text("Saving...").font(.legoCardTitle)
                                 } else {
                                     Image(systemName: "checkmark.circle.fill")
                                     Text("Save Changes").font(.legoCardTitle)
@@ -85,7 +82,6 @@ struct EditProfileView: View {
                         Color.clear.frame(height: 40)
                     }
                 }
-                // Tap outside text fields to dismiss keyboard
                 .onTapGesture { hideKeyboard() }
             }
             .navigationTitle("Edit Profile")
@@ -99,9 +95,8 @@ struct EditProfileView: View {
             }
         }
         .onAppear {
-            // Pre-fill the drafts with whatever is saved
-            draftDisplayName = savedDisplayName
-            draftBio         = savedBio
+            draftDisplayName = userSession.displayName
+            draftBio         = userSession.bio
         }
         .photosPicker(isPresented: $showingLibrary, selection: $selectedPhotoItem, matching: .images)
         .onChange(of: selectedPhotoItem) { _, newItem in
@@ -119,7 +114,6 @@ struct EditProfileView: View {
     private var avatarSection: some View {
         VStack(spacing: 10) {
             ZStack(alignment: .bottomTrailing) {
-                // Avatar circle
                 Group {
                     if let avatar = selectedAvatar {
                         Image(uiImage: avatar)
@@ -136,7 +130,6 @@ struct EditProfileView: View {
                 .clipShape(Circle())
                 .overlay(Circle().stroke(Color.legoRed, lineWidth: 2))
 
-                // Camera badge
                 Circle()
                     .fill(Color.legoRed)
                     .frame(width: 32, height: 32)
@@ -182,11 +175,15 @@ struct EditProfileView: View {
 
     private func saveChanges() {
         isSaving = true
+        let trimmedName = draftDisplayName.trimmingCharacters(in: .whitespaces)
+        let trimmedBio  = draftBio.trimmingCharacters(in: .whitespaces)
 
-        // Tiny delay so the spinner is visible — in Sprint 3 this will be the real Firebase call
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-            savedDisplayName = draftDisplayName.trimmingCharacters(in: .whitespaces)
-            savedBio         = draftBio.trimmingCharacters(in: .whitespaces)
+        Task {
+            do {
+                try await userSession.updateProfile(displayName: trimmedName, bio: trimmedBio)
+            } catch {
+                print("[EditProfileView] Save error: \(error.localizedDescription)")
+            }
             isSaving = false
             dismiss()
         }
