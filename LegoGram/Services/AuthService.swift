@@ -45,12 +45,14 @@ final class AuthService: ObservableObject {
     // =========================================================================
 
     /// Creates a brand-new BrickFeed account with email and password,
-    /// then saves the user's displayName and username to Firestore.
+    /// then saves the user's displayName, username, and birthday to Firestore.
+    /// Also auto-follows the 10 OG accounts so the feed is never empty.
     func signUp(
         email: String,
         password: String,
         username: String,
-        displayName: String
+        displayName: String,
+        birthday: Date? = nil
     ) async throws {
         guard FirebaseApp.app() != nil else {
             throw authError("Firebase is not configured. Check GoogleService-Info.plist.")
@@ -64,7 +66,16 @@ final class AuthService: ObservableObject {
         let result = try await Auth.auth().createUser(withEmail: email, password: password)
         let uid    = result.user.uid
 
-        // 2. Build the Firestore user document
+        // 2. Determine if user is under 13 for COPPA compliance
+        let isUnder13: Bool
+        if let birthday {
+            let age = Calendar.current.dateComponents([.year], from: birthday, to: Date()).year ?? 0
+            isUnder13 = age < 13
+        } else {
+            isUnder13 = false
+        }
+
+        // 3. Build the Firestore user document
         let newUser = User(
             id:             uid,
             username:       username,
@@ -76,13 +87,27 @@ final class AuthService: ObservableObject {
             postCount:      0,
             totalLikes:     0,
             totalEarnings:  0,
-            isKidAccount:   false,
+            isKidAccount:   isUnder13,
             parentEmail:    "",
-            joinDate:       Date()
+            joinDate:       Date(),
+            birthday:       birthday
         )
 
-        // 3. Save to Firestore "users" collection under the Firebase UID
+        // 4. Save to Firestore "users" collection under the Firebase UID
         try await FirebaseService.shared.saveUser(newUser)
+
+        // 5. Save username/displayName to AppStorage immediately so profile shows them
+        UserDefaults.standard.set(username, forKey: "profile_username")
+        UserDefaults.standard.set(displayName, forKey: "profile_displayName")
+        if isUnder13 {
+            UserDefaults.standard.set(true, forKey: "settings_kidSafeMode")
+        }
+
+        // 6. Load user into UserSession
+        UserSession.shared.currentUser = newUser
+
+        // 7. Auto-follow OG accounts so the feed is never empty
+        await OGAccountsService.shared.setupNewUser(userId: uid)
 
         isSignedIn = true
     }
@@ -225,9 +250,16 @@ final class AuthService: ObservableObject {
                 totalEarnings:  0,
                 isKidAccount:   false,
                 parentEmail:    "",
-                joinDate:       Date()
+                joinDate:       Date(),
+                birthday:       nil
             )
             try await FirebaseService.shared.saveUser(newUser)
+
+            // Save to AppStorage and auto-follow OG accounts
+            UserDefaults.standard.set(username, forKey: "profile_username")
+            UserDefaults.standard.set(newUser.displayName, forKey: "profile_displayName")
+            UserSession.shared.currentUser = newUser
+            await OGAccountsService.shared.setupNewUser(userId: uid)
         }
 
         isSignedIn = true

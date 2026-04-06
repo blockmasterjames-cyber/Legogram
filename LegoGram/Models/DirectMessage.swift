@@ -11,7 +11,7 @@ struct DMMessage: Identifiable, Codable {
     let sentDate: Date
 
     /// True when this message was sent by the current user.
-    var isFromCurrentUser: Bool { senderId == "current-user" }
+    var isFromCurrentUser: Bool { senderId == UserSession.shared.uid }
 
     /// Human-readable "time ago" label.
     var timeAgo: String {

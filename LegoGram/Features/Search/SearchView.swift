@@ -1,14 +1,22 @@
 import SwiftUI
 
-/// The Search screen — find LEGO sets by number OR by name.
-/// Sprint 3: real search powered by LegoSetDatabase.
-/// Sprint 6 Feature 5: tapping any set row opens SetDetailView.
-/// On iPad, results appear in a side-by-side layout using the extra space.
+/// The Search screen — find LEGO sets by number/name OR search for users.
+/// Sprint 9: Added People search tab that queries Firestore users collection.
 struct SearchView: View {
 
     @State private var searchText    = ""
     @State private var selectedSet: LegoSet?
+    @State private var searchTab: SearchTab = .sets
+    @State private var userResults: [User] = []
+    @State private var isSearchingUsers = false
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    @ObservedObject private var postStore = PostStore.shared
+
+    enum SearchTab: String, CaseIterable {
+        case sets   = "Sets"
+        case people = "People"
+    }
 
     private var searchResults: [LegoSet] {
         LegoSetDatabase.search(searchText)
@@ -30,9 +38,7 @@ struct SearchView: View {
                     iPhoneLayout
                 }
             }
-            // Tap anywhere outside search bar to dismiss keyboard
             .onTapGesture { hideKeyboard() }
-            // Feature 5: navigate to set detail when tapped
             .navigationDestination(item: $selectedSet) { set in
                 SetDetailView(set: set)
             }
@@ -45,7 +51,12 @@ struct SearchView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 headerAndSearch
-                resultsList
+                tabPicker
+                if searchTab == .sets {
+                    resultsList
+                } else {
+                    peopleResultsList
+                }
                 Color.clear.frame(height: 80)
             }
         }
@@ -58,7 +69,8 @@ struct SearchView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     headerAndSearch
-                    if !searchText.isEmpty {
+                    tabPicker
+                    if !searchText.isEmpty && searchTab == .sets {
                         Text("\(searchResults.count) result\(searchResults.count == 1 ? "" : "s")")
                             .font(.legoCaption)
                             .foregroundColor(.secondaryText)
@@ -73,12 +85,45 @@ struct SearchView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    resultsList
+                    if searchTab == .sets {
+                        resultsList
+                    } else {
+                        peopleResultsList
+                    }
                     Color.clear.frame(height: 80)
                 }
                 .padding(.horizontal, 8)
             }
         }
+    }
+
+    // MARK: - Tab Picker
+
+    private var tabPicker: some View {
+        HStack(spacing: 0) {
+            ForEach(SearchTab.allCases, id: \.self) { tab in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { searchTab = tab }
+                } label: {
+                    VStack(spacing: 6) {
+                        HStack(spacing: 6) {
+                            Image(systemName: tab == .sets ? "building.2.crop.circle" : "person.2.fill")
+                                .font(.system(size: 14))
+                            Text(tab.rawValue)
+                                .font(.legoCardTitle)
+                        }
+                        .foregroundColor(searchTab == tab ? .legoYellow : .secondaryText)
+
+                        Rectangle()
+                            .fill(searchTab == tab ? Color.legoYellow : Color.clear)
+                            .frame(height: 2)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal)
     }
 
     // MARK: - Shared Components
@@ -91,19 +136,29 @@ struct SearchView: View {
             .padding(.horizontal)
             .padding(.top, 8)
 
-        // Search bar — accepts both set numbers AND set names
         HStack {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.secondaryText)
 
-            TextField("Set number or name (e.g. 75192 or Falcon)", text: $searchText)
+            TextField(searchTab == .sets
+                      ? "Set number or name (e.g. 75192 or Falcon)"
+                      : "Search by username or display name",
+                      text: $searchText)
                 .foregroundColor(.lightText)
                 .font(.legoBody)
                 .autocorrectionDisabled()
-                .onSubmit { hideKeyboard() }
+                .onSubmit {
+                    hideKeyboard()
+                    if searchTab == .people { performUserSearch() }
+                }
+                .onChange(of: searchText) { _, newValue in
+                    if searchTab == .people {
+                        performUserSearch()
+                    }
+                }
 
             if !searchText.isEmpty {
-                Button { searchText = "" } label: {
+                Button { searchText = ""; userResults = [] } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.secondaryText)
                 }
@@ -114,6 +169,8 @@ struct SearchView: View {
         .cornerRadius(12)
         .padding(.horizontal)
     }
+
+    // MARK: - Set Results
 
     @ViewBuilder
     private var resultsList: some View {
@@ -129,11 +186,61 @@ struct SearchView: View {
 
             VStack(spacing: 1) {
                 ForEach(searchResults) { set in
-                    // Feature 5: tapping a result opens SetDetailView
                     Button { selectedSet = set } label: {
                         SearchSetRow(set: set)
                     }
                     .buttonStyle(.plain)
+                }
+            }
+            .background(Color.cardBackground)
+            .cornerRadius(12)
+            .padding(.horizontal)
+        }
+    }
+
+    // MARK: - People Results
+
+    @ViewBuilder
+    private var peopleResultsList: some View {
+        if searchText.isEmpty {
+            VStack(spacing: 12) {
+                Image(systemName: "person.2.fill")
+                    .font(.system(size: 48))
+                    .foregroundColor(.secondaryText)
+                Text("Find People")
+                    .font(.legoCardTitle).foregroundColor(.lightText)
+                Text("Search for BrickFeed users by\nusername or display name")
+                    .font(.legoBody).foregroundColor(.secondaryText)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.top, 40).padding(.horizontal)
+        } else if isSearchingUsers {
+            VStack(spacing: 12) {
+                ProgressView().tint(.legoYellow)
+                Text("Searching users...")
+                    .font(.legoCaption).foregroundColor(.secondaryText)
+            }
+            .padding(.top, 40)
+        } else if userResults.isEmpty {
+            VStack(spacing: 12) {
+                Image(systemName: "person.fill.questionmark")
+                    .font(.system(size: 48))
+                    .foregroundColor(.secondaryText)
+                Text("No users found for \"\(searchText)\"")
+                    .font(.legoCardTitle).foregroundColor(.lightText)
+                Text("Try a different username or name")
+                    .font(.legoBody).foregroundColor(.secondaryText)
+            }
+            .padding(.top, 40).padding(.horizontal)
+        } else {
+            Text("\(userResults.count) user\(userResults.count == 1 ? "" : "s") found")
+                .font(.legoCardTitle)
+                .foregroundColor(.lightText)
+                .padding(.horizontal)
+
+            VStack(spacing: 1) {
+                ForEach(userResults) { user in
+                    UserSearchRow(user: user)
                 }
             }
             .background(Color.cardBackground)
@@ -151,7 +258,6 @@ struct SearchView: View {
 
             VStack(spacing: 1) {
                 ForEach(popularSets) { set in
-                    // Feature 5: tapping a popular set opens SetDetailView
                     Button { selectedSet = set } label: {
                         SearchSetRow(set: set)
                     }
@@ -179,6 +285,102 @@ struct SearchView: View {
         }
         .padding(.top, 40)
         .padding(.horizontal)
+    }
+
+    // MARK: - User Search
+
+    private func performUserSearch() {
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else {
+            userResults = []
+            return
+        }
+        isSearchingUsers = true
+        Task {
+            do {
+                let results = try await FirebaseService.shared.searchUsers(query: query)
+                // Filter out the current user
+                let currentUid = UserSession.shared.uid
+                userResults = results.filter { $0.id != currentUid }
+            } catch {
+                print("[SearchView] User search error: \(error.localizedDescription)")
+                userResults = []
+            }
+            isSearchingUsers = false
+        }
+    }
+}
+
+// MARK: - User Search Row
+
+/// A row showing a user result with avatar, username, display name, and follow/unfollow button.
+struct UserSearchRow: View {
+    let user: User
+    @ObservedObject private var postStore = PostStore.shared
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Avatar
+            Circle()
+                .fill(Color.legoRed)
+                .frame(width: 48, height: 48)
+                .overlay(
+                    Text(String(user.username.prefix(1)).uppercased())
+                        .font(.legoCardTitle).foregroundColor(.white)
+                )
+
+            // User info
+            VStack(alignment: .leading, spacing: 3) {
+                Text("@\(user.username)")
+                    .font(.legoCardTitle).foregroundColor(.lightText)
+                    .lineLimit(1)
+                if !user.displayName.isEmpty {
+                    Text(user.displayName)
+                        .font(.legoCaption).foregroundColor(.secondaryText)
+                        .lineLimit(1)
+                }
+                Text("\(user.postCount) posts")
+                    .font(.legoCaption).foregroundColor(.secondaryText)
+            }
+
+            Spacer()
+
+            // Follow / Unfollow button
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                    postStore.toggleFollow(user.username)
+                }
+                // Also update Firestore
+                Task {
+                    let currentUid = UserSession.shared.uid
+                    guard !currentUid.isEmpty else { return }
+                    do {
+                        if postStore.isFollowing(user.username) {
+                            try await FirebaseService.shared.followUser(currentUserId: currentUid, targetUserId: user.id)
+                        } else {
+                            try await FirebaseService.shared.unfollowUser(currentUserId: currentUid, targetUserId: user.id)
+                        }
+                    } catch {
+                        print("[UserSearchRow] Follow/unfollow error: \(error)")
+                    }
+                }
+            } label: {
+                Text(postStore.isFollowing(user.username) ? "Unfollow" : "Follow")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundColor(postStore.isFollowing(user.username) ? .secondaryText : .white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(postStore.isFollowing(user.username) ? Color.cardBackground : Color.legoRed)
+                    .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(postStore.isFollowing(user.username) ? Color.secondaryText : Color.clear, lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(12)
+        .background(Color.cardBackground)
     }
 }
 

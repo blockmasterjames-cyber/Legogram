@@ -63,7 +63,7 @@ struct HomeView: View {
                                         ForEach(followedPosts) { post in
                                             PostCard(
                                                 post: post,
-                                                showFollowButton: false,
+                                                showFollowButton: true,
                                                 onTap: { navigation = FeedNavigation(post: post, scrollToComments: false) },
                                                 onCommentTap: { navigation = FeedNavigation(post: post, scrollToComments: true) },
                                                 onProfileTap: { selectedUsername = post.username }
@@ -252,20 +252,41 @@ struct PostCard: View {
                         .padding(8)
                 }
 
-                // Follow button on recommended posts
-                if showFollowButton && !postStore.isFollowing(post.username) {
+                // Follow / Unfollow button on every post
+                if showFollowButton {
+                    let isFollowed = postStore.isFollowing(post.username)
                     Button {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                             postStore.toggleFollow(post.username)
                         }
+                        // Update Firestore
+                        Task {
+                            let currentUid = UserSession.shared.uid
+                            guard !currentUid.isEmpty else { return }
+                            // Find target user ID — check OG accounts first
+                            let targetId = OGAccountsService.ogAccounts.first(where: { $0.username == post.username })?.id ?? post.userId
+                            do {
+                                if !isFollowed {
+                                    try await FirebaseService.shared.followUser(currentUserId: currentUid, targetUserId: targetId)
+                                } else {
+                                    try await FirebaseService.shared.unfollowUser(currentUserId: currentUid, targetUserId: targetId)
+                                }
+                            } catch {
+                                print("[PostCard] Follow/unfollow error: \(error)")
+                            }
+                        }
                     } label: {
-                        Text("Follow")
+                        Text(isFollowed ? "Unfollow" : "Follow")
                             .font(.system(size: 11, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
+                            .foregroundColor(isFollowed ? .secondaryText : .white)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
-                            .background(Color.legoRed)
+                            .background(isFollowed ? Color.cardBackground : Color.legoRed)
                             .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(isFollowed ? Color.secondaryText.opacity(0.5) : Color.clear, lineWidth: 1)
+                            )
                     }
                     .buttonStyle(.plain)
                     .padding(8)

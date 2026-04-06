@@ -80,12 +80,27 @@ struct ContentView: View {
 
         authListenerHandle = Auth.auth().addStateDidChangeListener { _, user in
             Task { @MainActor in
-                if user != nil {
+                if let user {
                     authState = .loggedIn
                     await userSession.loadCurrentUser()
+
+                    // Load following list from Firestore into PostStore
+                    if let followingIds = try? await FirebaseService.shared.fetchFollowingIds(userId: user.uid) {
+                        for id in followingIds {
+                            // Map user IDs to usernames for OG accounts
+                            if let ogAccount = OGAccountsService.ogAccounts.first(where: { $0.id == id }) {
+                                PostStore.shared.followingUsernames.insert(ogAccount.username)
+                            }
+                        }
+                    }
+
+                    // Load OG posts if feed is empty
+                    OGAccountsService.shared.loadOGPostsIfNeeded()
                 } else {
                     authState = .loggedOut
                     userSession.clear()
+                    PostStore.shared.followingUsernames.removeAll()
+                    PostStore.shared.posts.removeAll()
                 }
             }
         }

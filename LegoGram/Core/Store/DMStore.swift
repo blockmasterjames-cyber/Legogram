@@ -3,12 +3,13 @@ import SwiftUI
 // MARK: - DM Store (Sprint 5 — Feature 11)
 
 /// Manages all Direct Message conversations and messages for the current user.
+/// Sprint 9: Removed all fake/seed conversations. Starts empty.
 @MainActor
 final class DMStore: ObservableObject {
 
     static let shared = DMStore()
 
-    @Published var conversations: [DMConversation] = DMStore.seedConversations
+    @Published var conversations: [DMConversation] = []
 
     private init() {}
 
@@ -21,8 +22,8 @@ final class DMStore: ObservableObject {
 
         let msg = DMMessage(
             id: UUID().uuidString,
-            senderId: "current-user",
-            senderUsername: "blockmasterjames",
+            senderId: UserSession.shared.uid,
+            senderUsername: UserSession.shared.username,
             text: filtered,
             sentDate: Date()
         )
@@ -51,48 +52,4 @@ final class DMStore: ObservableObject {
         conversations.append(newConv)
         return newConv
     }
-
-    // MARK: - Seed Conversations
-
-    static let seedConversations: [DMConversation] = [
-        DMConversation(
-            id: "conv-001",
-            otherUserId: "u2",
-            otherUsername: "legolover_emma",
-            messages: [
-                DMMessage(id: "m1", senderId: "u2", senderUsername: "legolover_emma",
-                          text: "Hey! Love your Millennium Falcon build!",
-                          sentDate: Date().addingTimeInterval(-7200)),
-                DMMessage(id: "m2", senderId: "current-user", senderUsername: "blockmasterjames",
-                          text: "Thanks! It took 3 weeks but was totally worth it 🚀",
-                          sentDate: Date().addingTimeInterval(-7000)),
-                DMMessage(id: "m3", senderId: "u2", senderUsername: "legolover_emma",
-                          text: "Do you recommend the UCS version over the regular one?",
-                          sentDate: Date().addingTimeInterval(-6800)),
-            ]
-        ),
-        DMConversation(
-            id: "conv-002",
-            otherUserId: "u3",
-            otherUsername: "technicjane",
-            messages: [
-                DMMessage(id: "m4", senderId: "u3", senderUsername: "technicjane",
-                          text: "Did you see the new Technic Ferrari? It looks amazing!",
-                          sentDate: Date().addingTimeInterval(-86400)),
-                DMMessage(id: "m5", senderId: "current-user", senderUsername: "blockmasterjames",
-                          text: "Yes! Already ordered mine 🏎️",
-                          sentDate: Date().addingTimeInterval(-80000)),
-            ]
-        ),
-        DMConversation(
-            id: "conv-003",
-            otherUserId: "u4",
-            otherUsername: "hogwartsbuilder",
-            messages: [
-                DMMessage(id: "m6", senderId: "u4", senderUsername: "hogwartsbuilder",
-                          text: "Which Harry Potter set should I get first?",
-                          sentDate: Date().addingTimeInterval(-172800)),
-            ]
-        ),
-    ]
 }

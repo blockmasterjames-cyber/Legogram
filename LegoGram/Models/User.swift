@@ -48,6 +48,9 @@ struct User: Identifiable, Codable, Hashable {
     /// The date and time the account was created.
     var joinDate: Date
 
+    /// The user's birthday — used for COPPA compliance and Kid Safe Mode.
+    var birthday: Date?
+
     // MARK: - Firestore Field Keys
     enum CodingKeys: String, CodingKey {
         case id
@@ -63,6 +66,7 @@ struct User: Identifiable, Codable, Hashable {
         case isKidAccount   = "is_kid_account"
         case parentEmail    = "parent_email"
         case joinDate       = "join_date"
+        case birthday
     }
 }
 
@@ -75,13 +79,14 @@ extension User {
         displayName: "James the Builder",
         bio: "Building one brick at a time 🧱",
         avatarURL: "",
-        followerCount: 1_200,
-        followingCount: 348,
-        postCount: 24,
-        totalLikes: 8_500,
-        totalEarnings: 12.40,
+        followerCount: 0,
+        followingCount: 0,
+        postCount: 0,
+        totalLikes: 0,
+        totalEarnings: 0,
         isKidAccount: false,
         parentEmail: "",
-        joinDate: Date()
+        joinDate: Date(),
+        birthday: nil
     )
 }
