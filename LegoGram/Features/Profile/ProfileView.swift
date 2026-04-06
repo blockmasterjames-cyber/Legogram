@@ -2,47 +2,43 @@ import SwiftUI
 import PhotosUI
 
 /// The Profile screen — your personal LEGO portfolio page.
-/// Sprint 9: All stats come from real Firestore data via UserSession. No fake/hardcoded numbers.
+/// Photos persist via Firebase Storage (no FileManager/UserDefaults for photos).
 struct ProfileView: View {
 
     @ObservedObject private var userSession = UserSession.shared
-    @AppStorage("profile_hasBackground") private var hasBackground = false
-    @AppStorage("profile_hasAvatar")     private var hasAvatar     = false
-    @AppStorage("settings_kidSafeMode")  private var kidSafeMode:  Bool = true
+    @AppStorage("settings_kidSafeMode") private var kidSafeMode: Bool = true
 
-    @State private var showingEditProfile  = false
-    @State private var showingSettings     = false
-    @State private var backgroundImage: UIImage?
-    @State private var avatarImage: UIImage?
+    @State private var showingEditProfile = false
+    @State private var showingSettings   = false
+    @State private var selectedPost: LegoPost?
 
     // Background picker
     @State private var selectedBgItem: PhotosPickerItem?
-    @State private var showingBgPicker    = false
-    @State private var isLoadingBg        = false
+    @State private var showingBgPicker  = false
+    @State private var isUploadingBg    = false
+    @State private var bgUploadError: String?
 
     // Avatar picker
     @State private var selectedAvatarItem: PhotosPickerItem?
     @State private var showingAvatarPicker = false
+    @State private var isUploadingAvatar   = false
 
-    // Navigation to post detail
-    @State private var selectedPost: LegoPost?
-
-    // Sign out
     @State private var showingSignOutConfirm = false
 
     @ObservedObject private var postStore = PostStore.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private var currentUser: User? { userSession.currentUser }
-
-    private var username: String { currentUser?.username ?? "" }
+    private var username: String    { currentUser?.username    ?? "" }
     private var displayName: String { currentUser?.displayName ?? "" }
-    private var bio: String { currentUser?.bio ?? "" }
+    private var bio: String         { currentUser?.bio         ?? "" }
 
     private var myPosts: [LegoPost] {
-        let uid = userSession.uid
+        let uid   = userSession.uid
         let uname = username
-        return postStore.posts.filter { $0.userId == uid || (!uname.isEmpty && $0.username == uname) }
+        return postStore.posts.filter {
+            $0.userId == uid || (!uname.isEmpty && $0.username == uname)
+        }
     }
 
     private var setsCompleted: Int {
@@ -52,49 +48,6 @@ struct ProfileView: View {
     private var gridColumns: [GridItem] {
         let count = horizontalSizeClass == .regular ? 4 : 3
         return Array(repeating: GridItem(.flexible(), spacing: 2), count: count)
-    }
-
-    // MARK: - FileManager URLs
-
-    private static let documentsDirectory: URL = {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-    }()
-
-    private var backgroundPhotoURL: URL {
-        Self.documentsDirectory.appendingPathComponent("profile_background.jpg")
-    }
-
-    private var avatarPhotoURL: URL {
-        Self.documentsDirectory.appendingPathComponent("profile_avatar.jpg")
-    }
-
-    // MARK: - Persistence
-
-    private func saveBackground(_ image: UIImage) {
-        if let data = image.jpegData(compressionQuality: 0.80) {
-            try? data.write(to: backgroundPhotoURL)
-            hasBackground = true
-        }
-    }
-
-    private func loadBackground() {
-        guard hasBackground else { return }
-        if let data = try? Data(contentsOf: backgroundPhotoURL),
-           let img  = UIImage(data: data) { backgroundImage = img }
-    }
-
-    private func saveAvatar(_ image: UIImage) {
-        if let data = image.jpegData(compressionQuality: 0.85) {
-            try? data.write(to: avatarPhotoURL)
-            hasAvatar = true
-        }
-    }
-
-    private func loadAvatar() {
-        guard hasAvatar else { return }
-        if let data = try? Data(contentsOf: avatarPhotoURL),
-           let img  = UIImage(data: data) { avatarImage = img }
     }
 
     // MARK: - Body
@@ -130,30 +83,35 @@ struct ProfileView: View {
         .sheet(isPresented: $showingEditProfile) { EditProfileView() }
         .sheet(isPresented: $showingSettings)    { SettingsView() }
         .photosPicker(isPresented: $showingBgPicker,
-                      selection: $selectedBgItem,
-                      matching: .images)
+                      selection: $selectedBgItem, matching: .images)
         .onChange(of: selectedBgItem) { _, newItem in
-            guard let newItem, !isLoadingBg else { return }
-            isLoadingBg = true
+            guard let newItem else { return }
+            isUploadingBg = true
             Task {
-                defer { Task { @MainActor in isLoadingBg = false } }
+                defer { Task { @MainActor in isUploadingBg = false } }
                 guard let data = try? await newItem.loadTransferable(type: Data.self),
                       let img  = UIImage(data: data) else { return }
-                await MainActor.run {
-                    backgroundImage = img
-                    saveBackground(img)
+                do {
+                    try await userSession.uploadAndSaveBackground(img)
+                } catch {
+                    await MainActor.run { bgUploadError = "Upload failed. Try again." }
+                    print("[ProfileView] Background upload error: \(error)")
                 }
             }
         }
         .photosPicker(isPresented: $showingAvatarPicker,
-                      selection: $selectedAvatarItem,
-                      matching: .images)
+                      selection: $selectedAvatarItem, matching: .images)
         .onChange(of: selectedAvatarItem) { _, newItem in
+            guard let newItem else { return }
+            isUploadingAvatar = true
             Task {
-                if let data = try? await newItem?.loadTransferable(type: Data.self),
-                   let img  = UIImage(data: data) {
-                    avatarImage = img
-                    saveAvatar(img)
+                defer { Task { @MainActor in isUploadingAvatar = false } }
+                guard let data = try? await newItem.loadTransferable(type: Data.self),
+                      let img  = UIImage(data: data) else { return }
+                do {
+                    try await userSession.uploadAndSaveAvatar(img)
+                } catch {
+                    print("[ProfileView] Avatar upload error: \(error)")
                 }
             }
         }
@@ -163,30 +121,21 @@ struct ProfileView: View {
         } message: {
             Text("Are you sure you want to sign out of BrickFeed?")
         }
-        .onAppear {
-            loadBackground()
-            loadAvatar()
-        }
     }
 
     // MARK: - Cover Photo
 
     private var coverPhoto: some View {
         ZStack(alignment: .bottomLeading) {
-            if let bg = backgroundImage {
+            if let bg = userSession.backgroundImage {
                 Image(uiImage: bg)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(height: 160)
-                    .clipped()
+                    .resizable().scaledToFill()
+                    .frame(height: 160).clipped()
             } else {
                 Rectangle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.legoRed, Color.legoYellow.opacity(0.6)],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(LinearGradient(
+                        colors: [Color.legoRed, Color.legoYellow.opacity(0.6)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing))
                     .frame(height: 160)
                     .overlay(
                         HStack(spacing: 20) {
@@ -198,13 +147,18 @@ struct ProfileView: View {
                         alignment: .bottomLeading
                     )
             }
+
             VStack {
                 HStack {
                     Spacer()
                     ZStack {
                         Circle().fill(Color.black.opacity(0.45)).frame(width: 36, height: 36)
-                        Image(systemName: "camera.fill")
-                            .font(.system(size: 16)).foregroundColor(.white)
+                        if isUploadingBg {
+                            ProgressView().tint(.white).scaleEffect(0.7)
+                        } else {
+                            Image(systemName: "camera.fill")
+                                .font(.system(size: 16)).foregroundColor(.white)
+                        }
                     }
                     .padding(8)
                 }
@@ -228,18 +182,21 @@ struct ProfileView: View {
                         .frame(width: 90, height: 90)
                         .overlay(
                             Group {
-                                if let avatar = avatarImage {
+                                if isUploadingAvatar {
+                                    ProgressView().tint(.legoYellow)
+                                } else if let avatar = userSession.avatarImage {
                                     Image(uiImage: avatar)
-                                        .resizable()
-                                        .scaledToFill()
-                                        .clipShape(Circle())
+                                        .resizable().scaledToFill().clipShape(Circle())
                                 } else {
-                                    Image(systemName: "person.fill")
-                                        .font(.system(size: 44))
-                                        .foregroundColor(.secondaryText)
+                                    // Initial placeholder
+                                    Text(String(username.prefix(1)).uppercased())
+                                        .font(.system(size: 36, weight: .bold, design: .rounded))
+                                        .foregroundColor(.white)
                                 }
                             }
                         )
+                        .background(Circle().fill(Color.legoRed))
+                        .clipShape(Circle())
                         .overlay(Circle().stroke(Color.darkBackground, lineWidth: 4))
 
                     Circle()
@@ -279,24 +236,18 @@ struct ProfileView: View {
             HStack(spacing: 8) {
                 Text("@\(username)")
                     .font(.legoScreenTitle).foregroundColor(.lightText)
-                // Kid Safe Mode badge
                 if currentUser?.isKidAccount == true || kidSafeMode {
                     HStack(spacing: 3) {
-                        Image(systemName: "shield.checkmark.fill")
-                            .font(.system(size: 10))
-                        Text("Kid Safe")
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                        Image(systemName: "shield.checkmark.fill").font(.system(size: 10))
+                        Text("Kid Safe").font(.system(size: 10, weight: .bold, design: .rounded))
                     }
                     .foregroundColor(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Color.successGreen)
-                    .cornerRadius(6)
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(Color.successGreen).cornerRadius(6)
                 }
             }
             if !displayName.isEmpty {
-                Text(displayName)
-                    .font(.legoCardTitle).foregroundColor(.legoYellow)
+                Text(displayName).font(.legoCardTitle).foregroundColor(.legoYellow)
             }
             if !bio.isEmpty {
                 Text(BadWordFilter.filter(bio))
@@ -310,7 +261,7 @@ struct ProfileView: View {
         .padding(.bottom, 16)
     }
 
-    // MARK: - Stats Grid (real data only)
+    // MARK: - Stats Grid (real data only, points instead of earnings)
 
     private var statsGrid: some View {
         VStack(spacing: 0) {
@@ -326,7 +277,12 @@ struct ProfileView: View {
             Divider().background(Color.secondaryText.opacity(0.3))
 
             HStack(spacing: 0) {
-                statCell(value: String(format: "$%.2f", currentUser?.totalEarnings ?? 0), label: "Earnings")
+                // Points instead of earnings
+                statCell(
+                    value: "\(currentUser?.totalPoints ?? 0)",
+                    label: "Points",
+                    icon: "square.3.layers.3d.down.left.slash"
+                )
                 Divider().frame(height: 40)
                 statCell(value: "\(setsCompleted)", label: "Completed")
             }
@@ -356,16 +312,15 @@ struct ProfileView: View {
         }
     }
 
-    // MARK: - Empty Posts
-
     private var emptyPostsState: some View {
         VStack(spacing: 12) {
             Image(systemName: "camera.circle")
                 .font(.system(size: 56)).foregroundColor(.secondaryText)
-            Text("No posts yet")
+            Text("No builds yet!")
                 .font(.legoCardTitle).foregroundColor(.lightText)
-            Text("Share your first Brick build using the + button!")
-                .font(.legoBody).foregroundColor(.secondaryText).multilineTextAlignment(.center)
+            Text("Share your first LEGO build 🧱\nTap the red + button below!")
+                .font(.legoBody).foregroundColor(.secondaryText)
+                .multilineTextAlignment(.center)
         }
         .padding(.top, 40).padding(.horizontal)
     }
@@ -375,13 +330,10 @@ struct ProfileView: View {
     private var signOutSection: some View {
         Button { showingSignOutConfirm = true } label: {
             HStack {
-                Image(systemName: "arrow.right.square.fill")
-                    .foregroundColor(.legoRed)
-                Text("Sign Out")
-                    .font(.legoBody).foregroundColor(.legoRed)
+                Image(systemName: "arrow.right.square.fill").foregroundColor(.legoRed)
+                Text("Sign Out").font(.legoBody).foregroundColor(.legoRed)
                 Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.legoCaption).foregroundColor(.secondaryText)
+                Image(systemName: "chevron.right").font(.legoCaption).foregroundColor(.secondaryText)
             }
             .padding(.horizontal).padding(.vertical, 14)
             .background(Color.cardBackground).cornerRadius(12)
@@ -402,6 +354,18 @@ struct ProfileView: View {
                     Group {
                         if let image = postStore.postImages[post.id] {
                             Image(uiImage: image).resizable().scaledToFill()
+                        } else if !post.imageURL.isEmpty, let url = URL(string: post.imageURL) {
+                            AsyncImage(url: url) { phase in
+                                switch phase {
+                                case .success(let img): img.resizable().scaledToFill()
+                                case .empty:
+                                    ZStack {
+                                        Color.legoRed.opacity(0.2)
+                                        ProgressView().tint(.legoYellow).scaleEffect(0.7)
+                                    }
+                                default: setNumberPlaceholder(for: post)
+                                }
+                            }
                         } else if post.isCustomBuild {
                             ZStack {
                                 Color.blue.opacity(0.22)
@@ -410,8 +374,7 @@ struct ProfileView: View {
                                         .font(.system(size: 20)).foregroundColor(.legoYellow)
                                     Text(post.customBuildName.isEmpty ? "Custom" : post.customBuildName)
                                         .font(.legoCaption).foregroundColor(.legoYellow)
-                                        .multilineTextAlignment(.center)
-                                        .lineLimit(2).padding(.horizontal, 4)
+                                        .multilineTextAlignment(.center).lineLimit(2).padding(.horizontal, 4)
                                 }
                             }
                         } else if let url = LegoSetDatabase.set(for: post.legoSetNumber)?.setImageURL {
@@ -435,30 +398,10 @@ struct ProfileView: View {
                 .clipped()
 
             if post.isVideoPost {
-                VStack {
-                    HStack {
-                        Spacer()
-                        Image(systemName: "play.circle.fill")
-                            .foregroundColor(.white).padding(4)
-                    }
-                    Spacer()
-                }
-            }
-
-            if post.isCustomBuild {
-                VStack {
-                    Spacer()
-                    HStack {
-                        Text("Custom")
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 5).padding(.vertical, 2)
-                            .background(Color.blue)
-                            .cornerRadius(4)
-                            .padding(4)
-                        Spacer()
-                    }
-                }
+                VStack { HStack { Spacer()
+                    Image(systemName: "play.circle.fill")
+                        .foregroundColor(.white).padding(4) }
+                    Spacer() }
             }
         }
     }
@@ -466,16 +409,23 @@ struct ProfileView: View {
     private func setNumberPlaceholder(for post: LegoPost) -> some View {
         ZStack {
             Color.legoRed.opacity(0.25)
-            Text("#\(post.legoSetNumber)")
-                .font(.legoCaption).foregroundColor(.legoYellow)
+            Text("#\(post.legoSetNumber)").font(.legoCaption).foregroundColor(.legoYellow)
         }
     }
 
     // MARK: - Stat Cell
 
-    private func statCell(value: String, label: String) -> some View {
+    private func statCell(value: String, label: String, icon: String? = nil) -> some View {
         VStack(spacing: 4) {
-            Text(value).font(.legoCardTitle).foregroundColor(.lightText)
+            if let icon {
+                HStack(spacing: 4) {
+                    Image(systemName: "square.3.layers.3d")
+                        .font(.system(size: 12)).foregroundColor(.legoYellow)
+                    Text(value).font(.legoCardTitle).foregroundColor(.lightText)
+                }
+            } else {
+                Text(value).font(.legoCardTitle).foregroundColor(.lightText)
+            }
             Text(label).font(.legoCaption).foregroundColor(.secondaryText)
         }
         .frame(minWidth: 68).padding(.horizontal, 4)
@@ -484,15 +434,6 @@ struct ProfileView: View {
     // MARK: - Sign Out
 
     private func performSignOut() {
-        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
-                   ?? FileManager.default.temporaryDirectory
-        try? FileManager.default.removeItem(at: docs.appendingPathComponent("profile_avatar.jpg"))
-        try? FileManager.default.removeItem(at: docs.appendingPathComponent("profile_background.jpg"))
-
-        hasAvatar     = false
-        hasBackground = false
-
-        // Clear AppStorage profile keys
         UserDefaults.standard.removeObject(forKey: "profile_displayName")
         UserDefaults.standard.removeObject(forKey: "profile_username")
         UserDefaults.standard.removeObject(forKey: "profile_bio")
@@ -502,6 +443,7 @@ struct ProfileView: View {
 
         userSession.clear()
         PostStore.shared.followingUsernames.removeAll()
+        PostStore.shared.posts.removeAll()
 
         do {
             try AuthService.shared.signOut()

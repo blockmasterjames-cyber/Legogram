@@ -1,26 +1,21 @@
 import SwiftUI
 
 /// The first-launch onboarding experience for BrickFeed.
-/// Three swipeable slides introduce the app. A Skip button appears on slides 1–2.
-/// Tapping "Get Started" on slide 3 (or Skip at any time) sets the
-/// @AppStorage flag so onboarding never shows again.
+/// Three swipeable slides introduce the app. Shown once after account creation.
 struct OnboardingView: View {
 
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
-    @AppStorage("isLoggedIn")        private var isLoggedIn        = false
     @State private var currentPage = 0
 
     var body: some View {
         ZStack(alignment: .top) {
             Color.darkBackground.ignoresSafeArea()
 
-            // Swipeable pages
             TabView(selection: $currentPage) {
                 OnboardingSlide1().tag(0)
                 OnboardingSlide2().tag(1)
                 OnboardingSlide3 {
                     hasSeenOnboarding = true
-                    isLoggedIn = true
                 }.tag(2)
             }
             .tabViewStyle(.page(indexDisplayMode: .always))
@@ -32,7 +27,6 @@ struct OnboardingView: View {
                     Spacer()
                     Button("Skip") {
                         hasSeenOnboarding = true
-                        isLoggedIn = true
                     }
                     .font(.legoBody)
                     .foregroundColor(.secondaryText)
@@ -44,33 +38,29 @@ struct OnboardingView: View {
     }
 }
 
-// MARK: - Slide 1: Welcome
+// MARK: - Slide 1: Welcome to BrickFeed
 
 private struct OnboardingSlide1: View {
     var body: some View {
         VStack(spacing: 36) {
             Spacer()
 
-            // Logo (scaled up)
             BrickFeedLogo()
                 .scaleEffect(1.6)
                 .padding(.bottom, 24)
 
-            // Headline
             VStack(spacing: 10) {
-                Text("Welcome to BrickFeed!")
+                Text("Welcome to BrickFeed! 🧱")
                     .font(.legoScreenTitle)
                     .foregroundColor(.lightText)
                     .multilineTextAlignment(.center)
 
-                Text("The home for Brick builders 🧱")
-
+                Text("Share your LEGO builds with builders around the world")
                     .font(.legoCardTitle)
                     .foregroundColor(.legoYellow)
                     .multilineTextAlignment(.center)
             }
 
-            // Decorative brick row
             HStack(spacing: 12) {
                 ForEach(Array(zip(
                     [Color.legoRed, Color.legoYellow, Color.blue.opacity(0.8),
@@ -79,12 +69,9 @@ private struct OnboardingSlide1: View {
                 )), id: \.1) { color, _ in
                     ZStack {
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(color)
-                            .frame(width: 44, height: 44)
-                        // Stud dot
+                            .fill(color).frame(width: 44, height: 44)
                         Circle()
-                            .fill(color.opacity(0.55))
-                            .frame(width: 18, height: 18)
+                            .fill(color.opacity(0.55)).frame(width: 18, height: 18)
                             .offset(y: -10)
                     }
                 }
@@ -97,7 +84,7 @@ private struct OnboardingSlide1: View {
     }
 }
 
-// MARK: - Slide 2: Share Builds
+// MARK: - Slide 2: Earn Points (replaces old "Earn Rewards/earnings" messaging)
 
 private struct OnboardingSlide2: View {
 
@@ -112,7 +99,6 @@ private struct OnboardingSlide2: View {
         VStack(spacing: 32) {
             Spacer()
 
-            // LEGO brick grid illustration
             ZStack {
                 RoundedRectangle(cornerRadius: 18)
                     .fill(Color.cardBackground)
@@ -138,24 +124,39 @@ private struct OnboardingSlide2: View {
                 }
             }
 
-            // Text
             VStack(spacing: 10) {
-                Text("Share Your Builds!")
+                Text("Earn Points! ⭐")
                     .font(.legoScreenTitle)
                     .foregroundColor(.lightText)
                     .multilineTextAlignment(.center)
 
-                Text("Snap a photo of your brick creation, tag the set number, and share it with builders around the world! Earn rewards when other fans buy the set through your post.")
+                Text("Get points for posting builds, receiving likes, and making friends in the BrickFeed community!")
                     .font(.legoBody)
                     .foregroundColor(.secondaryText)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
             }
 
+            // Points breakdown
+            VStack(alignment: .leading, spacing: 10) {
+                pointRow(icon: "photo.fill",       color: .legoRed,    text: "Post a build → +10 points")
+                pointRow(icon: "heart.fill",        color: .legoRed,    text: "Get a like → +2 points")
+                pointRow(icon: "bubble.right.fill", color: .legoYellow, text: "Get a comment → +5 points")
+                pointRow(icon: "person.fill.badge.plus", color: .successGreen, text: "Get a follow → +1 point")
+            }
+            .padding(.horizontal, 40)
+
             Spacer()
             Spacer()
         }
         .padding(.horizontal, 32)
+    }
+
+    private func pointRow(icon: String, color: Color, text: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon).font(.system(size: 18)).foregroundColor(color).frame(width: 24)
+            Text(text).font(.legoBody).foregroundColor(.lightText)
+        }
     }
 }
 
@@ -168,45 +169,34 @@ private struct OnboardingSlide3: View {
         VStack(spacing: 28) {
             Spacer()
 
-            // Safety shield icon
             Image(systemName: "checkmark.shield.fill")
                 .font(.system(size: 80))
                 .foregroundColor(.successGreen)
 
-            // Headline
             VStack(spacing: 10) {
-                Text("Safe & Fun For Everyone")
-                    .font(.legoScreenTitle)
-                    .foregroundColor(.lightText)
+                Text("Stay Safe! 🛡️")
+                    .font(.legoScreenTitle).foregroundColor(.lightText)
                     .multilineTextAlignment(.center)
 
-                Text("BrickFeed is designed to be safe and fun for builders of all ages.")
-                    .font(.legoBody)
-                    .foregroundColor(.secondaryText)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
+                Text("BrickFeed is a safe place — kid safe mode protects younger builders and keeps the community fun for everyone.")
+                    .font(.legoBody).foregroundColor(.secondaryText)
+                    .multilineTextAlignment(.center).padding(.horizontal)
             }
 
-            // Safety features list
             VStack(alignment: .leading, spacing: 16) {
                 safetyRow(icon: "person.badge.shield.checkmark.fill",
-                          text: "Kid-friendly community only",
-                          color: .successGreen)
+                          text: "Kid Safe Mode for under-13 builders", color: .successGreen)
                 safetyRow(icon: "xmark.circle.fill",
-                          text: "Built-in bad word filter",
-                          color: .legoYellow)
+                          text: "Built-in bad word filter always on", color: .legoYellow)
                 safetyRow(icon: "flag.fill",
-                          text: "Report any post you see",
-                          color: .legoRed)
+                          text: "Report any post that doesn't belong", color: .legoRed)
                 safetyRow(icon: "eye.slash.fill",
-                          text: "Block any builder you want",
-                          color: .secondaryText)
+                          text: "Block any builder at any time", color: .secondaryText)
             }
             .padding(.horizontal, 40)
 
             Spacer()
 
-            // Get Started button
             Button(action: onGetStarted) {
                 HStack {
                     Image(systemName: "star.fill")
@@ -227,13 +217,8 @@ private struct OnboardingSlide3: View {
 
     private func safetyRow(icon: String, text: String, color: Color) -> some View {
         HStack(spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 22))
-                .foregroundColor(color)
-                .frame(width: 30)
-            Text(text)
-                .font(.legoBody)
-                .foregroundColor(.lightText)
+            Image(systemName: icon).font(.system(size: 22)).foregroundColor(color).frame(width: 30)
+            Text(text).font(.legoBody).foregroundColor(.lightText)
         }
     }
 }

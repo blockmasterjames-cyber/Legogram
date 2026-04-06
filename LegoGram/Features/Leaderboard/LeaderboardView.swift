@@ -1,44 +1,37 @@
 import SwiftUI
 
-/// The Leaderboard screen — shows who the best brick builders on BrickFeed are!
-/// Sprint 7: Kid Safe Mode scopes the leaderboard to friends-only when ON.
+/// The Leaderboard screen — shows who the best brick builders are by total points.
+/// Global leaderboard by default. Friends leaderboard available via segmented control.
+/// Kid Safe Mode does NOT restrict the leaderboard (per requirements).
 struct LeaderboardView: View {
 
-    @AppStorage("settings_kidSafeMode") private var kidSafeMode: Bool = true
     @ObservedObject private var postStore = PostStore.shared
+    @ObservedObject private var userSession = UserSession.shared
 
-    @State private var selectedCategory: LeaderboardCategory = .topLikes
-    /// Username navigation state — set to open OtherProfileView
+    enum LeaderboardScope: String, CaseIterable {
+        case global  = "Global"
+        case friends = "Friends"
+    }
+
+    @State private var selectedScope: LeaderboardScope = .global
+    @State private var globalBuilders: [BuilderEntry]  = []
+    @State private var isLoading     = false
+    @State private var loadError: String?
     @State private var selectedUsername: String?
 
-    enum LeaderboardCategory: String, CaseIterable {
-        case topLikes     = "Top Likes"
-        case topFollowers = "Top Followers"
-        case topBuilders  = "Top Builders"
-    }
-
-    /// All builders (global leaderboard).
-    private let allBuilders: [BuilderEntry] = [
-        BuilderEntry(rank: 1, username: "brickwizard",      score: 24_501),
-        BuilderEntry(rank: 2, username: "legoking_max",     score: 18_342),
-        BuilderEntry(rank: 3, username: "starwars_bricks",  score: 15_877),
-        BuilderEntry(rank: 4, username: "castle_builder",   score: 11_209),
-        BuilderEntry(rank: 5, username: "technic_tommy",    score:  9_654)
-    ]
-
-    /// Friends-only leaderboard — only builders the current user follows, re-ranked.
     private var friendBuilders: [BuilderEntry] {
         let followed = postStore.followingUsernames
-        let filtered = allBuilders.filter { followed.contains($0.username) }
-        // Re-rank the filtered list
-        return filtered.enumerated().map { idx, entry in
-            BuilderEntry(rank: idx + 1, username: entry.username, score: entry.score)
-        }
+        return globalBuilders
+            .filter { followed.contains($0.username) }
+            .enumerated()
+            .map { idx, e in BuilderEntry(rank: idx + 1, username: e.username,
+                                          displayName: e.displayName, score: e.score,
+                                          avatarURL: e.avatarURL,
+                                          isCurrentUser: e.isCurrentUser) }
     }
 
-    /// The active list depending on Kid Safe Mode.
     private var activeBuilders: [BuilderEntry] {
-        kidSafeMode ? friendBuilders : allBuilders
+        selectedScope == .global ? globalBuilders : friendBuilders
     }
 
     var body: some View {
@@ -48,73 +41,72 @@ struct LeaderboardView: View {
 
                 VStack(spacing: 0) {
 
-                    // MARK: - Screen Title
+                    // Title
                     Text("Leaderboard")
                         .font(.legoScreenTitle)
                         .foregroundColor(.lightText)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal)
                         .padding(.top, 8)
-                        .padding(.bottom, 4)
+                        .padding(.bottom, 8)
 
-                    // MARK: - Scope Label (Kid Safe Mode)
-                    HStack(spacing: 6) {
-                        Image(systemName: kidSafeMode ? "person.2.fill" : "globe")
-                            .font(.system(size: 13))
-                            .foregroundColor(.legoYellow)
-                        Text(kidSafeMode ? "Friends Leaderboard" : "Global Leaderboard")
-                            .font(.legoCaption)
-                            .foregroundColor(.legoYellow)
+                    // Global / Friends segmented control
+                    Picker("Scope", selection: $selectedScope) {
+                        ForEach(LeaderboardScope.allCases, id: \.self) { scope in
+                            Text(scope.rawValue).tag(scope)
+                        }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .pickerStyle(.segmented)
                     .padding(.horizontal)
                     .padding(.bottom, 12)
 
-                    // MARK: - Category Tabs
-                    HStack(spacing: 0) {
-                        ForEach(LeaderboardCategory.allCases, id: \.self) { category in
-                            Button {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    selectedCategory = category
-                                }
-                            } label: {
-                                Text(category.rawValue)
-                                    .font(.legoCaption)
-                                    .padding(.vertical, 8)
-                                    .frame(maxWidth: .infinity)
-                                    .foregroundColor(selectedCategory == category
-                                                     ? .darkBackground : .secondaryText)
-                                    .background(selectedCategory == category
-                                                ? Color.legoYellow : Color.cardBackground)
-                            }
-                        }
-                    }
-                    .cornerRadius(10)
-                    .padding(.horizontal)
-                    .padding(.bottom, 20)
-
-                    // MARK: - Builder List
+                    // Content
                     ScrollView {
-                        VStack(spacing: 12) {
-                            if activeBuilders.isEmpty {
-                                VStack(spacing: 12) {
-                                    Image(systemName: "person.2")
-                                        .font(.system(size: 48)).foregroundColor(.secondaryText)
-                                    Text("Follow some builders to see the Friends Leaderboard!")
-                                        .font(.legoBody).foregroundColor(.secondaryText)
-                                        .multilineTextAlignment(.center)
-                                }
-                                .padding(.top, 40).padding(.horizontal)
-                            } else {
+                        if isLoading {
+                            VStack {
+                                Spacer(minLength: 60)
+                                ProgressView()
+                                    .tint(.legoYellow)
+                                    .scaleEffect(1.5)
+                                Text("Loading leaderboard…")
+                                    .font(.legoCaption).foregroundColor(.secondaryText)
+                                    .padding(.top, 12)
+                            }
+                        } else if let error = loadError {
+                            VStack(spacing: 12) {
+                                Image(systemName: "wifi.exclamationmark")
+                                    .font(.system(size: 48)).foregroundColor(.secondaryText)
+                                Text(error)
+                                    .font(.legoBody).foregroundColor(.secondaryText)
+                                    .multilineTextAlignment(.center)
+                                Button("Try Again") { Task { await loadLeaderboard() } }
+                                    .font(.legoCardTitle).foregroundColor(.legoYellow)
+                            }
+                            .padding(.top, 40).padding(.horizontal)
+                        } else if activeBuilders.isEmpty {
+                            VStack(spacing: 12) {
+                                Image(systemName: selectedScope == .global
+                                      ? "trophy" : "person.2")
+                                    .font(.system(size: 48)).foregroundColor(.secondaryText)
+                                Text(selectedScope == .global
+                                     ? "Be the first on the leaderboard!"
+                                     : "Follow some builders to see\nthe Friends Leaderboard!")
+                                    .font(.legoBody).foregroundColor(.secondaryText)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .padding(.top, 40).padding(.horizontal)
+                        } else {
+                            VStack(spacing: 10) {
                                 ForEach(activeBuilders) { builder in
                                     Button { selectedUsername = builder.username } label: {
-                                        BuilderRow(builder: builder, category: selectedCategory)
+                                        BuilderRow(builder: builder)
                                     }
                                     .buttonStyle(.plain)
                                 }
                             }
+                            .padding(.horizontal)
+                            .padding(.top, 4)
                         }
-                        .padding(.horizontal)
 
                         Color.clear.frame(height: 80)
                     }
@@ -124,91 +116,165 @@ struct LeaderboardView: View {
                 OtherProfileView(username: username)
             }
         }
+        .task { await loadLeaderboard() }
+    }
+
+    // MARK: - Load
+
+    private func loadLeaderboard() async {
+        isLoading  = true
+        loadError  = nil
+        do {
+            let users = try await FirebaseService.shared.fetchLeaderboard(limit: 50)
+            let currentUid = userSession.uid
+
+            globalBuilders = users.enumerated().map { idx, user in
+                BuilderEntry(
+                    rank:          idx + 1,
+                    username:      user.username,
+                    displayName:   user.displayName,
+                    score:         user.totalPoints,
+                    avatarURL:     user.avatarURL,
+                    isCurrentUser: user.id == currentUid
+                )
+            }
+            isLoading = false
+        } catch {
+            isLoading = false
+            loadError = "Couldn't load the leaderboard. Check your connection and try again."
+            print("[LeaderboardView] Error: \(error)")
+        }
     }
 }
 
-// MARK: - Placeholder Model
+// MARK: - Builder Entry Model
 
 struct BuilderEntry: Identifiable {
     let id = UUID()
     let rank: Int
     let username: String
+    let displayName: String
     let score: Int
+    let avatarURL: String
+    let isCurrentUser: Bool
 }
 
 // MARK: - Builder Row
 
 struct BuilderRow: View {
     let builder: BuilderEntry
-    let category: LeaderboardView.LeaderboardCategory
 
     var body: some View {
         HStack(spacing: 14) {
 
-            // Medal / Rank
+            // Trophy / Rank
             ZStack {
-                Circle()
-                    .fill(medalColor(for: builder.rank))
-                    .frame(width: 36, height: 36)
-
                 if builder.rank <= 3 {
-                    Image(systemName: "medal.fill")
-                        .font(.system(size: 18)).foregroundColor(.white)
+                    Circle()
+                        .fill(medalColor(for: builder.rank))
+                        .frame(width: 40, height: 40)
+                    Text(trophyEmoji(for: builder.rank))
+                        .font(.system(size: 20))
                 } else {
+                    Circle()
+                        .fill(Color.cardBackground)
+                        .frame(width: 40, height: 40)
+                        .overlay(Circle().stroke(Color.secondaryText.opacity(0.3), lineWidth: 1))
                     Text("\(builder.rank)")
                         .font(.legoCardTitle).foregroundColor(.lightText)
                 }
             }
 
             // Avatar
-            Circle()
-                .fill(Color.legoRed.opacity(0.3))
-                .frame(width: 48, height: 48)
-                .overlay(
-                    Text(String(builder.username.prefix(1)).uppercased())
-                        .font(.legoCardTitle).foregroundColor(.legoYellow)
-                )
+            Group {
+                if !builder.avatarURL.isEmpty, let url = URL(string: builder.avatarURL) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let img):
+                            img.resizable().scaledToFill()
+                                .frame(width: 48, height: 48).clipShape(Circle())
+                        default:
+                            initialCircle
+                        }
+                    }
+                } else {
+                    initialCircle
+                }
+            }
 
             // Username + score label
             VStack(alignment: .leading, spacing: 2) {
-                Text("@\(builder.username)")
-                    .font(.legoCardTitle).foregroundColor(.lightText)
-                Text(scoreLabel(for: category))
-                    .font(.legoCaption).foregroundColor(.secondaryText)
+                HStack(spacing: 6) {
+                    Text("@\(builder.username)")
+                        .font(.legoCardTitle).foregroundColor(.lightText)
+                    if builder.isCurrentUser {
+                        Text("You")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundColor(.darkBackground)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Color.legoYellow)
+                            .cornerRadius(5)
+                    }
+                }
+                if !builder.displayName.isEmpty {
+                    Text(builder.displayName)
+                        .font(.legoCaption).foregroundColor(.secondaryText)
+                }
             }
 
             Spacer()
 
-            // Score
-            Text(formattedScore(builder.score))
-                .font(.legoCardTitle).foregroundColor(.legoYellow)
+            // Points score with brick icon
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(formattedScore(builder.score))
+                    .font(.legoCardTitle).foregroundColor(.legoYellow)
+                Text("pts")
+                    .font(.legoCaption).foregroundColor(.secondaryText)
+            }
 
-            // Chevron hint — indicates tappable (Feature 10)
             Image(systemName: "chevron.right")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(.secondaryText)
         }
         .padding(14)
-        .background(Color.cardBackground)
+        .background(
+            builder.isCurrentUser
+                ? Color.legoYellow.opacity(0.12)
+                : Color.cardBackground
+        )
         .cornerRadius(14)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(builder.isCurrentUser
+                        ? Color.legoYellow.opacity(0.5) : Color.clear, lineWidth: 1.5)
+        )
     }
 
-    // MARK: - Helpers
+    private var initialCircle: some View {
+        Circle()
+            .fill(Color.legoRed.opacity(0.3))
+            .frame(width: 48, height: 48)
+            .overlay(
+                Text(String(builder.username.prefix(1)).uppercased())
+                    .font(.legoCardTitle).foregroundColor(.legoYellow)
+            )
+    }
 
-    private func medalColor(for rank: Int) -> Color {
+    private func trophyEmoji(for rank: Int) -> String {
         switch rank {
-        case 1: return Color(hex: "#FFD700")
-        case 2: return Color(hex: "#C0C0C0")
-        case 3: return Color(hex: "#CD7F32")
-        default: return Color.cardBackground
+        case 1: return "🥇"
+        case 2: return "🥈"
+        case 3: return "🥉"
+        default: return ""
         }
     }
 
-    private func scoreLabel(for category: LeaderboardView.LeaderboardCategory) -> String {
-        switch category {
-        case .topLikes:     return "total likes"
-        case .topFollowers: return "followers"
-        case .topBuilders:  return "builds posted"
+    private func medalColor(for rank: Int) -> Color {
+        switch rank {
+        case 1: return Color(red: 1.0,  green: 0.84, blue: 0.0)  // Gold
+        case 2: return Color(red: 0.75, green: 0.75, blue: 0.75)  // Silver
+        case 3: return Color(red: 0.80, green: 0.50, blue: 0.20)  // Bronze
+        default: return Color.cardBackground
         }
     }
 

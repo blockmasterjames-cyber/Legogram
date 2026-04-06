@@ -2,10 +2,6 @@ import SwiftUI
 import AVKit
 
 /// The full-screen detail view for a single LEGO build post.
-/// Sprint 5 upgrades:
-/// • Square photo (1:1 aspect ratio)
-/// • Share to Stories button (Feature 4)
-/// • Keyboard dismissal
 struct PostDetailView: View {
 
     let post: LegoPost
@@ -14,25 +10,19 @@ struct PostDetailView: View {
     @ObservedObject private var postStore = PostStore.shared
     @Environment(\.dismiss) private var dismiss
 
-    @State private var commentText = ""
-    @State private var showingReportAlert = false
+    @State private var commentText      = ""
+    @State private var showingReportMenu = false
     @State private var showHeartAnimation = false
-    @State private var showingShareCard = false
+    @State private var showingShareCard  = false
+    @State private var isLiking          = false
+    @State private var isLoadingComments = false
     @FocusState private var commentFieldFocused: Bool
 
-    /// Comments sorted newest-first so new comments appear at the top (Feature 6).
     private var comments: [Comment] {
         (postStore.comments[post.id] ?? []).sorted { $0.postedDate > $1.postedDate }
     }
 
-    /// Empty placeholder — no fake comments.
-    private var placeholderComments: [Comment] { [] }
     private var legoSet: LegoSet? { LegoSetDatabase.set(for: post.legoSetNumber) }
-
-    private var estimatedEarn: Double {
-        guard let set = legoSet else { return post.estimatedEarnings }
-        return (set.retailPrice * 0.004).rounded(toPlaces: 2)
-    }
 
     var body: some View {
         ZStack {
@@ -46,8 +36,8 @@ struct PostDetailView: View {
                         squareMediaSection
                             .gesture(
                                 TapGesture(count: 2).onEnded {
+                                    handleLikeTap()
                                     withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
-                                        postStore.toggleLike(post)
                                         showHeartAnimation = true
                                     }
                                     Task {
@@ -90,8 +80,7 @@ struct PostDetailView: View {
                                         .font(.system(size: 10, weight: .bold, design: .rounded))
                                         .foregroundColor(.white)
                                         .padding(.horizontal, 6).padding(.vertical, 2)
-                                        .background(Color.blue)
-                                        .cornerRadius(4)
+                                        .background(Color.blue).cornerRadius(4)
                                 } else if let set = legoSet {
                                     AgeRatingBadge(rating: set.ageRating)
                                 }
@@ -115,19 +104,22 @@ struct PostDetailView: View {
 
                             // Action row
                             HStack(spacing: 24) {
+                                // Like button — syncs to Firestore
                                 Button {
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) { postStore.toggleLike(post) }
+                                    handleLikeTap()
                                 } label: {
                                     HStack(spacing: 6) {
                                         Image(systemName: postStore.isLiked(post) ? "heart.fill" : "heart")
                                             .font(.system(size: 20))
                                             .scaleEffect(postStore.isLiked(post) ? 1.2 : 1.0)
-                                            .animation(.spring(response: 0.3, dampingFraction: 0.5), value: postStore.isLiked(post))
+                                            .animation(.spring(response: 0.3, dampingFraction: 0.5),
+                                                       value: postStore.isLiked(post))
                                         Text("\(currentPost.likeCount)").font(.legoBody)
                                     }
                                     .foregroundColor(postStore.isLiked(post) ? .legoRed : .secondaryText)
                                 }
                                 .buttonStyle(.plain)
+                                .disabled(isLiking)
 
                                 Button {
                                     commentFieldFocused = true
@@ -143,22 +135,25 @@ struct PostDetailView: View {
 
                                 Spacer()
 
-                                Button { showingReportAlert = true } label: {
+                                // Report menu
+                                Menu {
+                                    Button("Inappropriate content") { reportPost(reason: "Inappropriate content") }
+                                    Button("Bullying") { reportPost(reason: "Bullying") }
+                                    Button("Spam") { reportPost(reason: "Spam") }
+                                    Button("Not LEGO related") { reportPost(reason: "Not LEGO related") }
+                                } label: {
                                     Image(systemName: "flag").font(.system(size: 18)).foregroundColor(.secondaryText)
                                 }
-                                .buttonStyle(.plain)
                             }
 
-                            // Share to Stories button (Feature 4)
+                            // Share to Stories button
                             Button { showingShareCard = true } label: {
                                 HStack(spacing: 8) {
                                     Image(systemName: "square.and.arrow.up")
                                         .font(.system(size: 16, weight: .bold))
-                                    Text("Share to Stories")
-                                        .font(.legoCardTitle)
+                                    Text("Share to Stories").font(.legoCardTitle)
                                     Spacer()
-                                    Image(systemName: "sparkles")
-                                        .font(.system(size: 14))
+                                    Image(systemName: "sparkles").font(.system(size: 14))
                                 }
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 16).padding(.vertical, 12)
@@ -172,15 +167,13 @@ struct PostDetailView: View {
                             }
                             .buttonStyle(.plain)
 
-                            // Custom builds have no Buy Set link
-                        if !post.isCustomBuild {
-                            if let set = legoSet { buySetSection(set: set) }
-                            else if !post.buyLink.isEmpty, let url = URL(string: post.buyLink) {
-                                Link(destination: url) { buySetLabel(price: nil) }
+                            // Buy Set (no earnings shown)
+                            if !post.isCustomBuild {
+                                if let set = legoSet { buySetSection(set: set) }
+                                else if !post.buyLink.isEmpty, let url = URL(string: post.buyLink) {
+                                    Link(destination: url) { buySetLabel(price: nil) }
+                                }
                             }
-                        }
-
-                            earningsCallout
                         }
                         .padding(16)
 
@@ -199,10 +192,9 @@ struct PostDetailView: View {
                             commentFieldFocused = true
                         }
                     }
+                    loadCommentsIfNeeded()
                 }
-                // Tap outside to dismiss keyboard
                 .onTapGesture { hideKeyboard() }
-                // Comment input bar — safeAreaInset keeps it above the keyboard automatically
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     commentInputBar
                 }
@@ -229,24 +221,61 @@ struct PostDetailView: View {
             }
         }
         .navigationDestination(for: String.self) { username in OtherProfileView(username: username) }
-        .alert("Report Post", isPresented: $showingReportAlert) {
-            Button("Report", role: .destructive) { postStore.reportPost(post) }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Thanks for helping keep BrickFeed safe! Our team will review this post.")
-        }
         .sheet(isPresented: $showingShareCard) {
             StoryShareCardView(post: post)
         }
     }
 
-    // MARK: - Live post from store
+    // MARK: - Helpers
 
     private var currentPost: LegoPost {
         postStore.posts.first(where: { $0.id == post.id }) ?? post
     }
 
-    // MARK: - Square Media Section (Sprint 5)
+    private func handleLikeTap() {
+        guard !isLiking else { return }
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+            postStore.toggleLike(post)
+        }
+        isLiking = true
+        Task {
+            let uid = UserSession.shared.uid
+            guard !uid.isEmpty else { isLiking = false; return }
+            do {
+                let _ = try await FirebaseService.shared.toggleLike(
+                    postId: post.id, postOwnerId: post.userId, currentUserId: uid)
+            } catch {
+                print("[PostDetailView] Like error: \(error)")
+            }
+            isLiking = false
+        }
+    }
+
+    private func reportPost(reason: String) {
+        postStore.reportPost(post)
+        Task {
+            let uid = UserSession.shared.uid
+            guard !uid.isEmpty else { return }
+            try? await FirebaseService.shared.reportPost(postId: post.id, reportedBy: uid, reason: reason)
+        }
+    }
+
+    private func loadCommentsIfNeeded() {
+        guard postStore.comments(for: post.id).isEmpty else { return }
+        isLoadingComments = true
+        Task {
+            if let fetched = try? await FirebaseService.shared.fetchComments(for: post.id) {
+                await MainActor.run {
+                    postStore.setComments(fetched, for: post.id)
+                    isLoadingComments = false
+                }
+            } else {
+                await MainActor.run { isLoadingComments = false }
+            }
+        }
+    }
+
+    // MARK: - Square Media Section
 
     @ViewBuilder
     private var squareMediaSection: some View {
@@ -255,24 +284,27 @@ struct PostDetailView: View {
             .overlay {
                 Group {
                     if let image = postStore.postImages[post.id] {
-                        Image(uiImage: image)
-                            .resizable().scaledToFill()
+                        Image(uiImage: image).resizable().scaledToFill()
                     } else if let videoURL = postStore.postVideoURLs[post.id] {
                         VideoPlayer(player: AVPlayer(url: videoURL)).disabled(true)
+                    } else if !post.imageURL.isEmpty, let url = URL(string: post.imageURL) {
+                        AsyncImage(url: url) { phase in
+                            switch phase {
+                            case .success(let img): img.resizable().scaledToFill()
+                            case .failure: gradientPlaceholder
+                            case .empty:
+                                ZStack { Color.black; ProgressView().tint(.legoYellow).scaleEffect(1.5) }
+                            @unknown default: gradientPlaceholder
+                            }
+                        }
                     } else if let imageURL = legoSet?.setImageURL {
                         AsyncImage(url: imageURL) { phase in
                             switch phase {
-                            case .success(let img):
-                                img.resizable().scaledToFill()
-                            case .failure:
-                                gradientPlaceholder
+                            case .success(let img): img.resizable().scaledToFill()
+                            case .failure: gradientPlaceholder
                             case .empty:
-                                ZStack {
-                                    Color.black
-                                    ProgressView().tint(.legoYellow).scaleEffect(1.5)
-                                }
-                            @unknown default:
-                                gradientPlaceholder
+                                ZStack { Color.black; ProgressView().tint(.legoYellow).scaleEffect(1.5) }
+                            @unknown default: gradientPlaceholder
                             }
                         }
                     } else {
@@ -291,15 +323,13 @@ struct PostDetailView: View {
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
             VStack(spacing: 10) {
-                Image(systemName: "building.2.crop.circle")
+                Image(systemName: post.isCustomBuild ? "hammer.fill" : "building.2.crop.circle")
                     .font(.system(size: 64)).foregroundColor(.secondaryText)
-                Text("Set #\(post.legoSetNumber)")
+                Text(post.isCustomBuild ? post.customBuildName : "Set #\(post.legoSetNumber)")
                     .font(.legoScreenTitle).foregroundColor(.legoYellow)
             }
         }
     }
-
-    // MARK: - Heart Animation Overlay
 
     @ViewBuilder
     private var heartOverlay: some View {
@@ -314,7 +344,7 @@ struct PostDetailView: View {
         }
     }
 
-    // MARK: - Buy Set Section
+    // MARK: - Buy Set Section (no earnings shown)
 
     private func buySetSection(set: LegoSet) -> some View {
         VStack(spacing: 8) {
@@ -330,7 +360,7 @@ struct PostDetailView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Buy Set").font(.legoCardTitle)
                 if let price = price {
-                    Text("$\(String(format: "%.2f", price)) retail · earn $\(String(format: "%.2f", estimatedEarn))")
+                    Text("$\(String(format: "%.0f", price)) on the LEGO Store")
                         .font(.legoCaption)
                 }
             }
@@ -339,38 +369,31 @@ struct PostDetailView: View {
         }
         .foregroundColor(.darkBackground)
         .padding(.horizontal, 16).padding(.vertical, 12)
-        .background(Color.legoYellow)
-        .cornerRadius(12)
+        .background(Color.legoYellow).cornerRadius(12)
     }
 
-    // MARK: - Earnings Callout
-
-    @ViewBuilder
-    private var earningsCallout: some View {
-        if estimatedEarn > 0 {
-            HStack(spacing: 8) {
-                Image(systemName: "dollarsign.circle.fill").foregroundColor(.successGreen)
-                Text("Earn up to **$\(String(format: "%.2f", estimatedEarn))** when someone buys through your link!")
-                    .font(.legoCaption).foregroundColor(.successGreen)
-            }
-            .padding(10)
-            .background(Color.successGreen.opacity(0.12))
-            .cornerRadius(10)
-        }
-    }
-
-    // MARK: - Comments Section (Feature 6)
+    // MARK: - Comments Section
 
     private var commentsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Comments (\(comments.count))")
-                .font(.legoCardTitle).foregroundColor(.lightText)
-                .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 8)
+            HStack {
+                Text("Comments (\(comments.count))")
+                    .font(.legoCardTitle).foregroundColor(.lightText)
+                Spacer()
+                if isLoadingComments {
+                    ProgressView().tint(.legoYellow).scaleEffect(0.8)
+                }
+            }
+            .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 8)
 
-            // Always show at least 2 placeholder comments so the section never looks empty
-            let displayComments = comments.isEmpty ? placeholderComments : comments
-            ForEach(displayComments) { comment in
-                CommentRow(comment: comment)
+            if comments.isEmpty && !isLoadingComments {
+                Text("No comments yet — be the first! 🧱")
+                    .font(.legoBody).foregroundColor(.secondaryText)
+                    .padding(.horizontal, 16).padding(.vertical, 12)
+            } else {
+                ForEach(comments) { comment in
+                    DetailCommentRow(comment: comment)
+                }
             }
         }
     }
@@ -379,11 +402,9 @@ struct PostDetailView: View {
 
     private var commentInputBar: some View {
         HStack(spacing: 10) {
-            TextField("Write a comment", text: $commentText)
+            TextField("Write a comment…", text: $commentText)
                 .foregroundColor(.lightText).font(.legoBody)
-                .padding(12)
-                .background(Color.cardBackground)
-                .cornerRadius(20)
+                .padding(12).background(Color.cardBackground).cornerRadius(20)
                 .focused($commentFieldFocused)
                 .onSubmit { submitComment() }
                 .onChange(of: commentText) { _, newValue in
@@ -408,40 +429,56 @@ struct PostDetailView: View {
         )
     }
 
-    // MARK: - Submit Comment
-
     private func submitComment() {
         let trimmed = commentText.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
-        postStore.addComment(to: post, text: trimmed)
+
+        let username = UserSession.shared.username
+        let userId   = UserSession.shared.uid
+
+        postStore.addComment(to: post, text: trimmed, username: username)
         commentText = ""
         commentFieldFocused = false
+
+        Task {
+            do {
+                let _ = try await FirebaseService.shared.addComment(
+                    to: post.id,
+                    postOwnerId: post.userId,
+                    text: trimmed,
+                    userId: userId,
+                    username: username
+                )
+            } catch {
+                print("[PostDetailView] Comment save error: \(error)")
+            }
+        }
     }
 }
 
-// MARK: - Comment Row
+// MARK: - Detail Comment Row (private to PostDetailView to avoid conflict with CommentRow in CommentSheetView)
 
-struct CommentRow: View {
+private struct DetailCommentRow: View {
     let comment: Comment
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Circle()
-                .fill(comment.username == "legobot"
-                      ? Color.legoYellow.opacity(0.8)
-                      : Color.legoRed.opacity(0.8))
+                .fill(Color.legoRed.opacity(0.8))
                 .frame(width: 32, height: 32)
                 .overlay(
-                    Image(systemName: comment.username == "legobot" ? "sparkles" : "person.fill")
-                        .font(.system(size: comment.username == "legobot" ? 14 : 12))
+                    Text(String(comment.username.prefix(1)).uppercased())
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                 )
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text("@\(comment.username)").font(.legoCaption).foregroundColor(.legoYellow)
+                    Text("@\(comment.username)")
+                        .font(.legoCaption).foregroundColor(.legoYellow)
                     Spacer()
-                    Text(comment.timeAgo).font(.legoCaption).foregroundColor(.secondaryText)
+                    Text(comment.timeAgo)
+                        .font(.legoCaption).foregroundColor(.secondaryText)
                 }
                 Text(comment.text)
                     .font(.legoBody).foregroundColor(.lightText)
@@ -449,15 +486,6 @@ struct CommentRow: View {
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 8)
-    }
-}
-
-// MARK: - Double helper
-
-private extension Double {
-    func rounded(toPlaces places: Int) -> Double {
-        let divisor = pow(10.0, Double(places))
-        return (self * divisor).rounded() / divisor
     }
 }
 

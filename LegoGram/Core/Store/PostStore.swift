@@ -137,6 +137,17 @@ final class PostStore: ObservableObject {
         }
     }
 
+    // MARK: - Comment Utilities
+
+    /// Replaces comments for a specific post (called after Firestore fetch).
+    func setComments(_ comments: [Comment], for postId: String) {
+        self.comments[postId] = comments
+        // Sync comment count
+        if let index = posts.firstIndex(where: { $0.id == postId }) {
+            posts[index].commentCount = comments.count
+        }
+    }
+
     // MARK: - Infinite Scroll
 
     /// Placeholder for future server-side pagination. Currently a no-op.

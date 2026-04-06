@@ -1,28 +1,39 @@
 import SwiftUI
 
 /// The account creation screen.
-/// Sprint 9: Added birthday field for COPPA compliance and Kid Safe Mode.
-/// Username is saved to AppStorage immediately so it appears on the profile.
+/// Birthday is required for COPPA compliance. Under-13 users get Kid Safe Mode automatically.
 struct SignUpView: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    @State private var displayName      = ""
-    @State private var username         = ""
-    @State private var email            = ""
-    @State private var password         = ""
-    @State private var confirmPassword  = ""
-    @State private var birthday         = Calendar.current.date(byAdding: .year, value: -13, to: Date()) ?? Date()
-    @State private var hasBirthday      = false
-    @State private var isLoading        = false
+    @State private var displayName     = ""
+    @State private var username        = ""
+    @State private var email           = ""
+    @State private var password        = ""
+    @State private var confirmPassword = ""
+    @State private var birthday        = Calendar.current.date(byAdding: .year, value: -13, to: Date()) ?? Date()
+    @State private var hasBirthday     = false
+    @State private var isLoading       = false
     @State private var errorMessage: String?
+    @State private var showKidSafeMessage = false
 
-    /// Range: users must be at least 4 years old and not more than 120
+    @State private var showPrivacyPolicy  = false
+    @State private var showTermsOfService = false
+
+    private let privacyURL = URL(string: "https://blockmasterjames-cyber.github.io/brickfeed-legal/privacy")!
+    private let termsURL   = URL(string: "https://blockmasterjames-cyber.github.io/brickfeed-legal/terms")!
+
     private var birthdayRange: ClosedRange<Date> {
         let calendar = Calendar.current
-        let oldest = calendar.date(byAdding: .year, value: -120, to: Date()) ?? Date()
-        let youngest = calendar.date(byAdding: .year, value: -4, to: Date()) ?? Date()
+        let oldest   = calendar.date(byAdding: .year, value: -120, to: Date()) ?? Date()
+        let youngest = calendar.date(byAdding: .year, value: -4,   to: Date()) ?? Date()
         return oldest...youngest
+    }
+
+    private var isUnder13: Bool {
+        guard hasBirthday else { return false }
+        let age = Calendar.current.dateComponents([.year], from: birthday, to: Date()).year ?? 0
+        return age < 13
     }
 
     var body: some View {
@@ -30,9 +41,9 @@ struct SignUpView: View {
             Color.darkBackground.ignoresSafeArea()
 
             ScrollView {
-                VStack(spacing: 28) {
+                VStack(spacing: 24) {
 
-                    // MARK: Logo
+                    // Logo
                     BrickFeedLogo()
                         .scaleEffect(1.2)
                         .padding(.top, 50)
@@ -42,81 +53,87 @@ struct SignUpView: View {
                         .font(.legoCardTitle)
                         .foregroundColor(.lightText)
 
-                    // MARK: Fields
+                    // Fields
                     VStack(spacing: 14) {
 
-                        // Display Name
-                        fieldView(
-                            placeholder: "Display Name",
-                            icon: "person.fill",
-                            text: $displayName
-                        )
+                        fieldView(placeholder: "Display Name", icon: "person.fill", text: $displayName)
 
-                        // Username (with @ prefix)
+                        // Username
                         HStack(spacing: 0) {
                             Text("@")
-                                .font(.legoBody)
-                                .foregroundColor(.secondaryText)
-                                .padding(.leading, 14)
+                                .font(.legoBody).foregroundColor(.secondaryText).padding(.leading, 14)
                             TextField("username", text: $username)
                                 .autocapitalization(.none)
                                 .disableAutocorrection(true)
-                                .padding(.vertical, 16)
-                                .padding(.horizontal, 8)
+                                .padding(.vertical, 16).padding(.horizontal, 8)
                                 .foregroundColor(.lightText)
                         }
                         .background(Color.cardBackground)
                         .cornerRadius(12)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.secondaryText.opacity(0.3), lineWidth: 1)
-                        )
+                        .overlay(RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.secondaryText.opacity(0.3), lineWidth: 1))
 
-                        // Email
-                        fieldView(
-                            placeholder: "Email",
-                            icon: "envelope.fill",
-                            text: $email,
-                            keyboardType: .emailAddress
-                        )
+                        fieldView(placeholder: "Email", icon: "envelope.fill",
+                                  text: $email, keyboardType: .emailAddress)
 
-                        // Birthday
+                        // Birthday — REQUIRED
                         VStack(alignment: .leading, spacing: 8) {
                             HStack(spacing: 10) {
                                 Image(systemName: "birthday.cake.fill")
-                                    .foregroundColor(.secondaryText)
-                                    .frame(width: 20)
-                                    .padding(.leading, 14)
-
-                                Text("Birthday")
+                                    .foregroundColor(.secondaryText).frame(width: 20).padding(.leading, 14)
+                                Text("Birthday *")
                                     .font(.legoBody)
                                     .foregroundColor(hasBirthday ? .lightText : .secondaryText)
-
                                 Spacer()
-
-                                DatePicker("", selection: $birthday,
-                                           in: birthdayRange,
+                                DatePicker("", selection: $birthday, in: birthdayRange,
                                            displayedComponents: .date)
                                     .labelsHidden()
                                     .colorScheme(.dark)
                                     .onChange(of: birthday) { _, _ in
                                         hasBirthday = true
+                                        withAnimation { showKidSafeMessage = isUnder13 }
                                     }
                             }
-                            .padding(.vertical, 10)
-                            .padding(.trailing, 14)
+                            .padding(.vertical, 10).padding(.trailing, 14)
                             .background(Color.cardBackground)
                             .cornerRadius(12)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.secondaryText.opacity(0.3), lineWidth: 1)
+                                    .stroke(hasBirthday ? Color.legoYellow.opacity(0.5) : Color.secondaryText.opacity(0.3),
+                                            lineWidth: 1)
                             )
+
+                            // Required indicator
+                            if !hasBirthday {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "exclamationmark.circle")
+                                        .font(.system(size: 12)).foregroundColor(.legoRed)
+                                    Text("Birthday is required — tap the date above to select yours")
+                                        .font(.system(size: 11, design: .rounded))
+                                        .foregroundColor(.legoRed)
+                                }
+                                .padding(.horizontal, 4)
+                            }
+
+                            // Kid Safe Mode notice when under 13
+                            if showKidSafeMessage {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "shield.checkmark.fill")
+                                        .font(.system(size: 14)).foregroundColor(.successGreen)
+                                    Text("Since you're under 13, Kid Safe Mode will be automatically enabled to keep you protected! 🛡️")
+                                        .font(.system(size: 12, design: .rounded))
+                                        .foregroundColor(.successGreen)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                                .padding(10)
+                                .background(Color.successGreen.opacity(0.12))
+                                .cornerRadius(10)
+                            }
 
                             // COPPA notice
                             HStack(spacing: 6) {
                                 Image(systemName: "shield.checkmark.fill")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.successGreen)
+                                    .font(.system(size: 12)).foregroundColor(.successGreen)
                                 Text("Users under 13 get Kid Safe Mode for extra protection")
                                     .font(.system(size: 11, design: .rounded))
                                     .foregroundColor(.secondaryText)
@@ -124,54 +141,64 @@ struct SignUpView: View {
                             .padding(.horizontal, 4)
                         }
 
-                        // Password
                         secureFieldView(placeholder: "Password", text: $password)
-
-                        // Confirm Password
                         secureFieldView(placeholder: "Confirm Password", text: $confirmPassword)
                     }
                     .padding(.horizontal, 24)
 
-                    // MARK: Error Message
+                    // Error Message
                     if let error = errorMessage {
                         Text(error)
-                            .font(.legoCaption)
-                            .foregroundColor(.red)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 24)
+                            .font(.legoCaption).foregroundColor(.red)
+                            .multilineTextAlignment(.center).padding(.horizontal, 24)
                     }
 
-                    // MARK: Create Account Button
+                    // Privacy & Terms (required before account creation)
+                    VStack(spacing: 4) {
+                        Text("By creating an account you agree to our")
+                            .font(.legoCaption).foregroundColor(.secondaryText)
+                        HStack(spacing: 4) {
+                            Button("Privacy Policy") { showPrivacyPolicy = true }
+                                .font(.legoCaption).foregroundColor(.legoYellow)
+                            Text("and")
+                                .font(.legoCaption).foregroundColor(.secondaryText)
+                            Button("Terms of Service") { showTermsOfService = true }
+                                .font(.legoCaption).foregroundColor(.legoYellow)
+                        }
+                    }
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+
+                    // Create Account Button
                     Button(action: performSignUp) {
                         Group {
                             if isLoading {
                                 ProgressView().tint(.white)
                             } else {
                                 Text("Create Account")
-                                    .font(.legoCardTitle)
-                                    .foregroundColor(.white)
+                                    .font(.legoCardTitle).foregroundColor(.white)
                             }
                         }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 52)
-                        .background(Color.legoRed)
-                        .cornerRadius(14)
+                        .frame(maxWidth: .infinity).frame(height: 52)
+                        .background(Color.legoRed).cornerRadius(14)
                     }
                     .disabled(isLoading)
                     .padding(.horizontal, 24)
 
-                    // MARK: Back to Login
-                    Button("Back to Login") {
-                        dismiss()
-                    }
-                    .font(.legoBody)
-                    .foregroundColor(.legoYellow)
-                    .padding(.bottom, 40)
+                    Button("Back to Login") { dismiss() }
+                        .font(.legoBody).foregroundColor(.legoYellow)
+                        .padding(.bottom, 40)
                 }
             }
         }
         .navigationBarHidden(true)
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $showPrivacyPolicy) {
+            SafariWebView(url: privacyURL)
+        }
+        .sheet(isPresented: $showTermsOfService) {
+            SafariWebView(url: termsURL)
+        }
     }
 
     // MARK: - Field Helpers
@@ -184,76 +211,54 @@ struct SignUpView: View {
     ) -> some View {
         HStack(spacing: 10) {
             Image(systemName: icon)
-                .foregroundColor(.secondaryText)
-                .frame(width: 20)
-                .padding(.leading, 14)
+                .foregroundColor(.secondaryText).frame(width: 20).padding(.leading, 14)
             TextField(placeholder, text: text)
                 .keyboardType(keyboardType)
                 .autocapitalization(keyboardType == .emailAddress ? .none : .words)
                 .disableAutocorrection(keyboardType == .emailAddress)
-                .padding(.vertical, 16)
-                .padding(.trailing, 14)
+                .padding(.vertical, 16).padding(.trailing, 14)
                 .foregroundColor(.lightText)
         }
-        .background(Color.cardBackground)
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.secondaryText.opacity(0.3), lineWidth: 1)
-        )
+        .background(Color.cardBackground).cornerRadius(12)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.secondaryText.opacity(0.3), lineWidth: 1))
     }
 
     private func secureFieldView(placeholder: String, text: Binding<String>) -> some View {
         HStack(spacing: 10) {
             Image(systemName: "lock.fill")
-                .foregroundColor(.secondaryText)
-                .frame(width: 20)
-                .padding(.leading, 14)
+                .foregroundColor(.secondaryText).frame(width: 20).padding(.leading, 14)
             SecureField(placeholder, text: text)
-                .padding(.vertical, 16)
-                .padding(.trailing, 14)
-                .foregroundColor(.lightText)
+                .padding(.vertical, 16).padding(.trailing, 14).foregroundColor(.lightText)
         }
-        .background(Color.cardBackground)
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.secondaryText.opacity(0.3), lineWidth: 1)
-        )
+        .background(Color.cardBackground).cornerRadius(12)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.secondaryText.opacity(0.3), lineWidth: 1))
     }
 
     // MARK: - Sign Up Action
 
     private func performSignUp() {
-        // Validate fields
         guard !displayName.trimmingCharacters(in: .whitespaces).isEmpty else {
-            errorMessage = "Please enter your display name."
-            return
+            errorMessage = "Please enter your display name."; return
         }
         let trimmedUsername = username.trimmingCharacters(in: .whitespaces)
         guard !trimmedUsername.isEmpty else {
-            errorMessage = "Please enter a username."
-            return
+            errorMessage = "Please enter a username."; return
         }
         guard !trimmedUsername.contains(" ") else {
-            errorMessage = "Username cannot contain spaces."
-            return
+            errorMessage = "Username cannot contain spaces."; return
         }
         guard !email.isEmpty else {
-            errorMessage = "Please enter your email."
-            return
+            errorMessage = "Please enter your email."; return
         }
+        // Birthday is REQUIRED
         guard hasBirthday else {
-            errorMessage = "Please select your birthday."
-            return
+            errorMessage = "Please select your birthday — it is required to create an account."; return
         }
         guard password.count >= 6 else {
-            errorMessage = "Password must be at least 6 characters."
-            return
+            errorMessage = "Password must be at least 6 characters."; return
         }
         guard password == confirmPassword else {
-            errorMessage = "Passwords do not match."
-            return
+            errorMessage = "Passwords do not match."; return
         }
 
         isLoading    = true
@@ -268,7 +273,6 @@ struct SignUpView: View {
                     displayName: displayName.trimmingCharacters(in: .whitespaces),
                     birthday: birthday
                 )
-                // ContentView's auth state listener handles navigation automatically
             } catch {
                 errorMessage = error.localizedDescription
             }
