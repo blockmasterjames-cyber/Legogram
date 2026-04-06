@@ -10,8 +10,11 @@ struct LegoPost: Identifiable, Codable, Hashable {
     var username: String
 
     // MARK: - Photo / Video
+    /// Primary image URL (first photo, or only photo for single-photo posts).
     var imageURL: String
     var videoURL: String
+    /// All photo URLs for multi-photo carousel posts (includes imageURL as first element).
+    var imageURLs: [String]
 
     // MARK: - LEGO Set Info
     var legoSetNumber: String
@@ -35,6 +38,14 @@ struct LegoPost: Identifiable, Codable, Hashable {
 
     // MARK: - Computed
     var isVideoPost: Bool { !videoURL.isEmpty }
+    /// Returns all image URLs for display. Falls back to single imageURL for backward compat.
+    var allImageURLs: [String] {
+        let urls = imageURLs.filter { !$0.isEmpty }
+        if !urls.isEmpty { return urls }
+        if !imageURL.isEmpty { return [imageURL] }
+        return []
+    }
+    var isCarouselPost: Bool { allImageURLs.count > 1 }
 
     // MARK: - Firestore Field Keys
     enum CodingKeys: String, CodingKey {
@@ -51,8 +62,9 @@ struct LegoPost: Identifiable, Codable, Hashable {
         case buyLink        = "buy_link"
         case postedDate     = "posted_date"
         case tags
-        case isCustomBuild  = "is_custom_build"
+        case isCustomBuild   = "is_custom_build"
         case customBuildName = "custom_build_name"
+        case imageURLs       = "image_urls"
     }
 
     // MARK: - Custom Decoder (handles old Firestore docs that lack new fields)
@@ -71,8 +83,9 @@ struct LegoPost: Identifiable, Codable, Hashable {
         buyLink         = (try? c.decode(String.self, forKey: .buyLink)) ?? ""
         postedDate      = try c.decode(Date.self,     forKey: .postedDate)
         tags            = (try? c.decode([String].self, forKey: .tags)) ?? []
-        isCustomBuild   = (try? c.decode(Bool.self,   forKey: .isCustomBuild)) ?? false
-        customBuildName = (try? c.decode(String.self, forKey: .customBuildName)) ?? ""
+        isCustomBuild   = (try? c.decode(Bool.self,     forKey: .isCustomBuild)) ?? false
+        customBuildName = (try? c.decode(String.self,   forKey: .customBuildName)) ?? ""
+        imageURLs       = (try? c.decode([String].self, forKey: .imageURLs)) ?? []
     }
 
     // MARK: - Convenience Init
@@ -80,7 +93,8 @@ struct LegoPost: Identifiable, Codable, Hashable {
          videoURL: String = "", legoSetNumber: String, legoSetName: String,
          description: String, likeCount: Int, commentCount: Int,
          buyLink: String = "", postedDate: Date, tags: [String],
-         isCustomBuild: Bool = false, customBuildName: String = "") {
+         isCustomBuild: Bool = false, customBuildName: String = "",
+         imageURLs: [String] = []) {
         self.id              = id
         self.userId          = userId
         self.username        = username
@@ -96,6 +110,7 @@ struct LegoPost: Identifiable, Codable, Hashable {
         self.tags            = tags
         self.isCustomBuild   = isCustomBuild
         self.customBuildName = customBuildName
+        self.imageURLs       = imageURLs
     }
 }
 

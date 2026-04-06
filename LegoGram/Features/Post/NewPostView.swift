@@ -3,25 +3,25 @@ import PhotosUI
 import AVKit
 
 /// The New Post screen — share your amazing LEGO build with everyone!
-/// Sprint 6 upgrades:
-/// Feature 7: Set field is a searchable dropdown (name OR number) — not just numbers.
-/// Feature 8: Custom Build toggle lets you post builds not based on an official set.
-/// Feature 9: Done button above keyboard; tapping outside dismisses keyboard everywhere.
+/// Supports up to 10 photos in a carousel, custom build toggle, and set search.
 struct NewPostView: View {
 
     // MARK: - State
 
-    @State private var selectedImage: UIImage?
+    @State private var selectedImages: [UIImage] = []   // Up to 10 photos
     @State private var selectedVideoURL: URL?
     @State private var description   = ""
     @State private var isPosting     = false
+    @State private var carouselPage  = 0
 
     // Pickers
-    @State private var showingCamera       = false
-    @State private var showingLibrary      = false
-    @State private var showingVideoPicker  = false
-    @State private var showingCameraAlert  = false
-    @State private var videoTooLong        = false
+    @State private var showingCamera         = false
+    @State private var showingLibrary        = false
+    @State private var showingMultiPicker    = false
+    @State private var showingVideoPicker    = false
+    @State private var showingCameraAlert    = false
+    @State private var videoTooLong          = false
+    @State private var multiPickerItems: [PhotosPickerItem] = []
 
     // Feature 7: searchable set field
     @State private var setSearchText           = ""
@@ -33,15 +33,17 @@ struct NewPostView: View {
     @State private var isCustomBuild     = false
     @State private var customBuildName   = ""
 
-    // Feature 9: focus states for keyboard Done button
+    // Feature 9: focus states
     @FocusState private var descriptionFocused: Bool
     @FocusState private var setSearchFocused:   Bool
     @FocusState private var customNameFocused:  Bool
 
     // MARK: - Computed
 
+    private var hasMedia: Bool { !selectedImages.isEmpty || selectedVideoURL != nil }
+
     private var canPost: Bool {
-        guard selectedImage != nil || selectedVideoURL != nil else { return false }
+        guard hasMedia else { return false }
         if isCustomBuild {
             return !customBuildName.trimmingCharacters(in: .whitespaces).isEmpty
         } else {
@@ -61,7 +63,6 @@ struct NewPostView: View {
                     ScrollView {
                         VStack(spacing: 24) {
 
-                            // Screen Title
                             Text("New Post")
                                 .font(.legoScreenTitle)
                                 .foregroundColor(.lightText)
@@ -72,17 +73,12 @@ struct NewPostView: View {
                             // Media Area
                             mediaArea
 
-                            // MARK: Set Field / Custom Build Toggle
+                            // Set / Custom Build
                             VStack(alignment: .leading, spacing: 12) {
-
-                                // Feature 8: Custom Build toggle
                                 customBuildToggle
-
                                 if isCustomBuild {
-                                    // Custom build name field
                                     customBuildNameField
                                 } else {
-                                    // Searchable Brick set field
                                     setSearchField
                                 }
                             }
@@ -100,7 +96,6 @@ struct NewPostView: View {
                         }
                         .padding(.top)
                     }
-                    // Scroll up when description field is focused so it's above keyboard
                     .onChange(of: descriptionFocused) { _, focused in
                         if focused {
                             withAnimation {
@@ -108,7 +103,6 @@ struct NewPostView: View {
                             }
                         }
                     }
-                    // Tap outside to dismiss keyboard (Feature 9)
                     .onTapGesture {
                         hideKeyboard()
                         showingSetDropdown = false
@@ -116,7 +110,6 @@ struct NewPostView: View {
                     .scrollDismissesKeyboard(.interactively)
                 }
             }
-            // Keyboard Done toolbar
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
@@ -132,14 +125,29 @@ struct NewPostView: View {
             }
         }
         .sheet(isPresented: $showingCamera) {
-            CameraPicker(selectedImage: $selectedImage).ignoresSafeArea()
+            CameraPicker(selectedImage: Binding(
+                get: { selectedImages.first },
+                set: { if let img = $0 { addImage(img) } }
+            )).ignoresSafeArea()
         }
         .sheet(isPresented: $showingLibrary) {
-            PhotoLibraryPicker(selectedImage: $selectedImage).ignoresSafeArea()
+            PhotoLibraryPicker(selectedImage: Binding(
+                get: { selectedImages.first },
+                set: { if let img = $0 { addImage(img) } }
+            )).ignoresSafeArea()
         }
         .sheet(isPresented: $showingVideoPicker) {
             VideoPicker(selectedVideoURL: $selectedVideoURL, videoTooLong: $videoTooLong)
                 .ignoresSafeArea()
+        }
+        .photosPicker(
+            isPresented: $showingMultiPicker,
+            selection: $multiPickerItems,
+            maxSelectionCount: 10,
+            matching: .images
+        )
+        .onChange(of: multiPickerItems) { _, newItems in
+            loadMultiPickerImages(newItems)
         }
         .alert("Camera Not Available", isPresented: $showingCameraAlert) {
             Button("Choose from Library") { showingLibrary = true }
@@ -157,31 +165,102 @@ struct NewPostView: View {
     // MARK: - Media Area
 
     private var mediaArea: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.cardBackground)
-                .frame(height: 260)
+        VStack(spacing: 0) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.cardBackground)
+                    .frame(height: 260)
 
-            if let image = selectedImage {
-                photoPreview(image: image)
-            } else if let videoURL = selectedVideoURL {
-                videoPreview(url: videoURL)
-            } else {
-                mediaPlaceholder
+                if !selectedImages.isEmpty {
+                    photoCarouselPreview
+                } else if let videoURL = selectedVideoURL {
+                    videoPreview(url: videoURL)
+                } else {
+                    mediaPlaceholder
+                }
+            }
+            .frame(height: 260)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .padding(.horizontal)
+
+            // Photo count indicator + Add More button
+            if !selectedImages.isEmpty && selectedVideoURL == nil {
+                HStack(spacing: 12) {
+                    Text("\(selectedImages.count)/10 photo\(selectedImages.count == 1 ? "" : "s")")
+                        .font(.legoCaption).foregroundColor(.secondaryText)
+
+                    if selectedImages.count < 10 {
+                        Button {
+                            showingMultiPicker = true
+                        } label: {
+                            Label("Add More", systemImage: "plus.circle.fill")
+                                .font(.legoCaption)
+                                .foregroundColor(.legoYellow)
+                        }
+                    }
+
+                    Spacer()
+
+                    Button {
+                        withAnimation { selectedImages.removeAll() }
+                    } label: {
+                        Label("Clear All", systemImage: "trash")
+                            .font(.legoCaption).foregroundColor(.legoRed)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
             }
         }
-        .frame(height: 260)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .padding(.horizontal)
     }
 
-    // MARK: - Feature 8: Custom Build Toggle
+    // MARK: - Photo Carousel Preview
+
+    private var photoCarouselPreview: some View {
+        ZStack(alignment: .bottom) {
+            TabView(selection: $carouselPage) {
+                ForEach(Array(selectedImages.enumerated()), id: \.offset) { idx, image in
+                    ZStack(alignment: .topTrailing) {
+                        Image(uiImage: image)
+                            .resizable().scaledToFill()
+                            .frame(height: 260).clipped()
+
+                        Button {
+                            withAnimation { selectedImages.remove(at: idx) }
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 24))
+                                .foregroundStyle(.white, Color.black.opacity(0.5))
+                                .padding(8)
+                        }
+                    }
+                    .tag(idx)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+
+            // Dots indicator
+            if selectedImages.count > 1 {
+                HStack(spacing: 6) {
+                    ForEach(0..<selectedImages.count, id: \.self) { idx in
+                        Circle()
+                            .fill(idx == carouselPage ? Color.legoYellow : Color.white.opacity(0.5))
+                            .frame(width: idx == carouselPage ? 8 : 6,
+                                   height: idx == carouselPage ? 8 : 6)
+                            .animation(.spring(response: 0.3), value: carouselPage)
+                    }
+                }
+                .padding(.bottom, 10)
+            }
+        }
+    }
+
+    // MARK: - Custom Build Toggle
 
     private var customBuildToggle: some View {
         Button {
             withAnimation(.easeInOut(duration: 0.2)) {
                 isCustomBuild.toggle()
-                // Reset set search state when toggling
                 if isCustomBuild {
                     setSearchText      = ""
                     setSearchResults   = []
@@ -240,7 +319,7 @@ struct NewPostView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Feature 8: Custom Build Name Field
+    // MARK: - Custom Build Name Field
 
     private var customBuildNameField: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -260,7 +339,7 @@ struct NewPostView: View {
         }
     }
 
-    // MARK: - Feature 7: Searchable LEGO Set Field
+    // MARK: - Set Search Field
 
     private var setSearchField: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -268,7 +347,6 @@ struct NewPostView: View {
                 .font(.legoCardTitle)
                 .foregroundColor(.legoYellow)
 
-            // Search input
             HStack {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(.secondaryText)
@@ -315,7 +393,6 @@ struct NewPostView: View {
                     .stroke(setSearchFocused ? Color.legoYellow.opacity(0.6) : Color.clear, lineWidth: 1.5)
             )
 
-            // Dropdown results
             if showingSetDropdown && selectedSet == nil {
                 VStack(spacing: 0) {
                     ForEach(setSearchResults.prefix(6)) { set in
@@ -362,7 +439,6 @@ struct NewPostView: View {
                 .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
             }
 
-            // Selected set confirmation chip
             if let set = selectedSet {
                 HStack(spacing: 8) {
                     Image(systemName: "checkmark.circle.fill")
@@ -376,7 +452,7 @@ struct NewPostView: View {
         }
     }
 
-    // MARK: - Feature 9: Description Field with Done button
+    // MARK: - Description Field
 
     private var descriptionField: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -422,21 +498,6 @@ struct NewPostView: View {
 
     // MARK: - Media Sub-Views
 
-    private func photoPreview(image: UIImage) -> some View {
-        ZStack(alignment: .topTrailing) {
-            Image(uiImage: image)
-                .resizable().scaledToFill()
-                .frame(height: 260).clipped()
-
-            Button { withAnimation { selectedImage = nil } } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 28))
-                    .foregroundStyle(.white, Color.black.opacity(0.5))
-                    .padding(10)
-            }
-        }
-    }
-
     private func videoPreview(url: URL) -> some View {
         ZStack(alignment: .topTrailing) {
             VideoPlayer(player: AVPlayer(url: url))
@@ -456,8 +517,9 @@ struct NewPostView: View {
             Image(systemName: "photo.badge.plus")
                 .font(.system(size: 48)).foregroundColor(.secondaryText)
 
-            Text("Add a photo or video of your build")
+            Text("Add up to 10 photos or a video of your build")
                 .font(.legoBody).foregroundColor(.secondaryText)
+                .multilineTextAlignment(.center)
 
             HStack(spacing: 12) {
                 Button {
@@ -475,8 +537,8 @@ struct NewPostView: View {
                 }
                 .buttonStyle(.plain)
 
-                Button { showingLibrary = true } label: {
-                    Label("Library", systemImage: "photo.on.rectangle")
+                Button { showingMultiPicker = true } label: {
+                    Label("Photos", systemImage: "photo.on.rectangle.angled")
                         .font(.legoCaption)
                         .padding(.horizontal, 14).padding(.vertical, 10)
                         .background(Color.cardBackground).foregroundColor(.lightText)
@@ -497,15 +559,40 @@ struct NewPostView: View {
                 .buttonStyle(.plain)
             }
 
-            Text("Videos must be under 60 seconds")
+            Text("Videos must be under 60 seconds · Up to 10 photos")
                 .font(.legoCaption).foregroundColor(.secondaryText)
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func addImage(_ image: UIImage) {
+        if selectedImages.count < 10 {
+            selectedImages.append(image)
+        }
+    }
+
+    private func loadMultiPickerImages(_ items: [PhotosPickerItem]) {
+        guard !items.isEmpty else { return }
+        Task {
+            var newImages: [UIImage] = []
+            for item in items.prefix(10) {
+                if let data = try? await item.loadTransferable(type: Data.self),
+                   let img = UIImage(data: data) {
+                    newImages.append(img)
+                }
+            }
+            await MainActor.run {
+                selectedImages = newImages
+                multiPickerItems = []
+            }
         }
     }
 
     // MARK: - Submit Post
 
     private func submitPost() {
-        guard selectedImage != nil || selectedVideoURL != nil else { return }
+        guard hasMedia else { return }
         isPosting = true
 
         Task {
@@ -514,19 +601,26 @@ struct NewPostView: View {
             let currentUsername = UserSession.shared.username
             let postId          = UUID().uuidString
 
-            // Upload image/video to Firebase Storage first
-            var imageURLString = ""
-            var videoURLString = ""
+            var imageURLStrings: [String] = []
+            var primaryImageURL = ""
 
-            if let image = selectedImage,
-               let imageData = image.jpegData(compressionQuality: 0.80) {
-                do {
-                    imageURLString = try await FirebaseService.shared.uploadPostPhoto(
-                        imageData: imageData, postId: postId)
-                } catch {
-                    print("[NewPostView] Image upload error: \(error)")
+            // Upload all selected photos
+            for (idx, image) in selectedImages.enumerated() {
+                if let imageData = image.jpegData(compressionQuality: 0.80) {
+                    do {
+                        let path = "posts/\(postId)/image_\(idx).jpg"
+                        let url = try await FirebaseService.shared.uploadImage(
+                            imageData: imageData, path: path)
+                        imageURLStrings.append(url)
+                        if idx == 0 { primaryImageURL = url }
+                    } catch {
+                        print("[NewPostView] Image \(idx) upload error: \(error)")
+                    }
                 }
             }
+
+            var videoURLString = ""
+            // (Video upload placeholder — video URLs handled similarly)
 
             let newPost: LegoPost
             if isCustomBuild {
@@ -535,7 +629,7 @@ struct NewPostView: View {
                     id:              postId,
                     userId:          currentUid,
                     username:        currentUsername,
-                    imageURL:        imageURLString,
+                    imageURL:        primaryImageURL,
                     videoURL:        videoURLString,
                     legoSetNumber:   "",
                     legoSetName:     name,
@@ -546,7 +640,8 @@ struct NewPostView: View {
                     postedDate:      Date(),
                     tags:            [],
                     isCustomBuild:   true,
-                    customBuildName: name
+                    customBuildName: name,
+                    imageURLs:       imageURLStrings
                 )
             } else {
                 let setNum   = selectedSet?.setNumber ?? setSearchText.trimmingCharacters(in: .whitespaces)
@@ -559,7 +654,7 @@ struct NewPostView: View {
                     id:            postId,
                     userId:        currentUid,
                     username:      currentUsername,
-                    imageURL:      imageURLString,
+                    imageURL:      primaryImageURL,
                     videoURL:      videoURLString,
                     legoSetNumber: setNum,
                     legoSetName:   setName,
@@ -568,25 +663,23 @@ struct NewPostView: View {
                     commentCount:  0,
                     buyLink:       storeURL,
                     postedDate:    Date(),
-                    tags:          []
+                    tags:          [],
+                    imageURLs:     imageURLStrings
                 )
             }
 
-            // Optimistic local add
             PostStore.shared.addPost(newPost,
-                                     image: selectedImage,
+                                     image: selectedImages.first,
                                      videoURL: selectedVideoURL)
 
-            // Save to Firestore (also awards 10 points)
             do {
                 try await FirebaseService.shared.publishPost(newPost)
             } catch {
                 print("[NewPostView] Firestore save error: \(error)")
             }
 
-            // Reset form
             await MainActor.run {
-                selectedImage      = nil
+                selectedImages     = []
                 selectedVideoURL   = nil
                 setSearchText      = ""
                 setSearchResults   = []
@@ -596,6 +689,7 @@ struct NewPostView: View {
                 isCustomBuild      = false
                 customBuildName    = ""
                 isPosting          = false
+                multiPickerItems   = []
                 AppState.shared.selectedTab = .home
             }
         }

@@ -20,6 +20,10 @@ struct Comment: Identifiable, Codable, Hashable {
     /// The comment text, already filtered for bad words. Max 200 characters.
     var text: String
 
+    // MARK: - Profile Photo
+    /// Avatar URL of the commenter. Empty string if not set.
+    var avatarURL: String
+
     // MARK: - Metadata
     var postedDate: Date
 
@@ -30,7 +34,20 @@ struct Comment: Identifiable, Codable, Hashable {
         case userId     = "user_id"
         case username
         case text
+        case avatarURL  = "avatar_url"
         case postedDate = "posted_date"
+    }
+
+    // MARK: - Convenience Init
+    init(id: String, postId: String, userId: String, username: String,
+         text: String, avatarURL: String = "", postedDate: Date) {
+        self.id         = id
+        self.postId     = postId
+        self.userId     = userId
+        self.username   = username
+        self.text       = text
+        self.avatarURL  = avatarURL
+        self.postedDate = postedDate
     }
 }
 

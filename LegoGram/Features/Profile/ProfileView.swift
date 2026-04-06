@@ -82,6 +82,12 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showingEditProfile) { EditProfileView() }
         .sheet(isPresented: $showingSettings)    { SettingsView() }
+        .onChange(of: AppState.shared.openSettings) { _, newValue in
+            if newValue {
+                showingSettings = true
+                AppState.shared.openSettings = false
+            }
+        }
         .photosPicker(isPresented: $showingBgPicker,
                       selection: $selectedBgItem, matching: .images)
         .onChange(of: selectedBgItem) { _, newItem in

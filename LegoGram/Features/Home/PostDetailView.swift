@@ -16,6 +16,7 @@ struct PostDetailView: View {
     @State private var showingShareCard  = false
     @State private var isLiking          = false
     @State private var isLoadingComments = false
+    @State private var badWordWarning    = false
     @FocusState private var commentFieldFocused: Bool
 
     private var comments: [Comment] {
@@ -24,16 +25,18 @@ struct PostDetailView: View {
 
     private var legoSet: LegoSet? { LegoSetDatabase.set(for: post.legoSetNumber) }
 
-    var body: some View {
-        ZStack {
-            Color.darkBackground.ignoresSafeArea()
+    // MARK: - Body
+    // Uses VStack so the comment input bar is always above the keyboard.
+    // When the keyboard appears iOS automatically pushes the VStack up.
 
+    var body: some View {
+        VStack(spacing: 0) {
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
 
-                        // MARK: Square Media
-                        squareMediaSection
+                        // MARK: Media (carousel or single)
+                        mediaSection
                             .gesture(
                                 TapGesture(count: 2).onEnded {
                                     handleLikeTap()
@@ -104,7 +107,6 @@ struct PostDetailView: View {
 
                             // Action row
                             HStack(spacing: 24) {
-                                // Like button — syncs to Firestore
                                 Button {
                                     handleLikeTap()
                                 } label: {
@@ -135,7 +137,6 @@ struct PostDetailView: View {
 
                                 Spacer()
 
-                                // Report menu
                                 Menu {
                                     Button("Inappropriate content") { reportPost(reason: "Inappropriate content") }
                                     Button("Bullying") { reportPost(reason: "Bullying") }
@@ -146,7 +147,6 @@ struct PostDetailView: View {
                                 }
                             }
 
-                            // Share to Stories button
                             Button { showingShareCard = true } label: {
                                 HStack(spacing: 8) {
                                     Image(systemName: "square.and.arrow.up")
@@ -167,7 +167,6 @@ struct PostDetailView: View {
                             }
                             .buttonStyle(.plain)
 
-                            // Buy Set (no earnings shown)
                             if !post.isCustomBuild {
                                 if let set = legoSet { buySetSection(set: set) }
                                 else if !post.buyLink.isEmpty, let url = URL(string: post.buyLink) {
@@ -185,6 +184,7 @@ struct PostDetailView: View {
                         Color.clear.frame(height: 16)
                     }
                 }
+                .scrollDismissesKeyboard(.interactively)
                 .onAppear {
                     if scrollToComments {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
@@ -194,12 +194,20 @@ struct PostDetailView: View {
                     }
                     loadCommentsIfNeeded()
                 }
-                .onTapGesture { hideKeyboard() }
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    commentInputBar
+                .onChange(of: commentFieldFocused) { _, focused in
+                    if focused {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            withAnimation { proxy.scrollTo("comment-input-anchor", anchor: .bottom) }
+                        }
+                    }
                 }
             }
+
+            // MARK: Comment Input Bar — lives OUTSIDE the ScrollView so it
+            // always sits directly above the keyboard when it appears.
+            commentInputBar
         }
+        .background(Color.darkBackground.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color.cardBackground, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
@@ -275,7 +283,36 @@ struct PostDetailView: View {
         }
     }
 
-    // MARK: - Square Media Section
+    // MARK: - Media Section (carousel or single image/video)
+
+    @ViewBuilder
+    private var mediaSection: some View {
+        let allURLs = post.allImageURLs
+        if allURLs.count > 1 {
+            // Carousel for multiple photos
+            TabView {
+                ForEach(Array(allURLs.enumerated()), id: \.offset) { _, urlStr in
+                    if let url = URL(string: urlStr) {
+                        AsyncImage(url: url) { phase in
+                            switch phase {
+                            case .success(let img): img.resizable().scaledToFill()
+                            case .failure: gradientPlaceholder
+                            case .empty:
+                                ZStack { Color.black; ProgressView().tint(.legoYellow).scaleEffect(1.5) }
+                            @unknown default: gradientPlaceholder
+                            }
+                        }
+                        .clipped()
+                    }
+                }
+            }
+            .tabViewStyle(.page)
+            .frame(height: UIScreen.main.bounds.width)
+            .clipped()
+        } else {
+            squareMediaSection
+        }
+    }
 
     @ViewBuilder
     private var squareMediaSection: some View {
@@ -344,7 +381,7 @@ struct PostDetailView: View {
         }
     }
 
-    // MARK: - Buy Set Section (no earnings shown)
+    // MARK: - Buy Set Section
 
     private func buySetSection(set: LegoSet) -> some View {
         VStack(spacing: 8) {
@@ -387,46 +424,91 @@ struct PostDetailView: View {
             .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 8)
 
             if comments.isEmpty && !isLoadingComments {
-                Text("No comments yet — be the first! 🧱")
-                    .font(.legoBody).foregroundColor(.secondaryText)
-                    .padding(.horizontal, 16).padding(.vertical, 12)
+                VStack(spacing: 10) {
+                    Image(systemName: "bubble.right")
+                        .font(.system(size: 36)).foregroundColor(.secondaryText)
+                    Text("No comments yet — be the first! 🧱")
+                        .font(.legoBody).foregroundColor(.secondaryText)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 16).padding(.vertical, 24)
             } else {
                 ForEach(comments) { comment in
                     DetailCommentRow(comment: comment)
                 }
             }
+
+            // Anchor so the scroll view can jump here when comment field is focused
+            Color.clear.frame(height: 1).id("comment-input-anchor")
         }
     }
 
     // MARK: - Comment Input Bar
 
     private var commentInputBar: some View {
-        HStack(spacing: 10) {
-            TextField("Write a comment…", text: $commentText)
-                .foregroundColor(.lightText).font(.legoBody)
-                .padding(12).background(Color.cardBackground).cornerRadius(20)
-                .focused($commentFieldFocused)
-                .onSubmit { submitComment() }
-                .onChange(of: commentText) { _, newValue in
-                    if newValue.count > 200 { commentText = String(newValue.prefix(200)) }
+        VStack(spacing: 0) {
+            if badWordWarning {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.legoYellow)
+                    Text("Please keep BrickFeed friendly! 🧱")
+                        .font(.legoCaption).foregroundColor(.legoYellow)
+                }
+                .padding(.horizontal, 16).padding(.vertical, 8)
+                .background(Color.legoYellow.opacity(0.12))
+            }
+
+            HStack(spacing: 10) {
+                // Current user avatar
+                let avatarLetter = String(UserSession.shared.username.prefix(1)).uppercased()
+                Group {
+                    if let img = UserSession.shared.avatarImage {
+                        Image(uiImage: img)
+                            .resizable().scaledToFill()
+                            .frame(width: 34, height: 34)
+                            .clipShape(Circle())
+                    } else {
+                        Circle()
+                            .fill(Color.legoRed)
+                            .frame(width: 34, height: 34)
+                            .overlay(
+                                Text(avatarLetter.isEmpty ? "?" : avatarLetter)
+                                    .font(.legoCaption).foregroundColor(.white)
+                            )
+                    }
                 }
 
-            Button { submitComment() } label: {
-                Text("Send")
-                    .font(.legoCaption.bold()).foregroundColor(.white)
-                    .padding(.horizontal, 14).padding(.vertical, 10)
-                    .background(commentText.trimmingCharacters(in: .whitespaces).isEmpty
-                                ? Color.legoRed.opacity(0.4) : Color.legoRed)
-                    .cornerRadius(20)
+                TextField("Write a comment…", text: $commentText)
+                    .foregroundColor(.lightText).font(.legoBody)
+                    .padding(12).background(Color.cardBackground).cornerRadius(20)
+                    .focused($commentFieldFocused)
+                    .onSubmit { submitComment() }
+                    .onChange(of: commentText) { _, newValue in
+                        if newValue.count > 200 { commentText = String(newValue.prefix(200)) }
+                        if BadWordFilter.containsBadWords(newValue) {
+                            withAnimation { badWordWarning = true }
+                        } else {
+                            withAnimation { badWordWarning = false }
+                        }
+                    }
+
+                Button { submitComment() } label: {
+                    Text("Send")
+                        .font(.legoCaption.bold()).foregroundColor(.white)
+                        .padding(.horizontal, 14).padding(.vertical, 10)
+                        .background(commentText.trimmingCharacters(in: .whitespaces).isEmpty
+                                    ? Color.legoRed.opacity(0.4) : Color.legoRed)
+                        .cornerRadius(20)
+                }
+                .disabled(commentText.trimmingCharacters(in: .whitespaces).isEmpty)
             }
-            .disabled(commentText.trimmingCharacters(in: .whitespaces).isEmpty)
+            .padding(.horizontal, 12).padding(.vertical, 10)
+            .background(
+                Color.darkBackground
+                    .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: -3)
+                    .ignoresSafeArea(edges: .bottom)
+            )
         }
-        .padding(.horizontal, 12).padding(.vertical, 10)
-        .background(
-            Color.darkBackground
-                .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: -3)
-                .ignoresSafeArea(edges: .bottom)
-        )
     }
 
     private func submitComment() {
@@ -439,6 +521,7 @@ struct PostDetailView: View {
         postStore.addComment(to: post, text: trimmed, username: username)
         commentText = ""
         commentFieldFocused = false
+        badWordWarning = false
 
         Task {
             do {
@@ -447,7 +530,8 @@ struct PostDetailView: View {
                     postOwnerId: post.userId,
                     text: trimmed,
                     userId: userId,
-                    username: username
+                    username: username,
+                    avatarURL: UserSession.shared.currentUser?.avatarURL ?? ""
                 )
             } catch {
                 print("[PostDetailView] Comment save error: \(error)")
@@ -456,21 +540,30 @@ struct PostDetailView: View {
     }
 }
 
-// MARK: - Detail Comment Row (private to PostDetailView to avoid conflict with CommentRow in CommentSheetView)
+// MARK: - Detail Comment Row
 
 private struct DetailCommentRow: View {
     let comment: Comment
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            Circle()
-                .fill(Color.legoRed.opacity(0.8))
-                .frame(width: 32, height: 32)
-                .overlay(
-                    Text(String(comment.username.prefix(1)).uppercased())
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                )
+            // Avatar: show photo if URL available, otherwise colored initial circle
+            Group {
+                if !comment.avatarURL.isEmpty, let url = URL(string: comment.avatarURL) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let img):
+                            img.resizable().scaledToFill()
+                                .frame(width: 32, height: 32)
+                                .clipShape(Circle())
+                        default:
+                            initialCircle
+                        }
+                    }
+                } else {
+                    initialCircle
+                }
+            }
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
@@ -487,8 +580,27 @@ private struct DetailCommentRow: View {
         }
         .padding(.horizontal, 16).padding(.vertical, 8)
     }
+
+    private var initialCircle: some View {
+        Circle()
+            .fill(avatarColor(for: comment.username))
+            .frame(width: 32, height: 32)
+            .overlay(
+                Text(String(comment.username.prefix(1)).uppercased())
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+            )
+    }
+
+    private func avatarColor(for username: String) -> Color {
+        let colors: [Color] = [.legoRed, .blue, .purple, .orange, .pink, .teal]
+        let index = abs(username.hashValue) % colors.count
+        return colors[index]
+    }
 }
 
 #Preview {
-    PostDetailView(post: .placeholder)
+    NavigationStack {
+        PostDetailView(post: .placeholder)
+    }
 }

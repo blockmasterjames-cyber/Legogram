@@ -164,19 +164,20 @@ final class FirebaseService: ObservableObject {
 
     func publishPost(_ post: LegoPost) async throws {
         var data: [String: Any] = [
-            "user_id":          post.userId,
-            "username":         post.username,
-            "image_url":        post.imageURL,
-            "video_url":        post.videoURL,
-            "lego_set_number":  post.legoSetNumber,
-            "lego_set_name":    post.legoSetName,
-            "description":      post.description,
-            "like_count":       post.likeCount,
-            "comment_count":    post.commentCount,
-            "buy_link":         post.buyLink,
-            "posted_date":      Timestamp(date: post.postedDate),
-            "tags":             post.tags,
-            "is_custom_build":  post.isCustomBuild,
+            "user_id":           post.userId,
+            "username":          post.username,
+            "image_url":         post.imageURL,
+            "video_url":         post.videoURL,
+            "image_urls":        post.imageURLs,
+            "lego_set_number":   post.legoSetNumber,
+            "lego_set_name":     post.legoSetName,
+            "description":       post.description,
+            "like_count":        post.likeCount,
+            "comment_count":     post.commentCount,
+            "buy_link":          post.buyLink,
+            "posted_date":       Timestamp(date: post.postedDate),
+            "tags":              post.tags,
+            "is_custom_build":   post.isCustomBuild,
             "custom_build_name": post.customBuildName
         ]
         try await db.collection("posts").document(post.id).setData(data)
@@ -230,20 +231,21 @@ final class FirebaseService: ObservableObject {
         let postedDate = (data["posted_date"] as? Timestamp)?.dateValue() ?? Date()
         return LegoPost(
             id:              doc.documentID,
-            userId:          data["user_id"]          as? String ?? "",
-            username:        data["username"]          as? String ?? "",
-            imageURL:        data["image_url"]         as? String ?? "",
-            videoURL:        data["video_url"]         as? String ?? "",
-            legoSetNumber:   data["lego_set_number"]   as? String ?? "",
-            legoSetName:     data["lego_set_name"]     as? String ?? "",
-            description:     data["description"]       as? String ?? "",
-            likeCount:       data["like_count"]        as? Int    ?? 0,
-            commentCount:    data["comment_count"]     as? Int    ?? 0,
-            buyLink:         data["buy_link"]          as? String ?? "",
+            userId:          data["user_id"]           as? String   ?? "",
+            username:        data["username"]           as? String   ?? "",
+            imageURL:        data["image_url"]          as? String   ?? "",
+            videoURL:        data["video_url"]          as? String   ?? "",
+            legoSetNumber:   data["lego_set_number"]    as? String   ?? "",
+            legoSetName:     data["lego_set_name"]      as? String   ?? "",
+            description:     data["description"]        as? String   ?? "",
+            likeCount:       data["like_count"]         as? Int      ?? 0,
+            commentCount:    data["comment_count"]      as? Int      ?? 0,
+            buyLink:         data["buy_link"]           as? String   ?? "",
             postedDate:      postedDate,
-            tags:            data["tags"]              as? [String] ?? [],
-            isCustomBuild:   data["is_custom_build"]   as? Bool   ?? false,
-            customBuildName: data["custom_build_name"] as? String ?? ""
+            tags:            data["tags"]               as? [String] ?? [],
+            isCustomBuild:   data["is_custom_build"]    as? Bool     ?? false,
+            customBuildName: data["custom_build_name"]  as? String   ?? "",
+            imageURLs:       data["image_urls"]         as? [String] ?? []
         )
     }
 
@@ -315,14 +317,19 @@ final class FirebaseService: ObservableObject {
     // MARK: - Comment Operations
     // =========================================================================
 
-    func addComment(to postId: String, postOwnerId: String, text: String, userId: String, username: String) async throws -> Comment {
+    func addComment(to postId: String, postOwnerId: String, text: String, userId: String, username: String, avatarURL: String = "") async throws -> Comment {
         let filtered = BadWordFilter.filter(text)
+        // Log to moderation if bad words were found
+        if filtered != text {
+            Task { try? await logModerationEvent(userId: userId, username: username, content: text, filtered: filtered, type: "comment") }
+        }
         let commentId = UUID().uuidString
         let commentData: [String: Any] = [
             "post_id":     postId,
             "user_id":     userId,
             "username":    username,
             "text":        filtered,
+            "avatar_url":  avatarURL,
             "posted_date": Timestamp(date: Date())
         ]
         let batch = db.batch()
@@ -344,6 +351,7 @@ final class FirebaseService: ObservableObject {
             userId: userId,
             username: username,
             text: filtered,
+            avatarURL: avatarURL,
             postedDate: Date()
         )
     }
@@ -362,6 +370,7 @@ final class FirebaseService: ObservableObject {
                 userId: data["user_id"] as? String ?? "",
                 username: data["username"] as? String ?? "",
                 text: data["text"] as? String ?? "",
+                avatarURL: data["avatar_url"] as? String ?? "",
                 postedDate: date
             )
         }
@@ -430,6 +439,117 @@ final class FirebaseService: ObservableObject {
 
         // 4. Delete Firebase Auth account
         try await Auth.auth().currentUser?.delete()
+    }
+
+    // =========================================================================
+    // MARK: - Points System
+    // =========================================================================
+
+    // =========================================================================
+    // MARK: - Moderation Logging
+    // =========================================================================
+
+    func logModerationEvent(userId: String, username: String, content: String, filtered: String, type: String) async throws {
+        let data: [String: Any] = [
+            "user_id":        userId,
+            "username":       username,
+            "original":       content,
+            "filtered":       filtered,
+            "content_type":   type,
+            "logged_at":      Timestamp(date: Date())
+        ]
+        try await db.collection("moderation_logs").addDocument(data: data)
+    }
+
+    // =========================================================================
+    // MARK: - Direct Message Conversations
+    // =========================================================================
+
+    /// Creates or retrieves a conversation between two users.
+    /// Returns the conversation document ID.
+    func getOrCreateConversation(currentUserId: String, currentUsername: String,
+                                  otherUserId: String, otherUsername: String) async throws -> String {
+        // Check if conversation already exists (either direction)
+        let existingSnap = try await db.collection("conversations")
+            .whereField("participant_ids", arrayContains: currentUserId)
+            .getDocuments()
+
+        for doc in existingSnap.documents {
+            let participantIds = doc.data()["participant_ids"] as? [String] ?? []
+            if participantIds.contains(otherUserId) {
+                return doc.documentID
+            }
+        }
+
+        // Create new conversation
+        let convId = UUID().uuidString
+        let data: [String: Any] = [
+            "participant_ids": [currentUserId, otherUserId],
+            "participant_usernames": [currentUsername, otherUsername],
+            "created_at": Timestamp(date: Date()),
+            "last_message": "",
+            "last_message_date": Timestamp(date: Date())
+        ]
+        try await db.collection("conversations").document(convId).setData(data)
+        return convId
+    }
+
+    /// Sends a message in a conversation and updates the last message preview.
+    func sendDMMessage(conversationId: String, senderId: String, senderUsername: String, text: String) async throws {
+        let filtered = BadWordFilter.filter(text)
+        if filtered != text {
+            Task { try? await logModerationEvent(userId: senderId, username: senderUsername, content: text, filtered: filtered, type: "dm") }
+        }
+        let msgId = UUID().uuidString
+        let msgData: [String: Any] = [
+            "sender_id":       senderId,
+            "sender_username": senderUsername,
+            "text":            filtered,
+            "sent_date":       Timestamp(date: Date())
+        ]
+        let batch = db.batch()
+        batch.setData(msgData, forDocument: db.collection("conversations")
+            .document(conversationId).collection("messages").document(msgId))
+        batch.updateData([
+            "last_message": filtered,
+            "last_message_date": Timestamp(date: Date())
+        ], forDocument: db.collection("conversations").document(conversationId))
+        try await batch.commit()
+    }
+
+    /// Fetches all conversations for the current user, sorted by last message date.
+    func fetchConversations(userId: String) async throws -> [DMConversation] {
+        let snap = try await db.collection("conversations")
+            .whereField("participant_ids", arrayContains: userId)
+            .order(by: "last_message_date", descending: true)
+            .getDocuments()
+
+        var conversations: [DMConversation] = []
+        for doc in snap.documents {
+            let data = doc.data()
+            let participantIds = data["participant_ids"] as? [String] ?? []
+            let participantUsernames = data["participant_usernames"] as? [String] ?? []
+            let otherUserId = participantIds.first(where: { $0 != userId }) ?? ""
+            let otherUsername = participantUsernames.first(where: { $0 != "" }) ?? ""
+            let lastMsg = data["last_message"] as? String ?? ""
+            let lastDate = (data["last_message_date"] as? Timestamp)?.dateValue() ?? Date()
+
+            let previewMsg = DMMessage(
+                id: "preview",
+                senderId: "",
+                senderUsername: "",
+                text: lastMsg,
+                sentDate: lastDate
+            )
+            let conv = DMConversation(
+                id: doc.documentID,
+                otherUserId: otherUserId,
+                otherUsername: otherUsername,
+                messages: [previewMsg]
+            )
+            conversations.append(conv)
+        }
+        return conversations
     }
 
     // =========================================================================

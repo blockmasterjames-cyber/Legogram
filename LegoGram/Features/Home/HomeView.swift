@@ -40,6 +40,7 @@ struct HomeView: View {
                 GeometryReader { geo in
                     ScrollView {
                         LazyVStack(spacing: 0) {
+                            // Pull-to-refresh is handled by .refreshable below
 
                             if followedPosts.isEmpty && recommendedPosts.isEmpty {
                                 emptyState
@@ -81,6 +82,9 @@ struct HomeView: View {
                         }
                         .padding(.bottom, 80)
                         .padding(.top, 8)
+                    }
+                    .refreshable {
+                        await postStore.refreshPosts()
                     }
                 }
                 .safeAreaInset(edge: .top) {
@@ -177,12 +181,13 @@ struct HomeView: View {
 
     private var emptyState: some View {
         VStack(spacing: 16) {
-            Image(systemName: "photo.stack")
-                .font(.system(size: 64)).foregroundColor(.secondaryText)
-            Text("No posts yet!")
+            Image(systemName: "square.stack.3d.up.fill")
+                .font(.system(size: 64)).foregroundColor(.legoYellow.opacity(0.6))
+            Text("No builds yet! 🧱")
                 .font(.legoCardTitle).foregroundColor(.lightText)
-            Text("Follow some builders to see their posts here!")
-                .font(.legoBody).foregroundColor(.secondaryText).multilineTextAlignment(.center)
+            Text("Follow some builders to see their amazing creations here. Pull down to refresh!")
+                .font(.legoBody).foregroundColor(.secondaryText)
+                .multilineTextAlignment(.center)
         }
         .padding(.top, 80).padding(.horizontal)
     }
@@ -202,8 +207,9 @@ struct PostCard: View {
     let onProfileTap: () -> Void
 
     @ObservedObject private var postStore = PostStore.shared
-    @State private var showHeart = false
-    @State private var isLiking  = false
+    @State private var showHeart    = false
+    @State private var isLiking     = false
+    @State private var carouselPage = 0
 
     private var legoSet: LegoSet? {
         post.isCustomBuild ? nil : LegoSetDatabase.set(for: post.legoSetNumber)
@@ -216,12 +222,10 @@ struct PostCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
 
-            // MARK: Square Image / Video
+            // MARK: Square Image / Video (or Carousel)
             ZStack(alignment: .topTrailing) {
-                squareMediaArea
-                    .onTapGesture(count: 2) {
-                        handleDoubleTap()
-                    }
+                cardMediaArea
+                    .onTapGesture(count: 2) { handleDoubleTap() }
                     .onTapGesture(count: 1) { onTap() }
 
                 if post.isVideoPost {
@@ -230,6 +234,21 @@ struct PostCard: View {
                         .foregroundColor(.white.opacity(0.85))
                         .allowsHitTesting(false)
                         .padding(8)
+                }
+
+                // Carousel indicator badge
+                if post.isCarouselPost {
+                    HStack(spacing: 3) {
+                        Image(systemName: "square.on.square")
+                            .font(.system(size: 11, weight: .bold))
+                        Text("\(post.allImageURLs.count)")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 7).padding(.vertical, 4)
+                    .background(Color.black.opacity(0.5))
+                    .cornerRadius(8)
+                    .padding(8)
                 }
 
                 // Follow / Unfollow button
@@ -473,6 +492,45 @@ struct PostCard: View {
             } catch {
                 print("[PostCard] Report error: \(error)")
             }
+        }
+    }
+
+    // MARK: - Card Media Area (handles carousel or single image/video)
+
+    @ViewBuilder
+    private var cardMediaArea: some View {
+        let allURLs = post.allImageURLs
+        if allURLs.count > 1 {
+            ZStack(alignment: .bottom) {
+                TabView(selection: $carouselPage) {
+                    ForEach(Array(allURLs.enumerated()), id: \.offset) { idx, urlStr in
+                        if let url = URL(string: urlStr) {
+                            AsyncImage(url: url) { phase in
+                                switch phase {
+                                case .success(let img): img.resizable().scaledToFill().clipped()
+                                default: placeholderContent
+                                }
+                            }
+                            .tag(idx)
+                        }
+                    }
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .aspectRatio(1, contentMode: .fit)
+
+                // Dot indicators
+                HStack(spacing: 5) {
+                    ForEach(0..<allURLs.count, id: \.self) { idx in
+                        Circle()
+                            .fill(idx == carouselPage ? Color.legoYellow : Color.white.opacity(0.5))
+                            .frame(width: idx == carouselPage ? 7 : 5,
+                                   height: idx == carouselPage ? 7 : 5)
+                    }
+                }
+                .padding(.bottom, 8)
+            }
+        } else {
+            squareMediaArea
         }
     }
 

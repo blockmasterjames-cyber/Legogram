@@ -1,18 +1,19 @@
 import SwiftUI
 
 /// The Direct Messages entry point.
-/// Sprint 5 — Feature 11.
-/// • Kid Safe Mode ON → friendly block popup
-/// • Kid Safe Mode OFF → age verification gate, then DM list
+/// Kid Safe Mode ON → friendly block popup
+/// Kid Safe Mode OFF → age verification gate, then DM list with compose button
 struct DirectMessageListView: View {
 
     @AppStorage("settings_kidSafeMode") private var kidSafeMode = false
     @AppStorage("dm_ageVerified") private var ageVerified = false
 
     @ObservedObject private var dmStore = DMStore.shared
+    @ObservedObject private var appState = AppState.shared
     @Environment(\.dismiss) private var dismiss
 
     @State private var showingAgeVerification = false
+    @State private var showingNewMessage = false
 
     var body: some View {
         NavigationStack {
@@ -33,9 +34,31 @@ struct DirectMessageListView: View {
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") { dismiss() }
+                    Button {
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                            Text("Back")
+                        }
                         .foregroundColor(.legoYellow)
+                    }
                 }
+
+                if !kidSafeMode && ageVerified {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button {
+                            showingNewMessage = true
+                        } label: {
+                            Image(systemName: "square.and.pencil")
+                                .font(.system(size: 18))
+                                .foregroundColor(.legoYellow)
+                        }
+                    }
+                }
+            }
+            .sheet(isPresented: $showingNewMessage) {
+                NewMessageView()
             }
         }
     }
@@ -77,10 +100,12 @@ struct DirectMessageListView: View {
                         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.secondaryText, lineWidth: 1))
                 }
 
-                // Navigate to settings within the app
                 Button {
                     dismiss()
-                    // The user needs to tap the Profile tab → Settings
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                        AppState.shared.selectedTab = .profile
+                        AppState.shared.openSettings = true
+                    }
                 } label: {
                     Text("Go To Settings")
                         .font(.legoCardTitle)
@@ -97,7 +122,7 @@ struct DirectMessageListView: View {
         .padding()
     }
 
-    // MARK: - Age Verification Prompt (first time, not yet verified)
+    // MARK: - Age Verification Prompt
 
     private var ageVerificationPromptView: some View {
         VStack(spacing: 24) {
@@ -145,12 +170,26 @@ struct DirectMessageListView: View {
             if dmStore.conversations.isEmpty {
                 VStack(spacing: 16) {
                     Spacer()
-                    Image(systemName: "message.circle")
+                    Image(systemName: "bubble.left.and.bubble.right")
                         .font(.system(size: 64)).foregroundColor(.secondaryText)
                     Text("No messages yet")
                         .font(.legoCardTitle).foregroundColor(.lightText)
-                    Text("Start a conversation with a builder you follow!")
-                        .font(.legoBody).foregroundColor(.secondaryText).multilineTextAlignment(.center)
+                    Text("Tap the ✏️ button above to start a conversation!")
+                        .font(.legoBody).foregroundColor(.secondaryText)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                    Button {
+                        showingNewMessage = true
+                    } label: {
+                        Label("Start a Conversation", systemImage: "square.and.pencil")
+                            .font(.legoCardTitle)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color.legoYellow)
+                            .foregroundColor(.darkBackground)
+                            .cornerRadius(14)
+                    }
+                    .padding(.horizontal, 40)
                     Spacer()
                 }
             } else {
@@ -177,7 +216,6 @@ struct ConversationRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Avatar
             Circle()
                 .fill(Color.legoRed)
                 .frame(width: 48, height: 48)
