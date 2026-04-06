@@ -13,6 +13,7 @@ struct SignUpView: View {
     @State private var confirmPassword = ""
     @State private var birthday        = Calendar.current.date(byAdding: .year, value: -13, to: Date()) ?? Date()
     @State private var hasBirthday     = false
+    @State private var parentEmail     = ""
     @State private var isLoading       = false
     @State private var errorMessage: String?
     @State private var showKidSafeMessage = false
@@ -127,6 +128,38 @@ struct SignUpView: View {
                                 }
                                 .padding(10)
                                 .background(Color.successGreen.opacity(0.12))
+                                .cornerRadius(10)
+
+                                // Parent/guardian email — REQUIRED for under-13
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "envelope.badge.shield.half.filled.fill")
+                                            .font(.system(size: 14)).foregroundColor(.legoYellow)
+                                        Text("Parent / Guardian Email *")
+                                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                                            .foregroundColor(.legoYellow)
+                                    }
+                                    HStack(spacing: 10) {
+                                        Image(systemName: "envelope.fill")
+                                            .foregroundColor(.secondaryText).frame(width: 20).padding(.leading, 14)
+                                        TextField("parent@example.com", text: $parentEmail)
+                                            .keyboardType(.emailAddress)
+                                            .autocapitalization(.none)
+                                            .autocorrectionDisabled()
+                                            .padding(.vertical, 14).padding(.trailing, 14)
+                                            .foregroundColor(.lightText)
+                                            .font(.legoBody)
+                                    }
+                                    .background(Color.cardBackground).cornerRadius(12)
+                                    .overlay(RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.legoYellow.opacity(0.5), lineWidth: 1))
+
+                                    Text("A welcome email explaining BrickFeed's safety features will be sent to your parent. Required for accounts under 13.")
+                                        .font(.system(size: 11, design: .rounded))
+                                        .foregroundColor(.secondaryText)
+                                }
+                                .padding(10)
+                                .background(Color.legoYellow.opacity(0.06))
                                 .cornerRadius(10)
                             }
 
@@ -254,6 +287,20 @@ struct SignUpView: View {
         guard hasBirthday else {
             errorMessage = "Please select your birthday — it is required to create an account."; return
         }
+        // Parent email required for under-13
+        if isUnder13 && parentEmail.trimmingCharacters(in: .whitespaces).isEmpty {
+            errorMessage = "A parent or guardian email is required for accounts under 13."; return
+        }
+        if isUnder13 && !parentEmail.contains("@") {
+            errorMessage = "Please enter a valid parent or guardian email address."; return
+        }
+        // Validate display name / username for bad words
+        if let nameError = BadWordFilter.validateUsername(displayName.trimmingCharacters(in: .whitespaces)) {
+            errorMessage = nameError; return
+        }
+        if let usernameError = BadWordFilter.validateUsername(trimmedUsername) {
+            errorMessage = usernameError; return
+        }
         guard password.count >= 6 else {
             errorMessage = "Password must be at least 6 characters."; return
         }
@@ -271,7 +318,8 @@ struct SignUpView: View {
                     password: password,
                     username: trimmedUsername,
                     displayName: displayName.trimmingCharacters(in: .whitespaces),
-                    birthday: birthday
+                    birthday: birthday,
+                    parentEmail: isUnder13 ? parentEmail.trimmingCharacters(in: .whitespaces) : ""
                 )
             } catch {
                 errorMessage = error.localizedDescription

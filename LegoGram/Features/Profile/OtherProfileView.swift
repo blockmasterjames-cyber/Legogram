@@ -9,8 +9,12 @@ struct OtherProfileView: View {
 
     @ObservedObject private var postStore = PostStore.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @AppStorage("dm_ageVerified") private var ageVerified = false
+    @AppStorage("settings_kidSafeMode") private var kidSafeMode = false
     @State private var showingBlockAlert = false
     @State private var showingBlockedConfirm = false
+    @State private var showingMessageThread = false
+    @State private var dmConversation: DMConversation?
 
     private var theirPosts: [LegoPost] {
         postStore.posts.filter { $0.username == username }
@@ -146,28 +150,56 @@ struct OtherProfileView: View {
 
             Spacer()
 
-            // Follow / Unfollow
-            Button {
-                postStore.toggleFollow(username)
-            } label: {
-                let following = postStore.isFollowing(username)
-                Text(following ? "Following" : "Follow")
-                    .font(.legoCaption)
-                    .fontWeight(.bold)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 9)
-                    .background(following ? Color.cardBackground : Color.legoRed)
-                    .foregroundColor(following ? .lightText : .white)
-                    .cornerRadius(8)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(following ? Color.secondaryText : Color.clear, lineWidth: 1)
-                    )
+            HStack(spacing: 8) {
+                // Follow / Unfollow
+                Button {
+                    postStore.toggleFollow(username)
+                } label: {
+                    let following = postStore.isFollowing(username)
+                    Text(following ? "Following" : "Follow")
+                        .font(.legoCaption)
+                        .fontWeight(.bold)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 9)
+                        .background(following ? Color.cardBackground : Color.legoRed)
+                        .foregroundColor(following ? .lightText : .white)
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(following ? Color.secondaryText : Color.clear, lineWidth: 1)
+                        )
+                }
+
+                // Message button (only if DMs available)
+                if !kidSafeMode && ageVerified {
+                    Button {
+                        let conv = DMStore.shared.conversation(with: username)
+                        dmConversation = conv
+                        showingMessageThread = true
+                    } label: {
+                        Image(systemName: "message.fill")
+                            .font(.system(size: 14, weight: .bold))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 9)
+                            .background(Color.cardBackground)
+                            .foregroundColor(.legoYellow)
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.legoYellow.opacity(0.5), lineWidth: 1)
+                            )
+                    }
+                }
             }
             .padding(.trailing, 16)
             .padding(.bottom, 8)
         }
         .padding(.bottom, -32)
+        .navigationDestination(isPresented: $showingMessageThread) {
+            if let conv = dmConversation {
+                DirectMessageThreadView(conversation: conv)
+            }
+        }
     }
 
     private var statsRow: some View {

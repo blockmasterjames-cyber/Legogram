@@ -155,6 +155,16 @@ struct RoundedCorner: Shape {
 
 #Preview {
     NavigationStack {
-        DirectMessageThreadView(conversation: DMStore.seedConversations[0])
+        DirectMessageThreadView(conversation: DMConversation(
+            id: "preview-conv",
+            otherUserId: "other-user",
+            otherUsername: "brickmaster99",
+            messages: [
+                DMMessage(id: "1", senderId: "me", senderUsername: "you",
+                          text: "Hey! Love your Falcon build! 🚀", sentDate: Date()),
+                DMMessage(id: "2", senderId: "other-user", senderUsername: "brickmaster99",
+                          text: "Thanks! Took 3 weeks 😄", sentDate: Date())
+            ]
+        ))
     }
 }

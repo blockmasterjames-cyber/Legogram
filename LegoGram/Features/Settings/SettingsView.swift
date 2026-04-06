@@ -18,8 +18,13 @@ struct SettingsView: View {
     @State private var isDeletingAccount        = false
     @State private var deleteError: String?
 
-    @State private var showingPrivacyPolicy     = false
-    @State private var showingTermsOfService    = false
+    @State private var showingPrivacyPolicy       = false
+    @State private var showingTermsOfService      = false
+    @State private var showingParentalApproval    = false
+
+    private var isKidAccount: Bool {
+        userSession.currentUser?.isKidAccount ?? false
+    }
 
     // MARK: - Body
 
@@ -62,11 +67,23 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.dark)
+            .toolbarBackground(Color.cardBackground, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Done") { dismiss() }.foregroundColor(.legoYellow)
+                    Button {
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                            Text("Back")
+                        }
+                        .foregroundColor(.legoYellow)
+                    }
                 }
+            }
+            .sheet(isPresented: $showingParentalApproval) {
+                ParentalApprovalView(kidSafeMode: $kidSafeMode)
             }
             .alert("Sign Out", isPresented: $showingSignOutConfirm) {
                 Button("Sign Out", role: .destructive) { performSignOut() }
@@ -113,17 +130,41 @@ struct SettingsView: View {
                 .font(.legoCaption).foregroundColor(.secondaryText).padding(.horizontal)
 
             VStack(spacing: 8) {
-                toggleRow(label: "Kid Safe Mode", icon: "shield.checkmark.fill",
-                          tint: .successGreen, isOn: $kidSafeMode)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(kidSafeMode ? Color.successGreen.opacity(0.4) : Color.clear, lineWidth: 1.5)
-                    )
+                // Kid Safe Mode toggle — under-13 requires parental approval to turn OFF
+                HStack {
+                    Label("Kid Safe Mode", systemImage: "shield.checkmark.fill")
+                        .font(.legoBody).foregroundColor(.lightText)
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { kidSafeMode },
+                        set: { newValue in
+                            if !newValue && isKidAccount {
+                                // Under-13 account trying to turn OFF — require parental approval
+                                showingParentalApproval = true
+                            } else {
+                                kidSafeMode = newValue
+                            }
+                        }
+                    ))
+                    .tint(.successGreen)
+                    .labelsHidden()
+                }
+                .padding(.horizontal).padding(.vertical, 12)
+                .background(Color.cardBackground).cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(kidSafeMode ? Color.successGreen.opacity(0.4) : Color.clear, lineWidth: 1.5)
+                )
 
-                infoRow(icon: "info.circle", color: .legoYellow,
-                        text: kidSafeMode
-                              ? "Kid Safe Mode is ON — only verified kid-friendly content is shown."
-                              : "Turn on Kid Safe Mode to limit content to verified kid-friendly posts.")
+                if isKidAccount && kidSafeMode {
+                    infoRow(icon: "lock.shield.fill", color: .successGreen,
+                            text: "Kid Safe Mode is required for your account. A parent must approve turning it off.")
+                } else {
+                    infoRow(icon: "info.circle", color: .legoYellow,
+                            text: kidSafeMode
+                                  ? "Kid Safe Mode is ON — only verified kid-friendly content is shown."
+                                  : "Turn on Kid Safe Mode to limit content to verified kid-friendly posts.")
+                }
 
                 infoRow(icon: "text.badge.xmark", color: .legoYellow,
                         text: "Bad Word Filter is always ON — inappropriate words are replaced with *** automatically.")

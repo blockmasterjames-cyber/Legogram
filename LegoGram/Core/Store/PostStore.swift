@@ -154,4 +154,24 @@ final class PostStore: ObservableObject {
     func loadMorePosts() {
         // Will be implemented with real Firestore pagination in a future sprint
     }
+
+    // MARK: - Pull to Refresh
+
+    /// Reloads all posts from Firestore, newest first.
+    func refreshPosts() async {
+        do {
+            let fresh = try await FirebaseService.shared.fetchFeedPosts(limit: 30)
+            // Also reload liked IDs
+            let uid = UserSession.shared.uid
+            var liked = likedPostIDs
+            if !uid.isEmpty {
+                let ids = fresh.map { $0.id }
+                liked = (try? await FirebaseService.shared.fetchLikedPostIds(userId: uid, postIds: ids)) ?? liked
+            }
+            posts = fresh
+            likedPostIDs = liked
+        } catch {
+            print("[PostStore] refreshPosts error: \(error)")
+        }
+    }
 }

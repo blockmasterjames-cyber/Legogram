@@ -44,7 +44,8 @@ final class AuthService: ObservableObject {
         password: String,
         username: String,
         displayName: String,
-        birthday: Date? = nil
+        birthday: Date? = nil,
+        parentEmail: String = ""
     ) async throws {
         guard FirebaseApp.app() != nil else {
             throw authError("Firebase is not configured. Check GoogleService-Info.plist.")
@@ -78,7 +79,7 @@ final class AuthService: ObservableObject {
             totalLikes:     0,
             totalPoints:    0,
             isKidAccount:   isUnder13,
-            parentEmail:    "",
+            parentEmail:    parentEmail,
             joinDate:       Date(),
             birthday:       birthday
         )

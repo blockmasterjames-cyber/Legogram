@@ -24,5 +24,8 @@ final class AppState: ObservableObject {
     /// Which tab is currently visible. Any screen can change this to navigate.
     @Published var selectedTab: AppTab = .home
 
+    /// Set to true to programmatically open Settings sheet from ProfileView.
+    @Published var openSettings: Bool = false
+
     private init() {}
 }

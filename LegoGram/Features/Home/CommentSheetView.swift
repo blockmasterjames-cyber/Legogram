@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A bottom sheet that shows comments for a post and lets the user add a new comment.
-/// Opened from the feed by tapping the comment bubble icon — no navigation away from feed.
+/// Opened from the feed by tapping the comment bubble icon.
 struct CommentSheetView: View {
 
     let post: LegoPost
@@ -12,6 +12,7 @@ struct CommentSheetView: View {
     @State private var commentText = ""
     @State private var isSubmitting = false
     @State private var isLoading = false
+    @State private var badWordWarning = false
     @FocusState private var commentFocused: Bool
 
     private var comments: [Comment] {
@@ -24,12 +25,9 @@ struct CommentSheetView: View {
                 Color.darkBackground.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // Header
                     sheetHeader
-
                     Divider().background(Color.secondaryText.opacity(0.3))
 
-                    // Comments list
                     if isLoading {
                         Spacer()
                         ProgressView().tint(.legoYellow).scaleEffect(1.3)
@@ -60,7 +58,18 @@ struct CommentSheetView: View {
 
                     Divider().background(Color.secondaryText.opacity(0.3))
 
-                    // Comment input bar
+                    if badWordWarning {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.legoYellow)
+                            Text("Please keep BrickFeed friendly! 🧱")
+                                .font(.legoCaption).foregroundColor(.legoYellow)
+                        }
+                        .padding(.horizontal, 16).padding(.vertical, 6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.legoYellow.opacity(0.1))
+                    }
+
                     commentInputBar
                 }
             }
@@ -93,10 +102,8 @@ struct CommentSheetView: View {
 
     private var commentInputBar: some View {
         HStack(spacing: 12) {
-            // Avatar
-            avatarCircle(letter: String(userSession.username.prefix(1)).uppercased())
+            avatarCircle
 
-            // Text field
             TextField("Add a comment…", text: $commentText, axis: .vertical)
                 .lineLimit(1...4)
                 .font(.legoBody)
@@ -106,8 +113,15 @@ struct CommentSheetView: View {
                 .background(Color.cardBackground)
                 .cornerRadius(20)
                 .focused($commentFocused)
+                .onChange(of: commentText) { _, newValue in
+                    if newValue.count > 200 { commentText = String(newValue.prefix(200)) }
+                    if BadWordFilter.containsBadWords(newValue) {
+                        withAnimation { badWordWarning = true }
+                    } else {
+                        withAnimation { badWordWarning = false }
+                    }
+                }
 
-            // Send button
             Button {
                 submitComment()
             } label: {
@@ -125,6 +139,27 @@ struct CommentSheetView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(Color.darkBackground)
+    }
+
+    // MARK: - Current User Avatar
+
+    @ViewBuilder
+    private var avatarCircle: some View {
+        let letter = String(userSession.username.prefix(1)).uppercased()
+        if let img = userSession.avatarImage {
+            Image(uiImage: img)
+                .resizable().scaledToFill()
+                .frame(width: 34, height: 34)
+                .clipShape(Circle())
+        } else {
+            Circle()
+                .fill(Color.legoRed)
+                .frame(width: 34, height: 34)
+                .overlay(
+                    Text(letter.isEmpty ? "?" : letter)
+                        .font(.legoCaption).foregroundColor(.white)
+                )
+        }
     }
 
     // MARK: - Load Comments
@@ -151,23 +186,24 @@ struct CommentSheetView: View {
         let text = commentText.trimmingCharacters(in: .whitespaces)
         guard !text.isEmpty else { return }
         isSubmitting = true
+        badWordWarning = false
 
         Task {
-            let username = userSession.username
-            let userId   = userSession.uid
+            let username    = userSession.username
+            let userId      = userSession.uid
             let postOwnerId = post.userId
+            let avatarURL   = userSession.currentUser?.avatarURL ?? ""
 
-            // Optimistic local update
             postStore.addComment(to: post, text: text, username: username)
 
-            // Sync to Firestore
             do {
                 let _ = try await FirebaseService.shared.addComment(
                     to: post.id,
                     postOwnerId: postOwnerId,
                     text: text,
                     userId: userId,
-                    username: username
+                    username: username,
+                    avatarURL: avatarURL
                 )
             } catch {
                 print("[CommentSheetView] Error saving comment: \(error)")
@@ -180,44 +216,32 @@ struct CommentSheetView: View {
             }
         }
     }
-
-    // MARK: - Avatar circle helper
-
-    private func avatarCircle(letter: String) -> some View {
-        Group {
-            if let img = userSession.avatarImage {
-                Image(uiImage: img)
-                    .resizable().scaledToFill()
-                    .frame(width: 34, height: 34)
-                    .clipShape(Circle())
-            } else {
-                Circle()
-                    .fill(Color.legoRed)
-                    .frame(width: 34, height: 34)
-                    .overlay(
-                        Text(letter.isEmpty ? "?" : letter)
-                            .font(.legoCaption).foregroundColor(.white)
-                    )
-            }
-        }
-    }
 }
 
-// MARK: - Comment Row
+// MARK: - Comment Row (used in both CommentSheetView and other contexts)
 
 struct CommentRow: View {
     let comment: Comment
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            // Avatar placeholder
-            Circle()
-                .fill(Color.legoRed.opacity(0.7))
-                .frame(width: 36, height: 36)
-                .overlay(
-                    Text(String(comment.username.prefix(1)).uppercased())
-                        .font(.legoCaption).foregroundColor(.white)
-                )
+            // Avatar: show photo if URL available, otherwise colored initial circle
+            Group {
+                if !comment.avatarURL.isEmpty, let url = URL(string: comment.avatarURL) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let img):
+                            img.resizable().scaledToFill()
+                                .frame(width: 36, height: 36)
+                                .clipShape(Circle())
+                        default:
+                            initialCircle
+                        }
+                    }
+                } else {
+                    initialCircle
+                }
+            }
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
@@ -237,5 +261,21 @@ struct CommentRow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
+    }
+
+    private var initialCircle: some View {
+        Circle()
+            .fill(avatarColor(for: comment.username))
+            .frame(width: 36, height: 36)
+            .overlay(
+                Text(String(comment.username.prefix(1)).uppercased())
+                    .font(.legoCaption).foregroundColor(.white)
+            )
+    }
+
+    private func avatarColor(for username: String) -> Color {
+        let colors: [Color] = [Color.legoRed.opacity(0.8), .blue, .purple, .orange, .pink, .teal]
+        let index = abs(username.hashValue) % colors.count
+        return colors[index]
     }
 }
