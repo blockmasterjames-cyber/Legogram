@@ -14,19 +14,15 @@ final class AuthService: ObservableObject {
     static let shared = AuthService()
 
     // MARK: - Published State
-
-    /// True when a Firebase user is currently signed in.
     @Published var isSignedIn: Bool = false
-
-    /// True while an auth operation is in progress.
     @Published var isLoading: Bool = false
-
-    /// Any error message to surface to the user.
     @Published var errorMessage: String?
 
+    /// Set to true when a new Apple Sign In user still needs to complete profile setup
+    /// (choose username and enter birthday). ContentView checks this to route to setup screen.
+    @Published var needsAppleProfileSetup: Bool = false
+
     private init() {
-        // Only check auth state if Firebase has been configured;
-        // otherwise Auth.auth() will crash with "no default FirebaseApp".
         if FirebaseApp.app() != nil {
             isSignedIn = Auth.auth().currentUser != nil
         }
@@ -34,7 +30,6 @@ final class AuthService: ObservableObject {
 
     // MARK: - Computed Properties
 
-    /// The UID of the currently signed-in user, or nil.
     var userId: String? {
         guard FirebaseApp.app() != nil else { return nil }
         return Auth.auth().currentUser?.uid
@@ -44,9 +39,6 @@ final class AuthService: ObservableObject {
     // MARK: - Sign Up
     // =========================================================================
 
-    /// Creates a brand-new BrickFeed account with email and password,
-    /// then saves the user's displayName, username, and birthday to Firestore.
-    /// Also auto-follows the 10 OG accounts so the feed is never empty.
     func signUp(
         email: String,
         password: String,
@@ -62,11 +54,9 @@ final class AuthService: ObservableObject {
         errorMessage = nil
         defer { isLoading = false }
 
-        // 1. Create the Firebase Auth account
         let result = try await Auth.auth().createUser(withEmail: email, password: password)
         let uid    = result.user.uid
 
-        // 2. Determine if user is under 13 for COPPA compliance
         let isUnder13: Bool
         if let birthday {
             let age = Calendar.current.dateComponents([.year], from: birthday, to: Date()).year ?? 0
@@ -75,38 +65,33 @@ final class AuthService: ObservableObject {
             isUnder13 = false
         }
 
-        // 3. Build the Firestore user document
         let newUser = User(
             id:             uid,
             username:       username,
             displayName:    displayName,
             bio:            "",
             avatarURL:      "",
+            backgroundURL:  "",
             followerCount:  0,
             followingCount: 0,
             postCount:      0,
             totalLikes:     0,
-            totalEarnings:  0,
+            totalPoints:    0,
             isKidAccount:   isUnder13,
             parentEmail:    "",
             joinDate:       Date(),
             birthday:       birthday
         )
 
-        // 4. Save to Firestore "users" collection under the Firebase UID
         try await FirebaseService.shared.saveUser(newUser)
 
-        // 5. Save username/displayName to AppStorage immediately so profile shows them
         UserDefaults.standard.set(username, forKey: "profile_username")
         UserDefaults.standard.set(displayName, forKey: "profile_displayName")
         if isUnder13 {
             UserDefaults.standard.set(true, forKey: "settings_kidSafeMode")
         }
 
-        // 6. Load user into UserSession
         UserSession.shared.currentUser = newUser
-
-        // 7. Auto-follow OG accounts so the feed is never empty
         await OGAccountsService.shared.setupNewUser(userId: uid)
 
         isSignedIn = true
@@ -116,16 +101,13 @@ final class AuthService: ObservableObject {
     // MARK: - Sign In
     // =========================================================================
 
-    /// Signs in an existing user with their email and password.
     func signIn(email: String, password: String) async throws {
         guard FirebaseApp.app() != nil else {
             throw authError("Firebase is not configured. Check GoogleService-Info.plist.")
         }
-
         isLoading    = true
         errorMessage = nil
         defer { isLoading = false }
-
         try await Auth.auth().signIn(withEmail: email, password: password)
         isSignedIn = true
     }
@@ -134,19 +116,17 @@ final class AuthService: ObservableObject {
     // MARK: - Sign Out
     // =========================================================================
 
-    /// Signs the current user out of Firebase Auth.
-    /// ContentView's auth state listener automatically navigates to LoginView.
     func signOut() throws {
         guard FirebaseApp.app() != nil else { return }
         try Auth.auth().signOut()
         isSignedIn = false
+        needsAppleProfileSetup = false
     }
 
     // =========================================================================
     // MARK: - Password Reset
     // =========================================================================
 
-    /// Sends a Firebase password-reset email to the given address.
     func sendPasswordReset(to email: String) async throws {
         guard FirebaseApp.app() != nil else {
             throw authError("Firebase is not configured. Check GoogleService-Info.plist.")
@@ -158,12 +138,8 @@ final class AuthService: ObservableObject {
     // MARK: - Sign in with Apple
     // =========================================================================
 
-    /// A random nonce used for the current Sign in with Apple request.
-    /// Must be set before starting the Apple auth flow and read in the delegate callback.
     private(set) var currentNonce: String?
 
-    /// Generates a cryptographically secure random nonce string.
-    /// Returns nil if the system random number generator fails.
     func randomNonceString(length: Int = 32) -> String? {
         precondition(length > 0)
         var randomBytes = [UInt8](repeating: 0, count: length)
@@ -176,23 +152,21 @@ final class AuthService: ObservableObject {
         return String(randomBytes.map { charset[Int($0) % charset.count] })
     }
 
-    /// Returns the SHA256 hash of the input string, hex-encoded.
     func sha256(_ input: String) -> String {
         let data = Data(input.utf8)
         let hash = SHA256.hash(data: data)
         return hash.compactMap { String(format: "%02x", $0) }.joined()
     }
 
-    /// Prepares the Apple sign-in request by generating a fresh nonce.
-    /// Returns the SHA256-hashed nonce to embed in the ASAuthorizationAppleIDRequest,
-    /// or nil if nonce generation fails.
     func prepareAppleSignIn() -> String? {
         guard let nonce = randomNonceString() else { return nil }
         currentNonce = nonce
         return sha256(nonce)
     }
 
-    /// Signs in (or creates an account) using Apple credential from ASAuthorization.
+    /// Signs in (or creates) with Apple credential.
+    /// For NEW users: sets needsAppleProfileSetup = true so ContentView shows the setup screen.
+    /// For RETURNING users: goes straight to the feed.
     func signInWithApple(authorization: ASAuthorization) async throws {
         guard FirebaseApp.app() != nil else {
             throw authError("Firebase is not configured. Check GoogleService-Info.plist.")
@@ -215,7 +189,7 @@ final class AuthService: ObservableObject {
         errorMessage = nil
         defer {
             isLoading = false
-            currentNonce = nil   // consumed — prevent replay
+            currentNonce = nil
         }
 
         let credential = OAuthProvider.appleCredential(
@@ -227,42 +201,73 @@ final class AuthService: ObservableObject {
         let result = try await Auth.auth().signIn(with: credential)
         let uid = result.user.uid
 
-        // If this is a new user, save a Firestore profile
         let isNewUser = result.additionalUserInfo?.isNewUser ?? false
         if isNewUser {
+            // New Apple user — needs to set up username and birthday
+            // Store the Apple user ID and provisional display name so the setup screen can use them
             let displayName = [
                 appleIDCredential.fullName?.givenName,
                 appleIDCredential.fullName?.familyName
             ].compactMap { $0 }.joined(separator: " ")
 
-            let username = "builder_\(uid.prefix(8))"
-
-            let newUser = User(
+            // Create a minimal placeholder user doc so Firestore rules don't block
+            let placeholderUser = User(
                 id:             uid,
-                username:       username,
+                username:       "builder_\(uid.prefix(8))",
                 displayName:    displayName.isEmpty ? "BrickFeed Builder" : displayName,
                 bio:            "",
                 avatarURL:      "",
+                backgroundURL:  "",
                 followerCount:  0,
                 followingCount: 0,
                 postCount:      0,
                 totalLikes:     0,
-                totalEarnings:  0,
+                totalPoints:    0,
                 isKidAccount:   false,
                 parentEmail:    "",
                 joinDate:       Date(),
                 birthday:       nil
             )
-            try await FirebaseService.shared.saveUser(newUser)
+            try await FirebaseService.shared.saveUser(placeholderUser)
+            UserSession.shared.currentUser = placeholderUser
 
-            // Save to AppStorage and auto-follow OG accounts
-            UserDefaults.standard.set(username, forKey: "profile_username")
-            UserDefaults.standard.set(newUser.displayName, forKey: "profile_displayName")
-            UserSession.shared.currentUser = newUser
-            await OGAccountsService.shared.setupNewUser(userId: uid)
+            // Signal ContentView to show setup screen
+            needsAppleProfileSetup = true
+            isSignedIn = true
+        } else {
+            // Returning Apple user — load their profile and go to feed
+            await UserSession.shared.loadCurrentUser()
+            needsAppleProfileSetup = false
+            isSignedIn = true
+        }
+    }
+
+    /// Called after the Apple Sign In setup screen to finalize the user's profile.
+    func completeAppleSetup(username: String, displayName: String, birthday: Date) async throws {
+        guard let uid = userId else { return }
+
+        let isUnder13: Bool = {
+            let age = Calendar.current.dateComponents([.year], from: birthday, to: Date()).year ?? 0
+            return age < 13
+        }()
+
+        guard var user = UserSession.shared.currentUser else { return }
+        user.username     = username
+        user.displayName  = displayName.isEmpty ? user.displayName : displayName
+        user.birthday     = birthday
+        user.isKidAccount = isUnder13
+
+        try await FirebaseService.shared.saveUser(user)
+        UserSession.shared.currentUser = user
+
+        UserDefaults.standard.set(username, forKey: "profile_username")
+        UserDefaults.standard.set(user.displayName, forKey: "profile_displayName")
+        if isUnder13 {
+            UserDefaults.standard.set(true, forKey: "settings_kidSafeMode")
         }
 
-        isSignedIn = true
+        await OGAccountsService.shared.setupNewUser(userId: uid)
+        needsAppleProfileSetup = false
     }
 
     // MARK: - Helpers

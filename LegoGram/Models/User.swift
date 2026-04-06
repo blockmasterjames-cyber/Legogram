@@ -5,50 +5,30 @@ import Foundation
 struct User: Identifiable, Codable, Hashable {
 
     // MARK: - Identity
-    /// Unique ID assigned by Firebase Auth (never changes).
     var id: String
-
-    /// The short @handle the user picks, like "brickmaster99". Must be unique.
     var username: String
-
-    /// The full display name shown on the profile, like "James the Builder".
     var displayName: String
-
-    /// A short sentence about themselves shown on the profile.
     var bio: String
-
-    /// URL of the user's profile picture stored in Firebase Storage.
     var avatarURL: String
+    var backgroundURL: String
 
     // MARK: - Social Counts
-    /// How many people follow this user.
     var followerCount: Int
-
-    /// How many people this user follows.
     var followingCount: Int
-
-    /// Total number of posts this user has shared.
     var postCount: Int
-
-    /// Combined likes across all of this user's posts.
     var totalLikes: Int
 
-    // MARK: - Earnings
-    /// Total money earned through affiliate links on their posts (in USD).
-    var totalEarnings: Double
+    // MARK: - Points System (replaces earnings)
+    /// Total points earned through posting, receiving likes, comments, and follows.
+    /// Posting = 10 pts, Like received = 2 pts, Comment received = 5 pts, Follow received = 1 pt
+    var totalPoints: Int
 
     // MARK: - Kid Safety
-    /// True if the account is registered as a kid account (under 13).
     var isKidAccount: Bool
-
-    /// Parent's email address — required for kid accounts.
     var parentEmail: String
 
     // MARK: - Metadata
-    /// The date and time the account was created.
     var joinDate: Date
-
-    /// The user's birthday — used for COPPA compliance and Kid Safe Mode.
     var birthday: Date?
 
     // MARK: - Firestore Field Keys
@@ -58,11 +38,12 @@ struct User: Identifiable, Codable, Hashable {
         case displayName    = "display_name"
         case bio
         case avatarURL      = "avatar_url"
+        case backgroundURL  = "background_url"
         case followerCount  = "follower_count"
         case followingCount = "following_count"
         case postCount      = "post_count"
         case totalLikes     = "total_likes"
-        case totalEarnings  = "total_earnings"
+        case totalPoints    = "total_points"
         case isKidAccount   = "is_kid_account"
         case parentEmail    = "parent_email"
         case joinDate       = "join_date"
@@ -72,18 +53,18 @@ struct User: Identifiable, Codable, Hashable {
 
 // MARK: - Placeholder / Preview
 extension User {
-    /// A fake user used in SwiftUI previews and placeholder screens.
     static let placeholder = User(
         id: "preview-user-001",
         username: "brickmaster99",
         displayName: "James the Builder",
         bio: "Building one brick at a time 🧱",
         avatarURL: "",
+        backgroundURL: "",
         followerCount: 0,
         followingCount: 0,
         postCount: 0,
         totalLikes: 0,
-        totalEarnings: 0,
+        totalPoints: 0,
         isKidAccount: false,
         parentEmail: "",
         joinDate: Date(),

@@ -1,28 +1,15 @@
 import SwiftUI
 import AVKit
 
-/// Wrapper used as the navigation item so we can carry both the post
-/// and whether the detail view should auto-scroll to comments.
-struct FeedNavigation: Identifiable, Hashable {
-    let post: LegoPost
-    let scrollToComments: Bool
-    var id: String { post.id + (scrollToComments ? "-c" : "") }
-}
-
 /// The Home screen — scrolling feed of LEGO builds.
-/// Sprint 5 upgrades:
-/// • Smart feed: followed posts first, then "Recommended For You" section
-/// • Follow button on recommended post cards
-/// • DM icon in header
-/// • Square photos with rounded corners
-/// • iPad 2-column portrait, 3-column landscape
 struct HomeView: View {
 
     @ObservedObject private var postStore = PostStore.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    @State private var navigation: FeedNavigation?
-    @State private var selectedUsername: String?
+    @State private var selectedPost: LegoPost?          // navigate to post detail
+    @State private var selectedUsername: String?         // navigate to profile
+    @State private var commentPost: LegoPost?            // opens comment sheet
     @State private var showingDMSheet = false
 
     // MARK: - Feed Sections
@@ -39,9 +26,9 @@ struct HomeView: View {
 
     private func gridColumns(for width: CGFloat) -> [GridItem] {
         let count: Int
-        if width >= 1000 { count = 3 }        // iPad landscape
-        else if width >= 600 { count = 2 }     // iPad portrait
-        else { count = 1 }                     // iPhone
+        if width >= 1000 { count = 3 }
+        else if width >= 600 { count = 2 }
+        else { count = 1 }
         return Array(repeating: GridItem(.flexible(), spacing: 16), count: count)
     }
 
@@ -57,15 +44,14 @@ struct HomeView: View {
                             if followedPosts.isEmpty && recommendedPosts.isEmpty {
                                 emptyState
                             } else {
-                                // Section 1: Followed posts
                                 if !followedPosts.isEmpty {
                                     LazyVGrid(columns: gridColumns(for: geo.size.width), spacing: 16) {
                                         ForEach(followedPosts) { post in
                                             PostCard(
                                                 post: post,
                                                 showFollowButton: true,
-                                                onTap: { navigation = FeedNavigation(post: post, scrollToComments: false) },
-                                                onCommentTap: { navigation = FeedNavigation(post: post, scrollToComments: true) },
+                                                onTap: { selectedPost = post },
+                                                onCommentTap: { commentPost = post },
                                                 onProfileTap: { selectedUsername = post.username }
                                             )
                                         }
@@ -74,7 +60,6 @@ struct HomeView: View {
                                     .padding(.top, 8)
                                 }
 
-                                // Section 2: Recommended For You
                                 if !recommendedPosts.isEmpty {
                                     recommendedHeader
                                     LazyVGrid(columns: gridColumns(for: geo.size.width), spacing: 16) {
@@ -82,8 +67,8 @@ struct HomeView: View {
                                             PostCard(
                                                 post: post,
                                                 showFollowButton: true,
-                                                onTap: { navigation = FeedNavigation(post: post, scrollToComments: false) },
-                                                onCommentTap: { navigation = FeedNavigation(post: post, scrollToComments: true) },
+                                                onTap: { selectedPost = post },
+                                                onCommentTap: { commentPost = post },
                                                 onProfileTap: { selectedUsername = post.username }
                                             )
                                         }
@@ -92,20 +77,18 @@ struct HomeView: View {
                                 }
                             }
 
-                            // Infinite scroll trigger
                             infiniteScrollTrigger
                         }
                         .padding(.bottom, 80)
                         .padding(.top, 8)
                     }
                 }
-                // Sticky logo header
                 .safeAreaInset(edge: .top) {
                     feedHeader
                 }
             }
-            .navigationDestination(item: $navigation) { nav in
-                PostDetailView(post: nav.post, scrollToComments: nav.scrollToComments)
+            .navigationDestination(item: $selectedPost) { post in
+                PostDetailView(post: post)
             }
             .navigationDestination(item: $selectedUsername) { username in
                 OtherProfileView(username: username)
@@ -114,16 +97,20 @@ struct HomeView: View {
         .sheet(isPresented: $showingDMSheet) {
             DirectMessageListView()
         }
+        .sheet(item: $commentPost) { post in
+            CommentSheetView(post: post)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
     }
 
-    // MARK: - Sticky Feed Header
+    // MARK: - Feed Header
 
     private var feedHeader: some View {
         HStack(alignment: .center) {
             BrickFeedLogo()
             Spacer()
 
-            // DM button (Sprint 5)
             Button { showingDMSheet = true } label: {
                 Image(systemName: "message.fill")
                     .font(.system(size: 20))
@@ -131,8 +118,7 @@ struct HomeView: View {
             }
             .padding(.trailing, 12)
 
-            // Notification bell
-            Button {} label: {
+            Button { } label: {
                 Image(systemName: "bell.fill")
                     .font(.system(size: 22))
                     .foregroundColor(.legoYellow)
@@ -147,7 +133,7 @@ struct HomeView: View {
         )
     }
 
-    // MARK: - Recommended For You Header
+    // MARK: - Recommended Header
 
     private var recommendedHeader: some View {
         HStack {
@@ -195,7 +181,7 @@ struct HomeView: View {
                 .font(.system(size: 64)).foregroundColor(.secondaryText)
             Text("No posts yet!")
                 .font(.legoCardTitle).foregroundColor(.lightText)
-            Text("Be the first to share your Brick build!\nTap the red + button below.")
+            Text("Follow some builders to see their posts here!")
                 .font(.legoBody).foregroundColor(.secondaryText).multilineTextAlignment(.center)
         }
         .padding(.top, 80).padding(.horizontal)
@@ -204,8 +190,9 @@ struct HomeView: View {
 
 // MARK: - Post Card
 
-/// One card in the feed. Square photo, username, age badge, likes, comments, Buy Set.
-/// Sprint 5: square photo, follow button on recommended posts.
+/// One card in the feed. Tapping heart likes in-place (no navigation).
+/// Tapping comment bubble opens the CommentSheet.
+/// Double-tapping photo triggers like with heart animation overlay.
 struct PostCard: View {
 
     let post: LegoPost
@@ -216,6 +203,7 @@ struct PostCard: View {
 
     @ObservedObject private var postStore = PostStore.shared
     @State private var showHeart = false
+    @State private var isLiking  = false
 
     private var legoSet: LegoSet? {
         post.isCustomBuild ? nil : LegoSetDatabase.set(for: post.legoSetNumber)
@@ -228,22 +216,14 @@ struct PostCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
 
-            // MARK: Square Image / Video Area
+            // MARK: Square Image / Video
             ZStack(alignment: .topTrailing) {
                 squareMediaArea
                     .onTapGesture(count: 2) {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
-                            postStore.toggleLike(post)
-                            showHeart = true
-                        }
-                        Task {
-                            try? await Task.sleep(nanoseconds: 900_000_000)
-                            withAnimation { showHeart = false }
-                        }
+                        handleDoubleTap()
                     }
                     .onTapGesture(count: 1) { onTap() }
 
-                // Video play button overlay
                 if post.isVideoPost {
                     Image(systemName: "play.circle.fill")
                         .font(.system(size: 44))
@@ -252,24 +232,25 @@ struct PostCard: View {
                         .padding(8)
                 }
 
-                // Follow / Unfollow button on every post
+                // Follow / Unfollow button
                 if showFollowButton {
                     let isFollowed = postStore.isFollowing(post.username)
                     Button {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                             postStore.toggleFollow(post.username)
                         }
-                        // Update Firestore
                         Task {
                             let currentUid = UserSession.shared.uid
                             guard !currentUid.isEmpty else { return }
-                            // Find target user ID — check OG accounts first
-                            let targetId = OGAccountsService.ogAccounts.first(where: { $0.username == post.username })?.id ?? post.userId
+                            let targetId = OGAccountsService.ogAccounts
+                                .first(where: { $0.username == post.username })?.id ?? post.userId
                             do {
                                 if !isFollowed {
-                                    try await FirebaseService.shared.followUser(currentUserId: currentUid, targetUserId: targetId)
+                                    try await FirebaseService.shared.followUser(
+                                        currentUserId: currentUid, targetUserId: targetId)
                                 } else {
-                                    try await FirebaseService.shared.unfollowUser(currentUserId: currentUid, targetUserId: targetId)
+                                    try await FirebaseService.shared.unfollowUser(
+                                        currentUserId: currentUid, targetUserId: targetId)
                                 }
                             } catch {
                                 print("[PostCard] Follow/unfollow error: \(error)")
@@ -285,14 +266,15 @@ struct PostCard: View {
                             .cornerRadius(12)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(isFollowed ? Color.secondaryText.opacity(0.5) : Color.clear, lineWidth: 1)
+                                    .stroke(isFollowed ? Color.secondaryText.opacity(0.5) : Color.clear,
+                                            lineWidth: 1)
                             )
                     }
                     .buttonStyle(.plain)
                     .padding(8)
                 }
 
-                // Double-tap heart animation
+                // Double-tap heart animation overlay
                 if showHeart {
                     Image(systemName: "heart.fill")
                         .font(.system(size: 80))
@@ -308,16 +290,10 @@ struct PostCard: View {
             // MARK: Card Info
             VStack(alignment: .leading, spacing: 8) {
 
-                // Username row
+                // Username row with avatar
                 Button(action: onProfileTap) {
                     HStack(spacing: 8) {
-                        Circle()
-                            .fill(Color.legoRed)
-                            .frame(width: 34, height: 34)
-                            .overlay(
-                                Text(String(post.username.prefix(1)).uppercased())
-                                    .font(.legoCaption).foregroundColor(.white)
-                            )
+                        postAuthorAvatar
                         Text("@\(post.username)")
                             .font(.legoCardTitle).foregroundColor(.lightText)
                         Spacer()
@@ -325,7 +301,7 @@ struct PostCard: View {
                 }
                 .buttonStyle(.plain)
 
-                // Set name + age rating badge (or Custom Build badge)
+                // Set name + badges
                 HStack(spacing: 6) {
                     Text(setName)
                         .font(.legoCaption).foregroundColor(.legoYellow).lineLimit(1)
@@ -347,39 +323,48 @@ struct PostCard: View {
                         .font(.legoBody).foregroundColor(.secondaryText).lineLimit(3)
                 }
 
-                // Action row
+                // Action row: Like, Comment, Buy
                 HStack(spacing: 16) {
+
+                    // LIKE BUTTON — taps in-place, does NOT navigate
                     Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) { postStore.toggleLike(post) }
+                        handleLikeTap()
                     } label: {
                         HStack(spacing: 5) {
                             Image(systemName: postStore.isLiked(post) ? "heart.fill" : "heart")
                                 .font(.system(size: 18))
                                 .scaleEffect(postStore.isLiked(post) ? 1.2 : 1.0)
-                                .animation(.spring(response: 0.3, dampingFraction: 0.5), value: postStore.isLiked(post))
+                                .animation(.spring(response: 0.3, dampingFraction: 0.5),
+                                           value: postStore.isLiked(post))
                             Text("\(currentLikeCount)").font(.legoBody)
                         }
                         .foregroundColor(postStore.isLiked(post) ? .legoRed : .secondaryText)
                     }
                     .buttonStyle(.plain)
+                    .disabled(isLiking)
 
+                    // COMMENT BUTTON — opens sheet, does NOT navigate
                     Button(action: onCommentTap) {
                         HStack(spacing: 5) {
                             Image(systemName: "bubble.right.fill").font(.system(size: 16))
-                            Text("\(commentCount)").font(.legoBody)
+                            Text("\(currentCommentCount)").font(.legoBody)
                         }
                         .foregroundColor(.secondaryText)
                     }
                     .buttonStyle(.plain)
 
+                    // REPORT button
+                    reportMenu
+
                     Spacer()
 
-                    // No Buy button for custom builds
+                    // Buy button (no earnings shown)
                     if !post.isCustomBuild,
                        let set = legoSet,
                        let url = URL(string: set.legoStoreURL) {
                         Link(destination: url) {
-                            Label("Buy · $\(String(format: "%.0f", set.retailPrice))", systemImage: "cart.fill")
+                            Label("Buy · $\(String(format: "%.0f", set.retailPrice))",
+                                  systemImage: "cart.fill")
                                 .font(.legoCaption)
                                 .padding(.horizontal, 10).padding(.vertical, 6)
                                 .background(Color.legoYellow)
@@ -387,15 +372,6 @@ struct PostCard: View {
                                 .cornerRadius(8)
                         }
                     }
-                }
-
-                if post.estimatedEarnings > 0 {
-                    HStack(spacing: 4) {
-                        Image(systemName: "dollarsign.circle.fill").font(.legoCaption)
-                        Text("Earns approx. $\(String(format: "%.2f", post.estimatedEarnings)) per purchase")
-                            .font(.legoCaption)
-                    }
-                    .foregroundColor(.successGreen)
                 }
             }
             .padding(12)
@@ -406,12 +382,101 @@ struct PostCard: View {
         .padding(.horizontal, 16)
     }
 
+    // MARK: - Author Avatar
+
+    private var postAuthorAvatar: some View {
+        Circle()
+            .fill(Color.legoRed)
+            .frame(width: 34, height: 34)
+            .overlay(
+                Text(String(post.username.prefix(1)).uppercased())
+                    .font(.legoCaption).foregroundColor(.white)
+            )
+    }
+
+    // MARK: - Report Menu
+
+    private var reportMenu: some View {
+        Menu {
+            Button("Inappropriate content") { reportPost(reason: "Inappropriate content") }
+            Button("Bullying") { reportPost(reason: "Bullying") }
+            Button("Spam") { reportPost(reason: "Spam") }
+            Button("Not LEGO related") { reportPost(reason: "Not LEGO related") }
+        } label: {
+            Image(systemName: "flag")
+                .font(.system(size: 14))
+                .foregroundColor(.secondaryText)
+        }
+    }
+
+    // MARK: - Computed counts
+
     private var currentLikeCount: Int {
         postStore.posts.first(where: { $0.id == post.id })?.likeCount ?? post.likeCount
     }
-    private var commentCount: Int { postStore.comments(for: post.id).count }
+    private var currentCommentCount: Int {
+        let stored = postStore.posts.first(where: { $0.id == post.id })?.commentCount ?? post.commentCount
+        let local  = postStore.comments(for: post.id).count
+        return max(stored, local)
+    }
 
-    // MARK: - Square Media Area (Sprint 5: all images are perfect squares)
+    // MARK: - Actions
+
+    private func handleLikeTap() {
+        guard !isLiking else { return }
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+            postStore.toggleLike(post)
+        }
+        // Sync to Firestore
+        isLiking = true
+        Task {
+            let uid = UserSession.shared.uid
+            guard !uid.isEmpty else { isLiking = false; return }
+            do {
+                let _ = try await FirebaseService.shared.toggleLike(
+                    postId: post.id,
+                    postOwnerId: post.userId,
+                    currentUserId: uid
+                )
+            } catch {
+                print("[PostCard] Like error: \(error)")
+            }
+            isLiking = false
+        }
+    }
+
+    private func handleDoubleTap() {
+        // Only like if not already liked
+        if !postStore.isLiked(post) {
+            handleLikeTap()
+        }
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+            showHeart = true
+        }
+        Task {
+            try? await Task.sleep(nanoseconds: 900_000_000)
+            withAnimation { showHeart = false }
+        }
+    }
+
+    private func reportPost(reason: String) {
+        postStore.reportPost(post)
+        Task {
+            let uid = UserSession.shared.uid
+            guard !uid.isEmpty else { return }
+            do {
+                try await FirebaseService.shared.reportPost(
+                    postId: post.id,
+                    reportedBy: uid,
+                    reason: reason
+                )
+            } catch {
+                print("[PostCard] Report error: \(error)")
+            }
+        }
+    }
+
+    // MARK: - Square Media Area
 
     @ViewBuilder
     private var squareMediaArea: some View {
@@ -426,20 +491,30 @@ struct PostCard: View {
                     } else if let videoURL = postStore.postVideoURLs[post.id] {
                         VideoPlayer(player: AVPlayer(url: videoURL))
                             .disabled(true)
-                    } else if let imageURL = legoSet?.setImageURL {
-                        AsyncImage(url: imageURL) { phase in
+                    } else if !post.imageURL.isEmpty, let url = URL(string: post.imageURL) {
+                        AsyncImage(url: url) { phase in
                             switch phase {
-                            case .success(let img):
-                                img.resizable().scaledToFill()
-                            case .failure:
-                                placeholderContent
+                            case .success(let img): img.resizable().scaledToFill()
+                            case .failure: placeholderContent
                             case .empty:
                                 ZStack {
                                     Color.cardBackground
                                     ProgressView().tint(.legoYellow)
                                 }
-                            @unknown default:
-                                placeholderContent
+                            @unknown default: placeholderContent
+                            }
+                        }
+                    } else if let imageURL = legoSet?.setImageURL {
+                        AsyncImage(url: imageURL) { phase in
+                            switch phase {
+                            case .success(let img): img.resizable().scaledToFill()
+                            case .failure: placeholderContent
+                            case .empty:
+                                ZStack {
+                                    Color.cardBackground
+                                    ProgressView().tint(.legoYellow)
+                                }
+                            @unknown default: placeholderContent
                             }
                         }
                     } else {
@@ -460,9 +535,7 @@ struct PostCard: View {
             VStack(spacing: 8) {
                 Image(systemName: post.isCustomBuild ? "hammer.fill" : "building.2.crop.circle")
                     .font(.system(size: 36)).foregroundColor(.secondaryText)
-                Text(post.isCustomBuild
-                     ? post.customBuildName
-                     : "Set #\(post.legoSetNumber)")
+                Text(post.isCustomBuild ? post.customBuildName : "Set #\(post.legoSetNumber)")
                     .font(.legoCardTitle).foregroundColor(.legoYellow)
                 if !post.isCustomBuild, let set = legoSet {
                     Text(set.theme).font(.legoCaption).foregroundColor(.secondaryText)
@@ -474,7 +547,6 @@ struct PostCard: View {
 
 // MARK: - Age Rating Badge
 
-/// A small LEGO-yellow rounded badge showing the recommended age.
 struct AgeRatingBadge: View {
     let rating: String
 

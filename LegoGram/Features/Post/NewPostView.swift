@@ -508,28 +508,44 @@ struct NewPostView: View {
         guard selectedImage != nil || selectedVideoURL != nil else { return }
         isPosting = true
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            let filteredDesc = BadWordFilter.filter(description.trimmingCharacters(in: .whitespaces))
-
-            let currentUid = UserSession.shared.uid
+        Task {
+            let filteredDesc    = BadWordFilter.filter(description.trimmingCharacters(in: .whitespaces))
+            let currentUid      = UserSession.shared.uid
             let currentUsername = UserSession.shared.username
+            let postId          = UUID().uuidString
+
+            // Upload image/video to Firebase Storage first
+            var imageURLString = ""
+            var videoURLString = ""
+
+            if let image = selectedImage,
+               let imageData = image.jpegData(compressionQuality: 0.80) {
+                do {
+                    imageURLString = try await FirebaseService.shared.uploadPostPhoto(
+                        imageData: imageData, postId: postId)
+                } catch {
+                    print("[NewPostView] Image upload error: \(error)")
+                }
+            }
 
             let newPost: LegoPost
             if isCustomBuild {
                 let name = customBuildName.trimmingCharacters(in: .whitespaces)
                 newPost = LegoPost(
-                    id: UUID().uuidString,
-                    userId: currentUid,
-                    username: currentUsername,
-                    imageURL: "", videoURL: "",
-                    legoSetNumber: "",
-                    legoSetName: name,
-                    description: filteredDesc,
-                    likeCount: 0, commentCount: 0,
-                    buyLink: "", affiliateLink: "",
-                    estimatedEarnings: 0,
-                    postedDate: Date(), tags: [],
-                    isCustomBuild: true,
+                    id:              postId,
+                    userId:          currentUid,
+                    username:        currentUsername,
+                    imageURL:        imageURLString,
+                    videoURL:        videoURLString,
+                    legoSetNumber:   "",
+                    legoSetName:     name,
+                    description:     filteredDesc,
+                    likeCount:       0,
+                    commentCount:    0,
+                    buyLink:         "",
+                    postedDate:      Date(),
+                    tags:            [],
+                    isCustomBuild:   true,
                     customBuildName: name
                 )
             } else {
@@ -538,48 +554,51 @@ struct NewPostView: View {
                 let storeURL = selectedSet?.legoStoreURL
                     ?? LegoSetDatabase.set(for: setNum)?.legoStoreURL
                     ?? "https://www.lego.com/en-us/search?q=\(setNum)"
-                let price    = selectedSet?.retailPrice
-                    ?? LegoSetDatabase.set(for: setNum)?.retailPrice ?? 0.0
-                let earn     = (price * 0.004).rounded(toPlaces: 2)
 
                 newPost = LegoPost(
-                    id: UUID().uuidString,
-                    userId: currentUid,
-                    username: currentUsername,
-                    imageURL: "", videoURL: "",
+                    id:            postId,
+                    userId:        currentUid,
+                    username:      currentUsername,
+                    imageURL:      imageURLString,
+                    videoURL:      videoURLString,
                     legoSetNumber: setNum,
-                    legoSetName: setName,
-                    description: filteredDesc,
-                    likeCount: 0, commentCount: 0,
-                    buyLink: storeURL, affiliateLink: "",
-                    estimatedEarnings: earn,
-                    postedDate: Date(), tags: []
+                    legoSetName:   setName,
+                    description:   filteredDesc,
+                    likeCount:     0,
+                    commentCount:  0,
+                    buyLink:       storeURL,
+                    postedDate:    Date(),
+                    tags:          []
                 )
             }
 
-            PostStore.shared.addPost(newPost, image: selectedImage, videoURL: selectedVideoURL)
+            // Optimistic local add
+            PostStore.shared.addPost(newPost,
+                                     image: selectedImage,
+                                     videoURL: selectedVideoURL)
+
+            // Save to Firestore (also awards 10 points)
+            do {
+                try await FirebaseService.shared.publishPost(newPost)
+            } catch {
+                print("[NewPostView] Firestore save error: \(error)")
+            }
 
             // Reset form
-            selectedImage    = nil
-            selectedVideoURL = nil
-            setSearchText    = ""
-            setSearchResults = []
-            selectedSet      = nil
-            showingSetDropdown = false
-            description      = ""
-            isCustomBuild    = false
-            customBuildName  = ""
-            isPosting        = false
-
-            AppState.shared.selectedTab = .home
+            await MainActor.run {
+                selectedImage      = nil
+                selectedVideoURL   = nil
+                setSearchText      = ""
+                setSearchResults   = []
+                selectedSet        = nil
+                showingSetDropdown = false
+                description        = ""
+                isCustomBuild      = false
+                customBuildName    = ""
+                isPosting          = false
+                AppState.shared.selectedTab = .home
+            }
         }
-    }
-}
-
-private extension Double {
-    func rounded(toPlaces places: Int) -> Double {
-        let divisor = pow(10.0, Double(places))
-        return (self * divisor).rounded() / divisor
     }
 }
 

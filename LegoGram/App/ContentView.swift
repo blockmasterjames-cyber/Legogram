@@ -3,21 +3,18 @@ import FirebaseAuth
 import Firebase
 
 /// The root view of the app.
-/// Listens to the Firebase Auth state and routes to:
-///   - A loading spinner while auth state is being determined
-///   - MainTabView when a user is signed in
-///   - LoginView when no user is signed in
+/// Routes to: loading spinner → Apple setup screen → onboarding → feed OR login.
 struct ContentView: View {
 
-    /// Received from BrickFeedApp via .environmentObject — do NOT redeclare as @StateObject.
     @EnvironmentObject private var userSession: UserSession
+    @ObservedObject private var authService    = AuthService.shared
     @ObservedObject private var networkMonitor = NetworkMonitor.shared
 
     private enum AuthState { case loading, loggedIn, loggedOut }
     @State private var authState: AuthState = .loading
-
-    /// Stored so we can remove the listener on disappear and avoid re-adding it on re-appear.
     @State private var authListenerHandle: AuthStateDidChangeListenerHandle?
+
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -26,25 +23,33 @@ struct ContentView: View {
                 case .loading:
                     ZStack {
                         Color.darkBackground.ignoresSafeArea()
-                        ProgressView()
-                            .tint(.legoYellow)
-                            .scaleEffect(1.6)
+                        VStack(spacing: 20) {
+                            BrickFeedLogo()
+                            ProgressView().tint(.legoYellow).scaleEffect(1.6)
+                        }
                     }
 
                 case .loggedIn:
-                    MainTabView()
-                        .environmentObject(userSession)
+                    if authService.needsAppleProfileSetup {
+                        // New Apple Sign In user — must complete username + birthday setup
+                        AppleSignInSetupView()
+                    } else if !hasSeenOnboarding {
+                        // First-time login — show onboarding carousel
+                        OnboardingView()
+                    } else {
+                        MainTabView()
+                            .environmentObject(userSession)
+                    }
 
                 case .loggedOut:
                     LoginView()
                 }
             }
 
-            // Offline banner — shows when device has no network connection
+            // Offline banner
             if !networkMonitor.isConnected {
                 HStack(spacing: 8) {
-                    Image(systemName: "wifi.slash")
-                        .font(.system(size: 14, weight: .bold))
+                    Image(systemName: "wifi.slash").font(.system(size: 14, weight: .bold))
                     Text("No Internet Connection")
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
                 }
@@ -68,11 +73,7 @@ struct ContentView: View {
     // MARK: - Firebase Auth State Listener
 
     private func listenToAuthState() {
-        // Prevent adding a second listener if the view re-appears
         guard authListenerHandle == nil else { return }
-
-        // If Firebase was not configured (placeholder plist), go straight to loggedOut
-        // so the app shows LoginView instead of hanging on the loading spinner forever.
         guard FirebaseApp.app() != nil else {
             authState = .loggedOut
             return
@@ -87,20 +88,42 @@ struct ContentView: View {
                     // Load following list from Firestore into PostStore
                     if let followingIds = try? await FirebaseService.shared.fetchFollowingIds(userId: user.uid) {
                         for id in followingIds {
-                            // Map user IDs to usernames for OG accounts
                             if let ogAccount = OGAccountsService.ogAccounts.first(where: { $0.id == id }) {
                                 PostStore.shared.followingUsernames.insert(ogAccount.username)
                             }
                         }
                     }
 
-                    // Load OG posts if feed is empty
-                    OGAccountsService.shared.loadOGPostsIfNeeded()
+                    // Load Firestore posts into feed
+                    do {
+                        let posts = try await FirebaseService.shared.fetchFeedPosts()
+                        if !posts.isEmpty {
+                            PostStore.shared.posts = posts
+                        } else {
+                            // Fall back to OG posts if no Firestore posts yet
+                            OGAccountsService.shared.loadOGPostsIfNeeded()
+                        }
+                    } catch {
+                        OGAccountsService.shared.loadOGPostsIfNeeded()
+                    }
+
+                    // Load liked post IDs from Firestore
+                    let postIds = PostStore.shared.posts.map { $0.id }
+                    if let liked = try? await FirebaseService.shared.fetchLikedPostIds(userId: user.uid, postIds: postIds) {
+                        PostStore.shared.likedPostIDs = liked
+                    }
+
+                    // Request notification permission after first login (post-onboarding)
+                    if hasSeenOnboarding {
+                        await NotificationManager.shared.requestPermission()
+                    }
+
                 } else {
                     authState = .loggedOut
                     userSession.clear()
                     PostStore.shared.followingUsernames.removeAll()
                     PostStore.shared.posts.removeAll()
+                    PostStore.shared.likedPostIDs.removeAll()
                 }
             }
         }

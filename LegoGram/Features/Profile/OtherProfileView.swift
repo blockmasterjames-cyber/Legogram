@@ -174,11 +174,7 @@ struct OtherProfileView: View {
         HStack(spacing: 0) {
             statCell(value: "\(theirPosts.count)", label: "Posts")
             Divider().frame(height: 40)
-            statCell(value: "847", label: "Followers")
-            Divider().frame(height: 40)
-            statCell(value: "213", label: "Following")
-            Divider().frame(height: 40)
-            statCell(value: "$8.40", label: "Earnings")
+            statCell(value: "\(followerCount)", label: "Followers")
             Divider().frame(height: 40)
             statCell(value: "\(setsCompleted)", label: "Completed")
         }
@@ -187,6 +183,11 @@ struct OtherProfileView: View {
         .cornerRadius(12)
         .padding(.horizontal, 16)
         .padding(.bottom, 20)
+    }
+
+    private var followerCount: Int {
+        // Count followers from local data; Firestore will have the real count
+        postStore.followingUsernames.contains(username) ? 1 : 0
     }
 
     private func statCell(value: String, label: String) -> some View {

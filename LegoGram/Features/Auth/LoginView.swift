@@ -2,7 +2,6 @@ import SwiftUI
 import AuthenticationServices
 
 /// The main login screen shown when the user is not authenticated.
-/// Allows sign in with email/password, Sign in with Apple, navigation to sign up, and forgot password.
 struct LoginView: View {
 
     @State private var email        = ""
@@ -11,6 +10,11 @@ struct LoginView: View {
     @State private var errorMessage: String?
     @State private var showSignUp          = false
     @State private var showForgotPassword  = false
+    @State private var showPrivacyPolicy   = false
+    @State private var showTermsOfService  = false
+
+    private let privacyURL = URL(string: "https://blockmasterjames-cyber.github.io/brickfeed-legal/privacy")!
+    private let termsURL   = URL(string: "https://blockmasterjames-cyber.github.io/brickfeed-legal/terms")!
 
     var body: some View {
         NavigationStack {
@@ -18,7 +22,7 @@ struct LoginView: View {
                 Color.darkBackground.ignoresSafeArea()
 
                 ScrollView {
-                    VStack(spacing: 36) {
+                    VStack(spacing: 32) {
 
                         // MARK: Logo
                         BrickFeedLogo()
@@ -28,7 +32,6 @@ struct LoginView: View {
 
                         // MARK: Fields
                         VStack(spacing: 14) {
-                            // Email
                             TextField("Email", text: $email)
                                 .keyboardType(.emailAddress)
                                 .autocapitalization(.none)
@@ -42,7 +45,6 @@ struct LoginView: View {
                                         .stroke(Color.secondaryText.opacity(0.3), lineWidth: 1)
                                 )
 
-                            // Password
                             SecureField("Password", text: $password)
                                 .padding()
                                 .background(Color.cardBackground)
@@ -67,7 +69,6 @@ struct LoginView: View {
                         // MARK: Actions
                         VStack(spacing: 16) {
 
-                            // Log In button
                             Button(action: performLogin) {
                                 Group {
                                     if isLoading {
@@ -85,41 +86,33 @@ struct LoginView: View {
                             }
                             .disabled(isLoading || email.isEmpty || password.isEmpty)
 
-                            // Forgot Password link
                             Button("Forgot Password?") {
                                 showForgotPassword = true
                             }
                             .font(.legoBody)
                             .foregroundColor(.legoYellow)
 
-                            // Divider with OR
                             HStack {
                                 Rectangle()
-                                    .fill(Color.secondaryText.opacity(0.4))
-                                    .frame(height: 1)
+                                    .fill(Color.secondaryText.opacity(0.4)).frame(height: 1)
                                 Text("OR")
-                                    .font(.legoCaption)
-                                    .foregroundColor(.secondaryText)
+                                    .font(.legoCaption).foregroundColor(.secondaryText)
                                     .padding(.horizontal, 10)
                                 Rectangle()
-                                    .fill(Color.secondaryText.opacity(0.4))
-                                    .frame(height: 1)
+                                    .fill(Color.secondaryText.opacity(0.4)).frame(height: 1)
                             }
 
-                            // Create Account button
                             Button {
                                 showSignUp = true
                             } label: {
                                 Text("Create Account")
                                     .font(.legoCardTitle)
                                     .foregroundColor(.darkBackground)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 52)
-                                    .background(Color.legoYellow)
-                                    .cornerRadius(14)
+                                    .frame(maxWidth: .infinity).frame(height: 52)
+                                    .background(Color.legoYellow).cornerRadius(14)
                             }
 
-                            // Sign in with Apple (required by App Store for apps with social login)
+                            // Sign in with Apple (required by App Store)
                             SignInWithAppleButton(.signIn) { request in
                                 guard let hashedNonce = AuthService.shared.prepareAppleSignIn() else {
                                     errorMessage = "Unable to generate a secure nonce. Please try again."
@@ -130,7 +123,7 @@ struct LoginView: View {
                             } onCompletion: { result in
                                 switch result {
                                 case .success(let authorization):
-                                    isLoading = true
+                                    isLoading    = true
                                     errorMessage = nil
                                     Task { @MainActor in
                                         do {
@@ -141,10 +134,7 @@ struct LoginView: View {
                                         isLoading = false
                                     }
                                 case .failure(let error):
-                                    // User cancelled (ASAuthorizationError.canceled) is not a real error
-                                    if (error as? ASAuthorizationError)?.code == .canceled {
-                                        return
-                                    }
+                                    if (error as? ASAuthorizationError)?.code == .canceled { return }
                                     errorMessage = error.localizedDescription
                                 }
                             }
@@ -152,6 +142,21 @@ struct LoginView: View {
                             .frame(height: 52)
                             .cornerRadius(14)
                         }
+                        .padding(.horizontal, 24)
+
+                        // MARK: Privacy & Terms Links (required by Apple for pre-signup visibility)
+                        HStack(spacing: 4) {
+                            Text("By signing in you agree to our")
+                                .font(.legoCaption)
+                                .foregroundColor(.secondaryText)
+                            Button("Privacy Policy") { showPrivacyPolicy = true }
+                                .font(.legoCaption).foregroundColor(.legoYellow)
+                            Text("and")
+                                .font(.legoCaption).foregroundColor(.secondaryText)
+                            Button("Terms") { showTermsOfService = true }
+                                .font(.legoCaption).foregroundColor(.legoYellow)
+                        }
+                        .multilineTextAlignment(.center)
                         .padding(.horizontal, 24)
 
                         Color.clear.frame(height: 40)
@@ -166,9 +171,13 @@ struct LoginView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $showPrivacyPolicy) {
+            SafariWebView(url: privacyURL)
+        }
+        .sheet(isPresented: $showTermsOfService) {
+            SafariWebView(url: termsURL)
+        }
     }
-
-    // MARK: - Login Action
 
     private func performLogin() {
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)

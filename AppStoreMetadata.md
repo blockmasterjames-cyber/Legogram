@@ -1,6 +1,6 @@
-# BrickFeed - App Store Metadata
+# BrickFeed — App Store Connect Metadata
 
-Copy-paste these fields into App Store Connect.
+Complete copy-paste fields for App Store Connect submission.
 
 ---
 
@@ -8,86 +8,169 @@ Copy-paste these fields into App Store Connect.
 BrickFeed
 
 ## Subtitle (30 characters max)
-Share Your LEGO Builds!
+Share Your LEGO Builds
+
+## Bundle ID
+com.brickfeed.app
+
+---
 
 ## Description (4000 characters max)
 
-BrickFeed is the ultimate social network for LEGO fans! Share photos of your amazing brick builds, discover incredible creations from builders around the world, and connect with a community that loves LEGO just as much as you do.
+BrickFeed is the ultimate social network for LEGO fans of all ages! Share photos of your amazing brick builds, discover incredible creations from builders around the world, and earn points while connecting with a safe, kid-friendly community that loves LEGO just as much as you do.
 
-BUILD. SHARE. INSPIRE.
+BUILD. SHARE. EARN POINTS. INSPIRE.
 
-Whether you just finished a massive UCS Millennium Falcon, created an awesome custom MOC (My Own Creation), or are showing off your very first LEGO City build, BrickFeed is the place to share it with the world!
+Whether you just finished a massive UCS Millennium Falcon, created an awesome custom MOC (My Own Creation), or are showing off your very first LEGO City set, BrickFeed is the place to share it with the world!
 
-FEATURES:
+🧱 CORE FEATURES:
 
-- Share Your Builds: Snap a photo of your LEGO creation, tag the official set number or name it as a custom build, and share it instantly with the BrickFeed community.
+• Share Your Builds — Snap a photo of your LEGO creation, tag the official set number or mark it as a custom build, and share it instantly with the BrickFeed community.
 
-- Discover Amazing Builds: Browse a feed full of incredible LEGO creations from fans everywhere. Find builds from Star Wars, Harry Potter, Technic, City, Architecture, and every LEGO theme you love.
+• Discover Amazing Builds — Browse a feed full of incredible LEGO creations. Find builds from Star Wars, Harry Potter, Technic, City, Architecture, and every theme you love.
 
-- Follow Your Favorite Builders: Follow the builders whose work inspires you and see their latest creations in your personalized feed.
+• Follow Your Favorite Builders — Follow builders whose work inspires you and see their latest creations in your personalized feed.
 
-- Like and Comment: Show love for great builds with likes and leave encouraging comments for fellow builders.
+• Like and Comment — Show love for great builds with likes and leave encouraging comments. Every interaction earns points for the creator!
 
-- Share to Stories: Generate beautiful shareable story cards of any build to share on your favorite social platforms.
+⭐ POINTS SYSTEM:
+• Post a build → earn 10 points
+• Receive a like → earn 2 points
+• Receive a comment → earn 5 points
+• Get followed → earn 1 point
 
-- Search the LEGO Catalog: Look up any official LEGO set by name or number. See set details including piece count, theme, age rating, and retail price.
+Climb the Global Leaderboard and show the BrickFeed community who the top builder really is!
 
-- Earn Rewards: When you share a build with an official set, other fans can buy the set through your post. You earn a small reward for every purchase!
+🏆 LEADERBOARD:
+• Global Leaderboard ranks ALL builders by total points
+• Friends Leaderboard shows how you compare to builders you follow
+• Trophy icons for top 3 builders — gold, silver, and bronze!
 
-- Leaderboard: See who the top builders are in the BrickFeed community based on likes and engagement.
+🔍 LEGO SET SEARCH:
+• Look up any official LEGO set by name or number
+• See piece count, theme, age rating, and retail price
+• Tap to buy from the official LEGO Store
 
-- Direct Messages: Chat with builders you follow to talk about builds, trade tips, and make friends.
+💬 DIRECT MESSAGES:
+• Chat privately with builders you follow
+• Age verification required to keep younger users safe
 
-SAFE AND FUN FOR EVERYONE:
+🛡️ SAFE AND FUN FOR EVERYONE:
+BrickFeed is designed with safety as a top priority:
 
-BrickFeed is designed with safety as a top priority, especially for younger builders:
+• Kid Safe Mode automatically enabled for users under 13 (COPPA compliant)
+• Built-in bad word filter removes inappropriate language from all posts and comments
+• Report any post with one tap — choose from: Inappropriate content, Bullying, Spam, Not LEGO related
+• Block any builder to hide their content from your feed
+• Direct messaging requires age verification
+• Privacy Policy and Terms of Service visible before account creation
+• Sign in with Apple supported (required by Apple for apps with social login)
 
-- Kid Safe Mode limits content to verified kid-friendly posts.
-- A built-in bad word filter automatically removes inappropriate language from all posts and comments.
-- Report and block features let you flag anything that does not belong.
-- Direct messaging requires age verification to protect younger users.
-- No ads. No data selling. Just LEGO fun!
-
-Join thousands of brick fans on BrickFeed today and start sharing your builds!
+No ads. No data selling. Just LEGO fun!
 
 LEGO is a trademark of the LEGO Group, which does not sponsor, authorize, or endorse this app.
 
+---
+
 ## Keywords (100 characters max)
-LEGO,brick,build,MOC,sets,Star Wars,Technic,City,kids,safe,social,share,photos,collection,fan
+lego,kids,social,builds,bricks,creative,safe,builders,minifigures,sets,moc,brick,fan,share,points
+
+---
+
+## Support Email
+support@brickfeed.app
+
+## Support URL
+https://blockmasterjames-cyber.github.io/brickfeed-legal/support
+
+## Privacy Policy URL
+https://blockmasterjames-cyber.github.io/brickfeed-legal/privacy
+
+## Terms of Service URL
+https://blockmasterjames-cyber.github.io/brickfeed-legal/terms
+
+---
 
 ## Primary Category
 Social Networking
 
 ## Secondary Category
-Entertainment
+Kids
 
-## Support URL
-https://brickfeed.app/support
+---
 
-## Privacy Policy URL
-https://brickfeed.app/privacy
+## Age Rating
+4+ (Made for Kids: Yes)
 
-## Age Rating Recommendation
-- Age Rating: 4+ (suitable for all ages)
-- Made for Kids: Yes
-- Age Band: Ages 6-8, Ages 9-11 (primary), All Ages
-- Contains no: violence, sexual content, profanity, drugs/alcohol/tobacco, gambling, horror/fear, medical info, contests
-- User-generated content: Yes (moderated with bad word filter and reporting)
-- Unrestricted web access: No
+### Age Rating Questionnaire Answers
+- Cartoon or fantasy violence: No
+- Realistic violence: No
+- Sexual content or nudity: No
+- Profanity or crude humor: No (bad word filter always active)
+- Mature/suggestive themes: No
+- Horror/fear themes: No
+- Medical/treatment info: No
+- Alcohol, tobacco, or drugs: No
+- Gambling: No
+- Contests: No
+- User-generated content: Yes (moderated with bad word filter, reporting, and blocking)
+- Unrestricted web access: No (only links to official LEGO Store and legal pages)
 
-## Notes for App Review
-- BrickFeed uses Sign in with Apple and email/password authentication via Firebase.
-- The app includes a Kid Safe Mode toggle and always-on bad word filter for child safety (COPPA compliant).
-- Photo library access is used for uploading build photos and saving story cards.
-- Camera access is used for taking photos of LEGO builds.
-- All affiliate links go to the official LEGO Store website.
-- Direct messaging requires age verification.
-- Firebase credentials in the included GoogleService-Info.plist must be replaced with production values before submission.
+---
 
-## App Store Screenshots Needed
-1. Home feed showing LEGO build posts
-2. Post detail view with set info and buy button
-3. New Post screen with set search
-4. Profile page with build collection
-5. Share to Stories card generation
-6. Kid Safe Mode toggle in Settings
+## What's New in This Version
+
+v1.0.0 — Initial Release!
+
+🎉 Welcome to BrickFeed — the LEGO community social network!
+
+• Share photos of your LEGO builds with builders worldwide
+• Earn points for posting, likes, comments, and follows
+• Global and Friends Leaderboard to see who's on top
+• Full COPPA compliance — Kid Safe Mode for under-13 users
+• Sign in with Apple and email/password login
+• Built-in bad word filter for a safe community
+• Report and block tools for moderation
+• Profile photos and backgrounds saved to the cloud
+• Direct messaging with age verification
+• Search for LEGO sets and users
+• Push notifications for likes, comments, and follows
+
+---
+
+## Permissions Used (for App Review Notes)
+
+| Permission | Purpose |
+|---|---|
+| Photo Library (`NSPhotoLibraryUsageDescription`) | Uploading LEGO build photos and profile/background pictures |
+| Camera (`NSCameraUsageDescription`) | Taking photos of LEGO builds directly in the app |
+| Microphone (`NSMicrophoneUsageDescription`) | Video recording support for LEGO build videos |
+| Push Notifications | Notifying users when their builds receive likes, comments, or new followers |
+
+---
+
+## App Review Notes
+
+- BrickFeed uses Sign in with Apple and email/password authentication via Firebase Auth.
+- New Apple Sign In users are directed to a username and birthday setup screen before reaching the feed.
+- Kid Safe Mode is automatically enabled for all users under 13 (birthday captured at signup for COPPA compliance).
+- The bad word filter is always active — cannot be disabled by users.
+- All affiliate/buy links go to the official LEGO Store website (lego.com).
+- Direct messaging requires the user to confirm they are 13+ before accessing.
+- Privacy Policy and Terms of Service links are visible on both the login and signup screens before account creation.
+- Account deletion is available in Settings and permanently removes the Firebase Auth account, Firestore user document, all posts, and all Storage files.
+- Firebase credentials in GoogleService-Info.plist must be replaced with production values before final submission.
+- The app handles offline gracefully — shows a "No Internet Connection" banner instead of crashing.
+
+---
+
+## App Store Screenshots Needed (for each iPhone size)
+
+1. Home feed showing LEGO build posts with like/comment buttons
+2. Comment sheet opened from feed
+3. Profile page showing points, follower count, and build grid
+4. Global Leaderboard with trophy icons and current user highlighted
+5. New Post screen with LEGO set search
+6. Onboarding screen showing the points system
+7. Settings with Kid Safe Mode toggle and account deletion option
+8. Sign up screen showing birthday picker and Privacy Policy link
