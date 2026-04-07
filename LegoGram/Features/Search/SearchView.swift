@@ -249,9 +249,12 @@ struct SearchView: View {
                     .foregroundColor(.secondaryText)
                 Text("No users found for \"\(searchText)\"")
                     .font(.legoCardTitle).foregroundColor(.lightText)
+                    .multilineTextAlignment(.center)
                 Text("Try a different username or name")
                     .font(.legoBody).foregroundColor(.secondaryText)
+                    .multilineTextAlignment(.center)
             }
+            .frame(maxWidth: .infinity)
             .padding(.top, 40).padding(.horizontal)
         } else {
             Text("\(userResults.count) user\(userResults.count == 1 ? "" : "s") found")
@@ -299,11 +302,13 @@ struct SearchView: View {
             Text("No sets found for \"\(searchText)\"")
                 .font(.legoCardTitle)
                 .foregroundColor(.lightText)
+                .multilineTextAlignment(.center)
             Text("Try a set number like 75192\nor a name like Millennium Falcon")
                 .font(.legoBody)
                 .foregroundColor(.secondaryText)
                 .multilineTextAlignment(.center)
         }
+        .frame(maxWidth: .infinity)
         .padding(.top, 40)
         .padding(.horizontal)
     }
