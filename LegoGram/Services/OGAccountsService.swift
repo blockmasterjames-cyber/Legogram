@@ -128,6 +128,28 @@ final class OGAccountsService {
                 print("[OGAccountsService] Could not follow \(account.username): \(error.localizedDescription)")
             }
         }
+
+        // Auto-follow blockmasterjames (the app founder) on every new signup
+        await followBlockmasterJames(newUserId: userId)
+    }
+
+    /// Looks up @blockmasterjames in Firestore by username and follows them.
+    /// Silently skips if the account doesn't exist yet.
+    private func followBlockmasterJames(newUserId: String) async {
+        do {
+            guard let bmj = try await FirebaseService.shared.fetchUserByUsername("blockmasterjames") else {
+                print("[OGAccountsService] blockmasterjames not found in Firestore — skipping auto-follow")
+                return
+            }
+            PostStore.shared.followingUsernames.insert("blockmasterjames")
+            try await FirebaseService.shared.followUser(
+                currentUserId: newUserId,
+                targetUserId: bmj.id
+            )
+            print("[OGAccountsService] New user auto-followed blockmasterjames ✓")
+        } catch {
+            print("[OGAccountsService] Could not auto-follow blockmasterjames: \(error.localizedDescription)")
+        }
     }
 
     func loadOGPostsIfNeeded() {

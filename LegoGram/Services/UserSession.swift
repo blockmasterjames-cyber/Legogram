@@ -109,11 +109,46 @@ final class UserSession: ObservableObject {
         currentUser = user
     }
 
+    /// Updates display name, username, and bio. Checks username uniqueness before saving.
+    func updateProfile(displayName: String, username: String, bio: String) async throws {
+        guard var user = currentUser else { return }
+
+        // If username changed, check it's not taken
+        let trimmedUsername = username.trimmingCharacters(in: .whitespaces).lowercased()
+        if trimmedUsername != user.username.lowercased() {
+            if let existing = try? await FirebaseService.shared.fetchUserByUsername(trimmedUsername),
+               existing.id != user.id {
+                throw ProfileUpdateError.usernameTaken
+            }
+        }
+
+        user.displayName = displayName
+        user.username    = trimmedUsername.isEmpty ? user.username : trimmedUsername
+        user.bio         = bio
+        try await FirebaseService.shared.saveUser(user)
+        currentUser = user
+
+        // Keep UserDefaults in sync
+        UserDefaults.standard.set(user.username, forKey: "profile_username")
+        UserDefaults.standard.set(user.displayName, forKey: "profile_displayName")
+    }
+
     // MARK: - Clear
 
     func clear() {
         currentUser      = nil
         avatarImage      = nil
         backgroundImage  = nil
+    }
+}
+
+// MARK: - Profile Update Errors
+
+enum ProfileUpdateError: LocalizedError {
+    case usernameTaken
+    var errorDescription: String? {
+        switch self {
+        case .usernameTaken: return "That username is already taken. Please choose a different one."
+        }
     }
 }

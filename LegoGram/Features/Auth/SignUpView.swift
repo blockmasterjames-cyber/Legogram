@@ -21,8 +21,8 @@ struct SignUpView: View {
     @State private var showPrivacyPolicy  = false
     @State private var showTermsOfService = false
 
-    private let privacyURL = URL(string: "https://blockmasterjames-cyber.github.io/brickfeed-legal/privacy")!
-    private let termsURL   = URL(string: "https://blockmasterjames-cyber.github.io/brickfeed-legal/terms")!
+    private let privacyURL = URL(string: "https://blockmasterjames-cyber.github.io/brickfeed-legal/privacy.html")!
+    private let termsURL   = URL(string: "https://blockmasterjames-cyber.github.io/brickfeed-legal/terms.html")!
 
     private var birthdayRange: ClosedRange<Date> {
         let calendar = Calendar.current

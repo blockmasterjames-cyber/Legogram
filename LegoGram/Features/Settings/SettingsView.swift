@@ -114,10 +114,10 @@ struct SettingsView: View {
                 Text(deleteError ?? "")
             }
             .sheet(isPresented: $showingPrivacyPolicy) {
-                SafariWebView(url: URL(string: "https://blockmasterjames-cyber.github.io/brickfeed-legal/privacy")!)
+                SafariWebView(url: URL(string: "https://blockmasterjames-cyber.github.io/brickfeed-legal/privacy.html")!)
             }
             .sheet(isPresented: $showingTermsOfService) {
-                SafariWebView(url: URL(string: "https://blockmasterjames-cyber.github.io/brickfeed-legal/terms")!)
+                SafariWebView(url: URL(string: "https://blockmasterjames-cyber.github.io/brickfeed-legal/terms.html")!)
             }
         }
     }
@@ -129,48 +129,106 @@ struct SettingsView: View {
             Text("KID SAFETY")
                 .font(.legoCaption).foregroundColor(.secondaryText).padding(.horizontal)
 
-            VStack(spacing: 8) {
+            VStack(spacing: 0) {
                 // Kid Safe Mode toggle — under-13 requires parental approval to turn OFF
-                HStack {
-                    Label("Kid Safe Mode", systemImage: "shield.checkmark.fill")
-                        .font(.legoBody).foregroundColor(.lightText)
-                    Spacer()
-                    Toggle("", isOn: Binding(
+                alignedToggleRow(
+                    label: "Kid Safe Mode",
+                    icon: "shield.checkmark.fill",
+                    tint: .successGreen,
+                    isOn: Binding(
                         get: { kidSafeMode },
                         set: { newValue in
                             if !newValue && isKidAccount {
-                                // Under-13 account trying to turn OFF — require parental approval
                                 showingParentalApproval = true
                             } else {
                                 kidSafeMode = newValue
                             }
                         }
-                    ))
-                    .tint(.successGreen)
-                    .labelsHidden()
-                }
-                .padding(.horizontal).padding(.vertical, 12)
-                .background(Color.cardBackground).cornerRadius(12)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(kidSafeMode ? Color.successGreen.opacity(0.4) : Color.clear, lineWidth: 1.5)
+                    ),
+                    highlighted: kidSafeMode
                 )
 
-                if isKidAccount && kidSafeMode {
-                    infoRow(icon: "lock.shield.fill", color: .successGreen,
-                            text: "Kid Safe Mode is required for your account. A parent must approve turning it off.")
-                } else {
-                    infoRow(icon: "info.circle", color: .legoYellow,
-                            text: kidSafeMode
-                                  ? "Kid Safe Mode is ON — only verified kid-friendly content is shown."
-                                  : "Turn on Kid Safe Mode to limit content to verified kid-friendly posts.")
-                }
+                Divider()
+                    .background(Color.secondaryText.opacity(0.2))
+                    .padding(.horizontal, 16)
 
-                infoRow(icon: "text.badge.xmark", color: .legoYellow,
-                        text: "Bad Word Filter is always ON — inappropriate words are replaced with *** automatically.")
+                // Limit DMs — age-gated direct messages
+                alignedToggleRow(
+                    label: "Limit Direct Messages",
+                    icon: "message.badge.fill",
+                    tint: .legoYellow,
+                    isOn: Binding(
+                        get: { !ageVerified },
+                        set: { newValue in ageVerified = !newValue }
+                    ),
+                    highlighted: false
+                )
+
+                Divider()
+                    .background(Color.secondaryText.opacity(0.2))
+                    .padding(.horizontal, 16)
+
+                // Bad Word Filter — always ON, display as disabled toggle
+                HStack(alignment: .center, spacing: 12) {
+                    Image(systemName: "text.badge.xmark")
+                        .font(.system(size: 18))
+                        .foregroundColor(.successGreen)
+                        .frame(width: 24)
+                    Text("Bad Word Filter")
+                        .font(.legoBody)
+                        .foregroundColor(.lightText)
+                    Spacer()
+                    Toggle("", isOn: .constant(true))
+                        .tint(.successGreen)
+                        .labelsHidden()
+                        .disabled(true)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
             }
+            .background(Color.cardBackground)
+            .cornerRadius(12)
+
+            if isKidAccount && kidSafeMode {
+                infoRow(icon: "lock.shield.fill", color: .successGreen,
+                        text: "Kid Safe Mode is required for your account. A parent must approve turning it off.")
+            } else {
+                infoRow(icon: "info.circle", color: .legoYellow,
+                        text: kidSafeMode
+                              ? "Kid Safe Mode is ON — only verified kid-friendly content is shown."
+                              : "Turn on Kid Safe Mode to limit content to verified kid-friendly posts.")
+            }
+
+            infoRow(icon: "text.badge.xmark", color: .successGreen,
+                    text: "Bad Word Filter is always ON — inappropriate words are replaced with *** automatically.")
         }
         .padding(.horizontal)
+    }
+
+    /// A consistently-aligned toggle row with icon, label left and toggle right.
+    private func alignedToggleRow(
+        label: String,
+        icon: String,
+        tint: Color,
+        isOn: Binding<Bool>,
+        highlighted: Bool
+    ) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 18))
+                .foregroundColor(tint)
+                .frame(width: 24)
+            Text(label)
+                .font(.legoBody)
+                .foregroundColor(.lightText)
+            Spacer()
+            Toggle("", isOn: isOn)
+                .tint(tint)
+                .labelsHidden()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(highlighted ? tint.opacity(0.06) : Color.clear)
     }
 
     // MARK: - Account Section
@@ -272,12 +330,23 @@ struct SettingsView: View {
     }
 
     private func toggleRow(label: String, icon: String, tint: Color, isOn: Binding<Bool>) -> some View {
-        Toggle(isOn: isOn) {
-            Label(label, systemImage: icon).font(.legoBody).foregroundColor(.lightText)
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 18))
+                .foregroundColor(tint)
+                .frame(width: 24)
+            Text(label)
+                .font(.legoBody)
+                .foregroundColor(.lightText)
+            Spacer()
+            Toggle("", isOn: isOn)
+                .tint(tint)
+                .labelsHidden()
         }
-        .tint(tint)
-        .padding(.horizontal).padding(.vertical, 12)
-        .background(Color.cardBackground).cornerRadius(12)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(Color.cardBackground)
+        .cornerRadius(12)
     }
 
     // MARK: - Sign Out

@@ -10,7 +10,9 @@ struct HomeView: View {
     @State private var selectedPost: LegoPost?          // navigate to post detail
     @State private var selectedUsername: String?         // navigate to profile
     @State private var commentPost: LegoPost?            // opens comment sheet
-    @State private var showingDMSheet = false
+    @State private var showingDMSheet        = false
+    @State private var showingNotifications  = false
+    @State private var unreadNotifCount      = 0
 
     // MARK: - Feed Sections
 
@@ -101,6 +103,16 @@ struct HomeView: View {
         .sheet(isPresented: $showingDMSheet) {
             DirectMessageListView()
         }
+        .sheet(isPresented: $showingNotifications) {
+            NotificationsView()
+        }
+        .task { await loadUnreadCount() }
+        .onChange(of: showingNotifications) { _, isShowing in
+            if !isShowing {
+                // Refresh badge after closing notifications
+                Task { await loadUnreadCount() }
+            }
+        }
         .sheet(item: $commentPost) { post in
             CommentSheetView(post: post)
                 .presentationDetents([.medium, .large])
@@ -122,10 +134,24 @@ struct HomeView: View {
             }
             .padding(.trailing, 12)
 
-            Button { } label: {
-                Image(systemName: "bell.fill")
-                    .font(.system(size: 22))
-                    .foregroundColor(.legoYellow)
+            Button { showingNotifications = true } label: {
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: "bell.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(.legoYellow)
+
+                    if unreadNotifCount > 0 {
+                        ZStack {
+                            Circle()
+                                .fill(Color.legoRed)
+                                .frame(width: 18, height: 18)
+                            Text(unreadNotifCount > 9 ? "9+" : "\(unreadNotifCount)")
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                        }
+                        .offset(x: 8, y: -8)
+                    }
+                }
             }
         }
         .padding(.horizontal, 16)
@@ -174,6 +200,18 @@ struct HomeView: View {
         } else {
             Color.clear.frame(height: 20)
                 .onAppear { postStore.loadMorePosts() }
+        }
+    }
+
+    // MARK: - Notification Badge
+
+    private func loadUnreadCount() async {
+        let uid = UserSession.shared.uid
+        guard !uid.isEmpty else { return }
+        do {
+            unreadNotifCount = try await FirebaseService.shared.fetchUnreadNotificationCount(userId: uid)
+        } catch {
+            print("[HomeView] Unread count error: \(error)")
         }
     }
 

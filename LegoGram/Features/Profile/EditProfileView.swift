@@ -9,6 +9,7 @@ struct EditProfileView: View {
     @ObservedObject private var userSession = UserSession.shared
 
     @State private var draftDisplayName = ""
+    @State private var draftUsername    = ""
     @State private var draftBio         = ""
 
     @State private var selectedPhotoItem: PhotosPickerItem?
@@ -31,6 +32,28 @@ struct EditProfileView: View {
 
                         formField(label: "Display Name", icon: "person.fill",
                                   placeholder: "Your name", text: $draftDisplayName)
+
+                        // Username field
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label("Username", systemImage: "at")
+                                .font(.legoCardTitle).foregroundColor(.legoYellow)
+
+                            HStack(spacing: 0) {
+                                Text("@")
+                                    .font(.legoBody).foregroundColor(.secondaryText).padding(.leading, 14)
+                                TextField("username", text: $draftUsername)
+                                    .autocapitalization(.none)
+                                    .autocorrectionDisabled()
+                                    .foregroundColor(.lightText).font(.legoBody)
+                                    .padding(.vertical, 14).padding(.trailing, 14).padding(.leading, 4)
+                            }
+                            .background(Color.cardBackground).cornerRadius(12)
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.secondaryText.opacity(0.3), lineWidth: 1))
+
+                            Text("Lowercase letters, numbers, and underscores only. Must be unique.")
+                                .font(.legoCaption).foregroundColor(.secondaryText)
+                        }
+                        .padding(.horizontal)
 
                         VStack(alignment: .leading, spacing: 8) {
                             Label("Bio", systemImage: "text.alignleft")
@@ -81,6 +104,7 @@ struct EditProfileView: View {
         }
         .onAppear {
             draftDisplayName = userSession.displayName
+            draftUsername    = userSession.username
             draftBio         = userSession.bio
             previewAvatar    = userSession.avatarImage
         }
@@ -161,16 +185,32 @@ struct EditProfileView: View {
     // MARK: - Save
 
     private func saveChanges() {
-        isSaving = true
+        let trimmedName     = draftDisplayName.trimmingCharacters(in: .whitespaces)
+        let trimmedUsername = draftUsername.trimmingCharacters(in: .whitespaces)
+            .lowercased().filter { $0.isLetter || $0.isNumber || $0 == "_" }
+        let trimmedBio      = draftBio.trimmingCharacters(in: .whitespaces)
+
+        guard !trimmedName.isEmpty else {
+            saveError = "Display name cannot be empty."
+            return
+        }
+        guard !trimmedUsername.isEmpty else {
+            saveError = "Username cannot be empty."
+            return
+        }
+
+        isSaving  = true
         saveError = nil
-        let trimmedName = draftDisplayName.trimmingCharacters(in: .whitespaces)
-        let trimmedBio  = draftBio.trimmingCharacters(in: .whitespaces)
 
         Task {
             do {
-                try await userSession.updateProfile(displayName: trimmedName, bio: trimmedBio)
+                try await userSession.updateProfile(
+                    displayName: trimmedName,
+                    username:    trimmedUsername,
+                    bio:         trimmedBio
+                )
             } catch {
-                await MainActor.run { saveError = "Save failed: \(error.localizedDescription)" }
+                await MainActor.run { saveError = error.localizedDescription }
             }
             await MainActor.run {
                 isSaving = false
