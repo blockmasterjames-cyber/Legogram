@@ -121,7 +121,7 @@ final class FirebaseService: ObservableObject {
         try await batch.commit()
 
         // In-app follow notification
-        let currentUsername = UserSession.shared.username
+        let currentUsername = await UserSession.shared.username
         if !currentUsername.isEmpty {
             Task {
                 try? await self.addNotification(
@@ -307,7 +307,7 @@ final class FirebaseService: ObservableObject {
             // Send local push notification + in-app Firestore notification
             NotificationManager.shared.sendLikeNotification(postOwnerUsername: postOwnerId)
             if postOwnerId != currentUserId {
-                let currentUsername = UserSession.shared.username
+                let currentUsername = await UserSession.shared.username
                 Task {
                     try? await self.addNotification(
                         toUserId:     postOwnerId,
