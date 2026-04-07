@@ -30,8 +30,12 @@ struct NewPostView: View {
     @State private var showingSetDropdown      = false
 
     // Feature 8: custom build
-    @State private var isCustomBuild     = false
-    @State private var customBuildName   = ""
+    @State private var isCustomBuild            = false
+    @State private var customBuildName          = ""
+
+    // Feature 9: official LEGO thumbnail
+    @State private var useOfficialThumbnail     = false
+    @State private var isLoadingThumbnail       = false
 
     // Feature 9: focus states
     @FocusState private var descriptionFocused: Bool
@@ -57,7 +61,8 @@ struct NewPostView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.darkBackground.ignoresSafeArea()
+                Color.darkBackground.ignoresSafeArea(.all)
+                    .ignoresSafeArea(.keyboard, edges: .bottom)
 
                 ScrollViewReader { scrollProxy in
                     ScrollView {
@@ -92,14 +97,21 @@ struct NewPostView: View {
                             postButton
                                 .id("post-button")
 
-                            Color.clear.frame(height: 80)
+                            Color.clear.frame(height: 300)
                         }
                         .padding(.top)
                     }
                     .onChange(of: descriptionFocused) { _, focused in
                         if focused {
-                            withAnimation {
+                            withAnimation(.easeInOut(duration: 0.35)) {
                                 scrollProxy.scrollTo("description-field", anchor: .center)
+                            }
+                        }
+                    }
+                    .onChange(of: customNameFocused) { _, focused in
+                        if focused {
+                            withAnimation(.easeInOut(duration: 0.35)) {
+                                scrollProxy.scrollTo("description-field", anchor: .top)
                             }
                         }
                     }
@@ -143,7 +155,7 @@ struct NewPostView: View {
         .photosPicker(
             isPresented: $showingMultiPicker,
             selection: $multiPickerItems,
-            maxSelectionCount: 10,
+            maxSelectionCount: max(1, 10 - selectedImages.count),
             matching: .images
         )
         .onChange(of: multiPickerItems) { _, newItems in
@@ -359,13 +371,30 @@ struct NewPostView: View {
                     .focused($setSearchFocused)
                     .submitLabel(.search)
                     .onChange(of: setSearchText) { _, newValue in
-                        selectedSet = nil
+                        selectedSet        = nil
+                        useOfficialThumbnail = false
                         if newValue.trimmingCharacters(in: .whitespaces).isEmpty {
                             setSearchResults   = []
                             showingSetDropdown = false
                         } else {
-                            setSearchResults   = LegoSetDatabase.search(newValue)
-                            showingSetDropdown = !setSearchResults.isEmpty
+                            // Search local database first
+                            let localResults = LegoSetDatabase.search(newValue)
+                            setSearchResults   = localResults
+                            showingSetDropdown = !localResults.isEmpty
+
+                            // Also search Rebrickable if local results are sparse
+                            if localResults.count < 3 {
+                                Task {
+                                    let apiResults = (try? await RebrickableService.shared.searchSets(query: newValue)) ?? []
+                                    let combined = localResults + apiResults.filter { api in
+                                        !localResults.contains { $0.setNumber == api.setNumber }
+                                    }
+                                    await MainActor.run {
+                                        setSearchResults   = combined
+                                        showingSetDropdown = !combined.isEmpty
+                                    }
+                                }
+                            }
                         }
                     }
                     .onSubmit {
@@ -448,6 +477,46 @@ struct NewPostView: View {
                         .foregroundColor(.successGreen)
                 }
                 .padding(.top, 4)
+
+                // Official LEGO thumbnail toggle
+                if set.setImageURL != nil {
+                    HStack(spacing: 10) {
+                        if isLoadingThumbnail {
+                            ProgressView().tint(.legoYellow).scaleEffect(0.8)
+                        } else {
+                            Image(systemName: useOfficialThumbnail ? "photo.fill.on.rectangle.fill" : "photo.on.rectangle")
+                                .foregroundColor(.legoYellow)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Use official LEGO photo as cover")
+                                .font(.legoBody)
+                                .foregroundColor(.lightText)
+                            Text("Adds the official set image as the first photo")
+                                .font(.legoCaption)
+                                .foregroundColor(.secondaryText)
+                        }
+                        Spacer()
+                        Toggle("", isOn: Binding(
+                            get: { useOfficialThumbnail },
+                            set: { newValue in
+                                useOfficialThumbnail = newValue
+                                if newValue {
+                                    Task { await prependOfficialThumbnail(for: set) }
+                                } else {
+                                    removeOfficialThumbnail()
+                                }
+                            }
+                        ))
+                        .tint(.legoYellow)
+                        .labelsHidden()
+                    }
+                    .padding(12)
+                    .background(Color.cardBackground)
+                    .cornerRadius(12)
+                    .overlay(RoundedRectangle(cornerRadius: 12)
+                        .stroke(useOfficialThumbnail ? Color.legoYellow.opacity(0.5) : Color.clear, lineWidth: 1))
+                    .padding(.top, 4)
+                }
             }
         }
     }
@@ -564,6 +633,37 @@ struct NewPostView: View {
         }
     }
 
+    // MARK: - Official Thumbnail
+
+    /// Downloads the official LEGO set image and prepends it to the carousel.
+    @MainActor
+    private func prependOfficialThumbnail(for set: LegoSet) async {
+        guard let url = set.setImageURL else { return }
+        isLoadingThumbnail = true
+        defer { isLoadingThumbnail = false }
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            if let img = UIImage(data: data) {
+                // Prepend the official image — remove any previously prepended one first
+                var current = selectedImages.filter { !($0.accessibilityIdentifier == "official_thumbnail") }
+                // Use a tagged copy trick: store as first element
+                selectedImages = [img] + Array(current.prefix(9))
+                carouselPage = 0
+            }
+        } catch {
+            print("[NewPostView] Failed to load official thumbnail: \(error)")
+            useOfficialThumbnail = false
+        }
+    }
+
+    private func removeOfficialThumbnail() {
+        // Remove the first image if it was the official thumbnail
+        if !selectedImages.isEmpty {
+            selectedImages.removeFirst()
+            carouselPage = 0
+        }
+    }
+
     // MARK: - Helpers
 
     private func addImage(_ image: UIImage) {
@@ -576,15 +676,21 @@ struct NewPostView: View {
         guard !items.isEmpty else { return }
         Task {
             var newImages: [UIImage] = []
-            for item in items.prefix(10) {
+            let remaining = max(0, 10 - selectedImages.count)
+            for item in items.prefix(remaining) {
                 if let data = try? await item.loadTransferable(type: Data.self),
                    let img = UIImage(data: data) {
                     newImages.append(img)
                 }
             }
             await MainActor.run {
-                selectedImages = newImages
+                // APPEND to existing selection instead of replacing
+                selectedImages = Array((selectedImages + newImages).prefix(10))
                 multiPickerItems = []
+                // Reset carousel to last page to show newly added photos
+                if selectedImages.count > 1 {
+                    carouselPage = selectedImages.count - 1
+                }
             }
         }
     }

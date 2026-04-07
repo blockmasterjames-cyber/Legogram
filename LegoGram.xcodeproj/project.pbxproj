@@ -61,6 +61,10 @@
 		AA0001000000000000000035 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000035 /* NotificationManager.swift */; };
 		AA0001000000000000000036 /* NewMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000036 /* NewMessageView.swift */; };
 		AA0001000000000000000037 /* ParentalApprovalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000037 /* ParentalApprovalView.swift */; };
+		AA0001000000000000000038 /* AppNotification.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000038 /* AppNotification.swift */; };
+		AA0001000000000000000039 /* NotificationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002000000000000000039 /* NotificationsView.swift */; };
+		AA000100000000000000003A /* PointsExplanationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000003A /* PointsExplanationView.swift */; };
+		AA000100000000000000003B /* RebrickableService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000003B /* RebrickableService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -119,6 +123,10 @@
 		AA0002000000000000000035 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		AA0002000000000000000036 /* NewMessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewMessageView.swift; sourceTree = "<group>"; };
 		AA0002000000000000000037 /* ParentalApprovalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentalApprovalView.swift; sourceTree = "<group>"; };
+		AA0002000000000000000038 /* AppNotification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNotification.swift; sourceTree = "<group>"; };
+		AA0002000000000000000039 /* NotificationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsView.swift; sourceTree = "<group>"; };
+		AA000200000000000000003A /* PointsExplanationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointsExplanationView.swift; sourceTree = "<group>"; };
+		AA000200000000000000003B /* RebrickableService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RebrickableService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -272,6 +280,7 @@
 				AA000200000000000000001C /* PostDetailView.swift */,
 				AA0002000000000000000023 /* StoryShareCardView.swift */,
 				AA0002000000000000000031 /* CommentSheetView.swift */,
+				AA0002000000000000000039 /* NotificationsView.swift */,
 			);
 			path = Home;
 			sourceTree = "<group>";
@@ -310,6 +319,7 @@
 				AA0002000000000000000016 /* EditProfileView.swift */,
 				AA000200000000000000001D /* OtherProfileView.swift */,
 				AA0002000000000000000027 /* CropView.swift */,
+				AA000200000000000000003A /* PointsExplanationView.swift */,
 			);
 			path = Profile;
 			sourceTree = "<group>";
@@ -323,6 +333,7 @@
 				AA0002000000000000000019 /* LegoSetDatabase.swift */,
 				AA000200000000000000001A /* Comment.swift */,
 				AA0002000000000000000022 /* DirectMessage.swift */,
+				AA0002000000000000000038 /* AppNotification.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -345,6 +356,7 @@
 				AA0002000000000000000011 /* AuthService.swift */,
 				AA000200000000000000002D /* UserSession.swift */,
 				AA0002000000000000000034 /* OGAccountsService.swift */,
+				AA000200000000000000003B /* RebrickableService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -492,6 +504,10 @@
 				AA0001000000000000000035 /* NotificationManager.swift in Sources */,
 				AA0001000000000000000036 /* NewMessageView.swift in Sources */,
 				AA0001000000000000000037 /* ParentalApprovalView.swift in Sources */,
+				AA0001000000000000000038 /* AppNotification.swift in Sources */,
+				AA0001000000000000000039 /* NotificationsView.swift in Sources */,
+				AA000100000000000000003A /* PointsExplanationView.swift in Sources */,
+				AA000100000000000000003B /* RebrickableService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

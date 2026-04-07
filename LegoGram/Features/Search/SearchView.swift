@@ -18,8 +18,15 @@ struct SearchView: View {
         case people = "People"
     }
 
+    @State private var apiSearchResults: [LegoSet] = []
+
     private var searchResults: [LegoSet] {
-        LegoSetDatabase.search(searchText)
+        let local = LegoSetDatabase.search(searchText)
+        // Merge with API results, deduplicating by set number
+        let apiOnly = apiSearchResults.filter { api in
+            !local.contains { $0.setNumber == api.setNumber }
+        }
+        return local + apiOnly
     }
 
     private var popularSets: [LegoSet] {
@@ -154,11 +161,22 @@ struct SearchView: View {
                 .onChange(of: searchText) { _, newValue in
                     if searchTab == .people {
                         performUserSearch()
+                    } else {
+                        // Augment local results with Rebrickable API when sparse
+                        let trimmed = newValue.trimmingCharacters(in: .whitespaces)
+                        if !trimmed.isEmpty && LegoSetDatabase.search(trimmed).count < 3 {
+                            Task {
+                                let results = (try? await RebrickableService.shared.searchSets(query: trimmed)) ?? []
+                                await MainActor.run { apiSearchResults = results }
+                            }
+                        } else {
+                            apiSearchResults = []
+                        }
                     }
                 }
 
             if !searchText.isEmpty {
-                Button { searchText = ""; userResults = [] } label: {
+                Button { searchText = ""; userResults = []; apiSearchResults = [] } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.secondaryText)
                 }
@@ -209,11 +227,14 @@ struct SearchView: View {
                     .foregroundColor(.secondaryText)
                 Text("Find People")
                     .font(.legoCardTitle).foregroundColor(.lightText)
+                    .multilineTextAlignment(.center)
                 Text("Search for BrickFeed users by\nusername or display name")
                     .font(.legoBody).foregroundColor(.secondaryText)
                     .multilineTextAlignment(.center)
             }
-            .padding(.top, 40).padding(.horizontal)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 80)
+            .padding(.horizontal, 32)
         } else if isSearchingUsers {
             VStack(spacing: 12) {
                 ProgressView().tint(.legoYellow)

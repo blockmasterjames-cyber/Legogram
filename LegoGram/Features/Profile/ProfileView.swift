@@ -23,7 +23,8 @@ struct ProfileView: View {
     @State private var showingAvatarPicker = false
     @State private var isUploadingAvatar   = false
 
-    @State private var showingSignOutConfirm = false
+    @State private var showingSignOutConfirm   = false
+    @State private var showingPointsExplanation = false
 
     @ObservedObject private var postStore = PostStore.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -80,8 +81,9 @@ struct ProfileView: View {
                 PostDetailView(post: post)
             }
         }
-        .sheet(isPresented: $showingEditProfile) { EditProfileView() }
-        .sheet(isPresented: $showingSettings)    { SettingsView() }
+        .sheet(isPresented: $showingEditProfile)       { EditProfileView() }
+        .sheet(isPresented: $showingSettings)          { SettingsView() }
+        .sheet(isPresented: $showingPointsExplanation) { PointsExplanationView() }
         .onChange(of: AppState.shared.openSettings) { _, newValue in
             if newValue {
                 showingSettings = true
@@ -283,12 +285,24 @@ struct ProfileView: View {
             Divider().background(Color.secondaryText.opacity(0.3))
 
             HStack(spacing: 0) {
-                // Points instead of earnings
-                statCell(
-                    value: "\(currentUser?.totalPoints ?? 0)",
-                    label: "Points",
-                    icon: "square.3.layers.3d.down.left.slash"
-                )
+                // Points cell with "How Points Work" info button
+                Button { showingPointsExplanation = true } label: {
+                    VStack(spacing: 4) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "square.3.layers.3d")
+                                .font(.system(size: 12)).foregroundColor(.legoYellow)
+                            Text("\(currentUser?.totalPoints ?? 0)")
+                                .font(.legoCardTitle).foregroundColor(.lightText)
+                            Image(systemName: "info.circle")
+                                .font(.system(size: 12)).foregroundColor(.legoYellow.opacity(0.7))
+                        }
+                        Text("Points")
+                            .font(.legoCaption).foregroundColor(.secondaryText)
+                    }
+                    .frame(minWidth: 68).padding(.horizontal, 4)
+                }
+                .buttonStyle(.plain)
+
                 Divider().frame(height: 40)
                 statCell(value: "\(setsCompleted)", label: "Completed")
             }

@@ -119,6 +119,22 @@ final class FirebaseService: ObservableObject {
         batch.updateData(["total_points": FieldValue.increment(Int64(1))],
                          forDocument: db.collection("users").document(targetUserId))
         try await batch.commit()
+
+        // In-app follow notification
+        let currentUsername = UserSession.shared.username
+        if !currentUsername.isEmpty {
+            Task {
+                try? await self.addNotification(
+                    toUserId:     targetUserId,
+                    type:         .follow,
+                    fromUserId:   currentUserId,
+                    fromUsername: currentUsername
+                )
+            }
+        }
+
+        // Local push notification
+        NotificationManager.shared.sendFollowNotification(from: currentUsername)
     }
 
     func unfollowUser(currentUserId: String, targetUserId: String) async throws {
@@ -288,8 +304,20 @@ final class FirebaseService: ObservableObject {
             }
             try await batch.commit()
 
-            // Send notification to post owner
+            // Send local push notification + in-app Firestore notification
             NotificationManager.shared.sendLikeNotification(postOwnerUsername: postOwnerId)
+            if postOwnerId != currentUserId {
+                let currentUsername = UserSession.shared.username
+                Task {
+                    try? await self.addNotification(
+                        toUserId:     postOwnerId,
+                        type:         .like,
+                        fromUserId:   currentUserId,
+                        fromUsername: currentUsername,
+                        postId:       postId
+                    )
+                }
+            }
             return true
         }
     }
@@ -344,6 +372,17 @@ final class FirebaseService: ObservableObject {
         try await batch.commit()
 
         NotificationManager.shared.sendCommentNotification(postOwnerUsername: postOwnerId)
+        if postOwnerId != userId {
+            Task {
+                try? await self.addNotification(
+                    toUserId:     postOwnerId,
+                    type:         .comment,
+                    fromUserId:   userId,
+                    fromUsername: username,
+                    postId:       postId
+                )
+            }
+        }
 
         return Comment(
             id: commentId,
@@ -439,6 +478,103 @@ final class FirebaseService: ObservableObject {
 
         // 4. Delete Firebase Auth account
         try await Auth.auth().currentUser?.delete()
+    }
+
+    // =========================================================================
+    // MARK: - Fetch User By Username
+    // =========================================================================
+
+    /// Looks up a user document by username field. Returns nil if not found.
+    func fetchUserByUsername(_ username: String) async throws -> User? {
+        let snap = try await db.collection("users")
+            .whereField("username", isEqualTo: username)
+            .limit(to: 1)
+            .getDocuments()
+        guard let doc = snap.documents.first else { return nil }
+        return userFromData(doc.data(), id: doc.documentID)
+    }
+
+    // =========================================================================
+    // MARK: - Notifications
+    // =========================================================================
+
+    /// Adds a notification document to users/{targetUserId}/notifications.
+    func addNotification(
+        toUserId: String,
+        type: AppNotification.NotificationType,
+        fromUserId: String,
+        fromUsername: String,
+        postId: String = ""
+    ) async throws {
+        // Don't notify yourself
+        guard toUserId != fromUserId else { return }
+
+        let notifId = UUID().uuidString
+        let data: [String: Any] = [
+            "id":            notifId,
+            "type":          type.rawValue,
+            "from_user_id":  fromUserId,
+            "from_username": fromUsername,
+            "post_id":       postId,
+            "timestamp":     Timestamp(date: Date()),
+            "is_read":       false
+        ]
+        try await db.collection("users").document(toUserId)
+            .collection("notifications").document(notifId).setData(data)
+    }
+
+    /// Fetches the most recent 50 notifications for a user, newest first.
+    func fetchNotifications(userId: String) async throws -> [AppNotification] {
+        let snap = try await db.collection("users").document(userId)
+            .collection("notifications")
+            .order(by: "timestamp", descending: true)
+            .limit(to: 50)
+            .getDocuments()
+
+        return snap.documents.compactMap { doc in
+            let data = doc.data()
+            guard
+                let typeRaw   = data["type"]          as? String,
+                let type      = AppNotification.NotificationType(rawValue: typeRaw),
+                let fromId    = data["from_user_id"]  as? String,
+                let fromUser  = data["from_username"] as? String,
+                let ts        = data["timestamp"]     as? Timestamp
+            else { return nil }
+
+            return AppNotification(
+                id:           doc.documentID,
+                type:         type,
+                fromUserId:   fromId,
+                fromUsername: fromUser,
+                postId:       data["post_id"]  as? String ?? "",
+                timestamp:    ts.dateValue(),
+                isRead:       data["is_read"]  as? Bool   ?? false
+            )
+        }
+    }
+
+    /// Returns the count of unread notifications for a user.
+    func fetchUnreadNotificationCount(userId: String) async throws -> Int {
+        let snap = try await db.collection("users").document(userId)
+            .collection("notifications")
+            .whereField("is_read", isEqualTo: false)
+            .getDocuments()
+        return snap.documents.count
+    }
+
+    /// Marks all notifications as read for a user.
+    func markAllNotificationsRead(userId: String) async throws {
+        let snap = try await db.collection("users").document(userId)
+            .collection("notifications")
+            .whereField("is_read", isEqualTo: false)
+            .getDocuments()
+
+        guard !snap.documents.isEmpty else { return }
+        let batch = db.batch()
+        for doc in snap.documents {
+            batch.updateData(["is_read": true], forDocument: doc.reference)
+        }
+        try await batch.commit()
     }
 
     // =========================================================================
