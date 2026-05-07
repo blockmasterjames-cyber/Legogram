@@ -122,11 +122,29 @@ struct LeaderboardView: View {
     // MARK: - Load
 
     private func loadLeaderboard() async {
+        print("[Leaderboard] Starting leaderboard load — uid: \(userSession.uid)")
         isLoading  = true
         loadError  = nil
         do {
             let users = try await FirebaseService.shared.fetchLeaderboard(limit: 50)
             let currentUid = userSession.uid
+            print("[Leaderboard] Loaded \(users.count) users successfully")
+
+            // If Firestore has no users yet, seed the OG accounts and reload
+            if users.isEmpty {
+                print("[Leaderboard] No users found — seeding OG accounts and retrying")
+                await OGAccountsService.shared.seedOGAccountsToFirestoreIfNeeded()
+                let seededUsers = try await FirebaseService.shared.fetchLeaderboard(limit: 50)
+                print("[Leaderboard] After seeding: \(seededUsers.count) users")
+                let cuid = userSession.uid
+                globalBuilders = seededUsers.enumerated().map { idx, user in
+                    BuilderEntry(rank: idx + 1, username: user.username,
+                                 displayName: user.displayName, score: user.totalPoints,
+                                 avatarURL: user.avatarURL, isCurrentUser: user.id == cuid)
+                }
+                isLoading = false
+                return
+            }
 
             globalBuilders = users.enumerated().map { idx, user in
                 BuilderEntry(
@@ -141,8 +159,9 @@ struct LeaderboardView: View {
             isLoading = false
         } catch {
             isLoading = false
-            loadError = "Couldn't load the leaderboard. Check your connection and try again."
-            print("[LeaderboardView] Error: \(error)")
+            let detail = "\(error)"
+            print("[Leaderboard] Error: \(error.localizedDescription) — Full: \(error)")
+            loadError = "Couldn't load the leaderboard.\n\nError: \(error.localizedDescription)\n\nCheck your connection and try again."
         }
     }
 }

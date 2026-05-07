@@ -9,7 +9,6 @@ struct OtherProfileView: View {
 
     @ObservedObject private var postStore = PostStore.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @AppStorage("dm_ageVerified") private var ageVerified = false
     @AppStorage("settings_kidSafeMode") private var kidSafeMode = false
     @State private var showingBlockAlert = false
     @State private var showingBlockedConfirm = false
@@ -170,8 +169,8 @@ struct OtherProfileView: View {
                         )
                 }
 
-                // Message button (only if DMs available)
-                if !kidSafeMode && ageVerified {
+                // Message button (available to all non-kid-safe users)
+                if !kidSafeMode {
                     Button {
                         let conv = DMStore.shared.conversation(with: username)
                         dmConversation = conv

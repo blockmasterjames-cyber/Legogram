@@ -110,7 +110,17 @@ final class AuthService: ObservableObject {
         errorMessage = nil
         defer { isLoading = false }
         try await Auth.auth().signIn(withEmail: email, password: password)
+        activateDemoModeIfNeeded(email: email)
         isSignedIn = true
+    }
+
+    /// Activates demo mode for the Apple reviewer account.
+    /// Unlocks all features: kid safe mode off, age verified, all gates removed.
+    private func activateDemoModeIfNeeded(email: String) {
+        guard email.lowercased().trimmingCharacters(in: .whitespaces) == "appreview@gmail.com" else { return }
+        print("[AuthService] Demo mode activated for appreview@gmail.com — unlocking all features")
+        UserDefaults.standard.set(false, forKey: "settings_kidSafeMode")
+        UserDefaults.standard.set(true,  forKey: "dm_ageVerified")
     }
 
     // =========================================================================

@@ -118,6 +118,9 @@ final class OGAccountsService {
         }
         PostStore.shared.posts = Self.ogPosts
 
+        // Seed OG accounts to Firestore before following them
+        await seedOGAccountsToFirestoreIfNeeded()
+
         for account in Self.ogAccounts {
             do {
                 try await FirebaseService.shared.followUser(
@@ -131,6 +134,51 @@ final class OGAccountsService {
 
         // Auto-follow blockmasterjames (the app founder) on every new signup
         await followBlockmasterJames(newUserId: userId)
+    }
+
+    /// Creates Firestore user documents for the 10 OG accounts if they don't exist yet.
+    /// This ensures the leaderboard always has data and followUser calls don't fail.
+    func seedOGAccountsToFirestoreIfNeeded() async {
+        print("[OGAccountsService] Checking if OG accounts need seeding to Firestore...")
+        let pointsMap: [String: Int] = [
+            "og-brickmaster99":      1850,
+            "og-legolover-emma":     1420,
+            "og-marvelfan-zoe":      1310,
+            "og-citybuilder-max":    1180,
+            "og-ideasfan-lily":      1650,
+            "og-ninjafan-jake":      1090,
+            "og-disneybuilder-sara": 1750,
+            "og-technicpro-alex":    1540,
+            "og-botanicalkim":       1230,
+            "og-speedkid-ryan":       980
+        ]
+        for account in Self.ogAccounts {
+            do {
+                let doc = try await db.collection("users").document(account.id).getDocument()
+                if !doc.exists {
+                    let points = pointsMap[account.id] ?? 500
+                    let data: [String: Any] = [
+                        "username":        account.username,
+                        "display_name":    account.displayName,
+                        "bio":             account.bio,
+                        "avatar_url":      "",
+                        "background_url":  "",
+                        "follower_count":  Int.random(in: 80...200),
+                        "following_count": 0,
+                        "post_count":      2,
+                        "total_likes":     Int.random(in: 300...900),
+                        "total_points":    points,
+                        "is_kid_account":  false,
+                        "parent_email":    "",
+                        "join_date":       FirebaseFirestore.Timestamp(date: Date())
+                    ]
+                    try await db.collection("users").document(account.id).setData(data)
+                    print("[OGAccountsService] Seeded \(account.username) to Firestore ✓")
+                }
+            } catch {
+                print("[OGAccountsService] Could not seed \(account.username): \(error.localizedDescription)")
+            }
+        }
     }
 
     /// Looks up @blockmasterjames in Firestore by username and follows them.
