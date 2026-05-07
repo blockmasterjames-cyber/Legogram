@@ -2,17 +2,15 @@ import SwiftUI
 
 /// The Direct Messages entry point.
 /// Kid Safe Mode ON → friendly block popup
-/// Kid Safe Mode OFF → age verification gate, then DM list with compose button
+/// Kid Safe Mode OFF → DM list with compose button (no age gate)
 struct DirectMessageListView: View {
 
     @AppStorage("settings_kidSafeMode") private var kidSafeMode = false
-    @AppStorage("dm_ageVerified") private var ageVerified = false
 
     @ObservedObject private var dmStore = DMStore.shared
     @ObservedObject private var appState = AppState.shared
     @Environment(\.dismiss) private var dismiss
 
-    @State private var showingAgeVerification = false
     @State private var showingNewMessage = false
 
     var body: some View {
@@ -22,8 +20,6 @@ struct DirectMessageListView: View {
 
                 if kidSafeMode {
                     kidSafeModeBlockView
-                } else if !ageVerified {
-                    ageVerificationPromptView
                 } else {
                     conversationList
                 }
@@ -45,7 +41,7 @@ struct DirectMessageListView: View {
                     }
                 }
 
-                if !kidSafeMode && ageVerified {
+                if !kidSafeMode {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button {
                             showingNewMessage = true
@@ -120,47 +116,6 @@ struct DirectMessageListView: View {
             .padding(.bottom, 32)
         }
         .padding()
-    }
-
-    // MARK: - Age Verification Prompt
-
-    private var ageVerificationPromptView: some View {
-        VStack(spacing: 24) {
-            Spacer()
-
-            Image(systemName: "person.badge.shield.checkmark.fill")
-                .font(.system(size: 64))
-                .foregroundColor(.legoYellow)
-
-            VStack(spacing: 10) {
-                Text("Age Verification Required")
-                    .font(.legoScreenTitle)
-                    .foregroundColor(.lightText)
-                    .multilineTextAlignment(.center)
-
-                Text("To use Direct Messages you need to verify your age by uploading a valid ID.")
-                    .font(.legoBody)
-                    .foregroundColor(.secondaryText)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-            }
-
-            Button { showingAgeVerification = true } label: {
-                Label("Verify My Age", systemImage: "arrow.right.circle.fill")
-                    .font(.legoCardTitle)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(Color.legoYellow)
-                    .foregroundColor(.darkBackground)
-                    .cornerRadius(14)
-            }
-            .padding(.horizontal)
-
-            Spacer()
-        }
-        .sheet(isPresented: $showingAgeVerification) {
-            AgeVerificationView()
-        }
     }
 
     // MARK: - Conversation List

@@ -420,12 +420,30 @@ final class FirebaseService: ObservableObject {
     // =========================================================================
 
     /// Fetches users sorted by total_points descending for the global leaderboard.
+    /// Falls back to in-memory sort if the ordered Firestore query fails (e.g. missing index).
     func fetchLeaderboard(limit: Int = 50) async throws -> [User] {
-        let snap = try await db.collection("users")
-            .order(by: "total_points", descending: true)
-            .limit(to: limit)
-            .getDocuments()
-        return snap.documents.map { userFromData($0.data(), id: $0.documentID) }
+        print("[FirebaseService] fetchLeaderboard — requesting top \(limit) users by total_points")
+        do {
+            let snap = try await db.collection("users")
+                .order(by: "total_points", descending: true)
+                .limit(to: limit)
+                .getDocuments()
+            let users = snap.documents.map { userFromData($0.data(), id: $0.documentID) }
+            print("[FirebaseService] fetchLeaderboard — ordered query returned \(users.count) users")
+            return users
+        } catch {
+            print("[FirebaseService] fetchLeaderboard — ordered query failed (\(error)), trying fallback")
+            // Fallback: fetch without ordering and sort in memory
+            let snap = try await db.collection("users")
+                .limit(to: 200)
+                .getDocuments()
+            let users = snap.documents
+                .map { userFromData($0.data(), id: $0.documentID) }
+                .sorted { $0.totalPoints > $1.totalPoints }
+            let result = Array(users.prefix(limit))
+            print("[FirebaseService] fetchLeaderboard — fallback returned \(result.count) users")
+            return result
+        }
     }
 
     // =========================================================================
