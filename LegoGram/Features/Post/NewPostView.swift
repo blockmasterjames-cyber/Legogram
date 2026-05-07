@@ -238,7 +238,7 @@ struct NewPostView: View {
                             .frame(height: 260).clipped()
 
                         Button {
-                            withAnimation { selectedImages.remove(at: idx as Int) }
+                            withAnimation { selectedImages.remove(at: idx) }
                         } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 24))
