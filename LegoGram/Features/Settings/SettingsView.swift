@@ -7,7 +7,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
     @AppStorage("settings_kidSafeMode")    private var kidSafeMode:     Bool = true
-    @AppStorage("settings_notifications") private var notificationsOn:  Bool = true
+    @AppStorage("settings_notifications") private var notificationsOn:  Bool = false
     @AppStorage("dm_ageVerified")          private var ageVerified:      Bool = false
 
     @ObservedObject private var userSession = UserSession.shared

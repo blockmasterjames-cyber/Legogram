@@ -114,28 +114,44 @@ struct LoginView: View {
 
                             // Sign in with Apple (required by App Store)
                             SignInWithAppleButton(.signIn) { request in
+                                print("[LoginView] Sign in with Apple: preparing request…")
                                 guard let hashedNonce = AuthService.shared.prepareAppleSignIn() else {
-                                    errorMessage = "Unable to generate a secure nonce. Please try again."
+                                    print("[LoginView] Sign in with Apple ERROR: failed to generate nonce")
+                                    Task { @MainActor in
+                                        errorMessage = "Unable to generate a secure sign-in token. Please try again."
+                                    }
                                     return
                                 }
+                                print("[LoginView] Sign in with Apple: nonce prepared, requesting scopes [fullName, email]")
                                 request.requestedScopes = [.fullName, .email]
                                 request.nonce = hashedNonce
                             } onCompletion: { result in
                                 switch result {
                                 case .success(let authorization):
-                                    isLoading    = true
-                                    errorMessage = nil
+                                    print("[LoginView] Sign in with Apple: ASAuthorization succeeded, passing to AuthService")
                                     Task { @MainActor in
+                                        isLoading    = true
+                                        errorMessage = nil
                                         do {
                                             try await AuthService.shared.signInWithApple(authorization: authorization)
+                                            print("[LoginView] Sign in with Apple: AuthService completed successfully")
                                         } catch {
-                                            errorMessage = error.localizedDescription
+                                            print("[LoginView] Sign in with Apple ERROR: \(error.localizedDescription)")
+                                            print("[LoginView] Sign in with Apple ERROR detail: \(error)")
+                                            errorMessage = "Sign in with Apple failed: \(error.localizedDescription)"
                                         }
                                         isLoading = false
                                     }
                                 case .failure(let error):
-                                    if (error as? ASAuthorizationError)?.code == .canceled { return }
-                                    errorMessage = error.localizedDescription
+                                    let asError = error as? ASAuthorizationError
+                                    if asError?.code == .canceled {
+                                        print("[LoginView] Sign in with Apple: user canceled")
+                                        return
+                                    }
+                                    print("[LoginView] Sign in with Apple ERROR (ASAuthorization): \(error.localizedDescription)")
+                                    Task { @MainActor in
+                                        errorMessage = "Apple sign-in error: \(error.localizedDescription)"
+                                    }
                                 }
                             }
                             .signInWithAppleButtonStyle(.white)

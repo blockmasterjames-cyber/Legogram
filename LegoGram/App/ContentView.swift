@@ -113,11 +113,6 @@ struct ContentView: View {
                         PostStore.shared.likedPostIDs = liked
                     }
 
-                    // Request notification permission after first login (post-onboarding)
-                    if hasSeenOnboarding {
-                        await NotificationManager.shared.requestPermission()
-                    }
-
                 } else {
                     authState = .loggedOut
                     userSession.clear()
