@@ -249,6 +249,7 @@ struct SettingsView: View {
             toggleRow(label: "Push Notifications", icon: "bell.fill",
                       tint: .legoYellow, isOn: $notificationsOn)
                 .onChange(of: notificationsOn) { _, newValue in
+                    print("[SettingsView] Push Notifications toggle changed → \(newValue). This is the ONLY path that may request iOS notification permission.")
                     if newValue {
                         Task { await NotificationManager.shared.requestPermission() }
                     }
