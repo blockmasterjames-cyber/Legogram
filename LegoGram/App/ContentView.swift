@@ -85,6 +85,14 @@ struct ContentView: View {
                     authState = .loggedIn
                     await userSession.loadCurrentUser()
 
+                    // Demo seeding for the Apple reviewer account. Idempotent —
+                    // skips if the seed conversations already exist in Firestore.
+                    // Needed here because Firebase auto-restores the session on
+                    // relaunch, bypassing the signIn() path.
+                    if let email = user.email {
+                        await AuthService.shared.activateDemoModeIfNeeded(email: email)
+                    }
+
                     // Load following list from Firestore into PostStore
                     if let followingIds = try? await FirebaseService.shared.fetchFollowingIds(userId: user.uid) {
                         for id in followingIds {

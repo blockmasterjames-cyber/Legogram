@@ -110,73 +110,119 @@ final class AuthService: ObservableObject {
         errorMessage = nil
         defer { isLoading = false }
         try await Auth.auth().signIn(withEmail: email, password: password)
-        activateDemoModeIfNeeded(email: email)
+        await activateDemoModeIfNeeded(email: email)
         isSignedIn = true
     }
 
     /// Activates demo mode for the Apple reviewer account.
     /// Unlocks all features: kid safe mode off, age verified, all gates removed.
-    /// Also seeds sample DM conversations so the reviewer can test the messaging feature.
-    private func activateDemoModeIfNeeded(email: String) {
+    /// Also seeds sample DM conversations to Firestore so the reviewer can test
+    /// the messaging feature on a fresh device.
+    func activateDemoModeIfNeeded(email: String) async {
         guard email.lowercased().trimmingCharacters(in: .whitespaces) == "appreview@gmail.com" else { return }
         print("[AuthService] Demo mode activated for appreview@gmail.com — unlocking all features")
         UserDefaults.standard.set(false, forKey: "settings_kidSafeMode")
         UserDefaults.standard.set(true,  forKey: "dm_ageVerified")
-        seedDemoConversations()
+        await seedDemoConversationsToFirestore()
     }
 
-    /// Pre-populates the DM inbox with sample conversations so Apple reviewers
-    /// can immediately see and interact with the messaging feature.
-    private func seedDemoConversations() {
-        print("[AuthService] Seeding demo DM conversations for app review account")
+    /// Pre-populates the DM inbox with sample conversations in Firestore so
+    /// Apple reviewers can immediately see and interact with the messaging
+    /// feature on any device, even after the app is reinstalled. Idempotent:
+    /// each conversation has a deterministic ID derived from the reviewer's
+    /// UID and the other participant — re-running the seed does not duplicate.
+    func seedDemoConversationsToFirestore() async {
+        guard let reviewerUID = Auth.auth().currentUser?.uid else {
+            print("[AuthService] seedDemoConversationsToFirestore aborted — no current Firebase user")
+            return
+        }
+        print("[AuthService] Seeding demo DM conversations to Firestore for reviewer UID=\(reviewerUID)")
+
+        // Make sure the OG accounts exist in Firestore first — fetchConversations
+        // / search rely on their user docs being present.
+        await OGAccountsService.shared.seedOGAccountsToFirestoreIfNeeded()
+
+        let reviewerUsername = UserSession.shared.username.isEmpty
+            ? (UserDefaults.standard.string(forKey: "profile_username") ?? "appreview")
+            : UserSession.shared.username
         let now = Date()
-        // Use the actual Firebase UID so "my" messages render correctly in the thread view.
-        let reviewerUID = Auth.auth().currentUser?.uid ?? "demo-reviewer"
-        let reviewerUsername = UserDefaults.standard.string(forKey: "profile_username") ?? "appreview"
 
-        let conv1Messages: [DMMessage] = [
-            DMMessage(id: "demo-msg-1a", senderId: "og-brickmaster99", senderUsername: "brickmaster99",
-                      text: "Hey! Love your builds 🧱 Welcome to BrickFeed!", sentDate: now.addingTimeInterval(-3600 * 5)),
-            DMMessage(id: "demo-msg-1b", senderId: reviewerUID, senderUsername: reviewerUsername,
-                      text: "Thanks so much! Huge fan of your Millennium Falcon build!", sentDate: now.addingTimeInterval(-3600 * 4)),
-            DMMessage(id: "demo-msg-1c", senderId: "og-brickmaster99", senderUsername: "brickmaster99",
-                      text: "That one took 3 weeks 😅 What sets are you into?", sentDate: now.addingTimeInterval(-3600 * 3)),
-            DMMessage(id: "demo-msg-1d", senderId: reviewerUID, senderUsername: reviewerUsername,
-                      text: "Mostly Star Wars and Icons. The Eiffel Tower is on my wish list!", sentDate: now.addingTimeInterval(-3600 * 2)),
-            DMMessage(id: "demo-msg-1e", senderId: "og-brickmaster99", senderUsername: "brickmaster99",
-                      text: "Great taste! 10,001 pieces of pure joy 🗼", sentDate: now.addingTimeInterval(-3600)),
+        struct SeedSpec {
+            let otherId: String
+            let otherUsername: String
+            let messages: [(senderIsReviewer: Bool, text: String, offset: TimeInterval)]
+        }
+
+        let specs: [SeedSpec] = [
+            SeedSpec(otherId: "og-brickmaster99", otherUsername: "brickmaster99", messages: [
+                (false, "Hey! Love your builds 🧱 Welcome to BrickFeed!", -3600 * 5),
+                (true,  "Thanks so much! Huge fan of your Millennium Falcon build!", -3600 * 4),
+                (false, "That one took 3 weeks 😅 What sets are you into?", -3600 * 3),
+                (true,  "Mostly Star Wars and Icons. The Eiffel Tower is on my wish list!", -3600 * 2),
+                (false, "Great taste! 10,001 pieces of pure joy 🗼", -3600),
+            ]),
+            SeedSpec(otherId: "og-marvelfan-zoe", otherUsername: "marvelfan_zoe", messages: [
+                (false, "Just saw your profile — are you a Marvel fan too?? 🦸‍♀️", -7200 * 3),
+                (true,  "Absolutely! Black Panther set is incredible.", -7200 * 2),
+                (false, "Right?! Wakanda Forever! 🖤💜 I have every Marvel LEGO set lol", -7200),
+                (true,  "That's an amazing collection! Do you display them all?", -3600),
+                (false, "Whole shelf dedicated to it 😍 I'll post a pic soon!", -1800),
+            ]),
+            SeedSpec(otherId: "og-citybuilder-max", otherUsername: "citybuilder_max", messages: [
+                (false, "Welcome to BrickFeed! Your first post got 50 likes already 🎉", -86400),
+                (true,  "Wow really?! This app is so cool, I love the community here", -82800),
+                (false, "It's the best LEGO community online! What's your city setup like?", -79200),
+            ]),
         ]
-        let conv1 = DMConversation(id: "demo-conv-1", otherUserId: "og-brickmaster99",
-                                   otherUsername: "brickmaster99", messages: conv1Messages)
 
-        let conv2Messages: [DMMessage] = [
-            DMMessage(id: "demo-msg-2a", senderId: "og-marvelfan-zoe", senderUsername: "marvelfan_zoe",
-                      text: "Just saw your profile — are you a Marvel fan too?? 🦸‍♀️", sentDate: now.addingTimeInterval(-7200 * 3)),
-            DMMessage(id: "demo-msg-2b", senderId: reviewerUID, senderUsername: reviewerUsername,
-                      text: "Absolutely! Black Panther set is incredible.", sentDate: now.addingTimeInterval(-7200 * 2)),
-            DMMessage(id: "demo-msg-2c", senderId: "og-marvelfan-zoe", senderUsername: "marvelfan_zoe",
-                      text: "Right?! Wakanda Forever! 🖤💜 I have every Marvel LEGO set lol", sentDate: now.addingTimeInterval(-7200)),
-            DMMessage(id: "demo-msg-2d", senderId: reviewerUID, senderUsername: reviewerUsername,
-                      text: "That's an amazing collection! Do you display them all?", sentDate: now.addingTimeInterval(-3600)),
-            DMMessage(id: "demo-msg-2e", senderId: "og-marvelfan-zoe", senderUsername: "marvelfan_zoe",
-                      text: "Whole shelf dedicated to it 😍 I'll post a pic soon!", sentDate: now.addingTimeInterval(-1800)),
-        ]
-        let conv2 = DMConversation(id: "demo-conv-2", otherUserId: "og-marvelfan-zoe",
-                                   otherUsername: "marvelfan_zoe", messages: conv2Messages)
+        let db = Firestore.firestore()
 
-        let conv3Messages: [DMMessage] = [
-            DMMessage(id: "demo-msg-3a", senderId: "og-citybuilder-max", senderUsername: "citybuilder_max",
-                      text: "Welcome to BrickFeed! Your first post got 50 likes already 🎉", sentDate: now.addingTimeInterval(-86400)),
-            DMMessage(id: "demo-msg-3b", senderId: reviewerUID, senderUsername: reviewerUsername,
-                      text: "Wow really?! This app is so cool, I love the community here", sentDate: now.addingTimeInterval(-82800)),
-            DMMessage(id: "demo-msg-3c", senderId: "og-citybuilder-max", senderUsername: "citybuilder_max",
-                      text: "It's the best LEGO community online! What's your city setup like?", sentDate: now.addingTimeInterval(-79200)),
-        ]
-        let conv3 = DMConversation(id: "demo-conv-3", otherUserId: "og-citybuilder-max",
-                                   otherUsername: "citybuilder_max", messages: conv3Messages)
+        for spec in specs {
+            // Deterministic conversation ID so re-running the seed is idempotent.
+            let convId = "demo-\(reviewerUID)-\(spec.otherId)"
+            do {
+                let convDoc = try await db.collection("conversations").document(convId).getDocument()
+                if convDoc.exists {
+                    print("[AuthService] Demo conversation \(convId) already exists in Firestore — skipping.")
+                    continue
+                }
 
-        DMStore.shared.conversations = [conv1, conv2, conv3]
-        print("[AuthService] Demo conversations seeded: \(DMStore.shared.conversations.count) conversations ready")
+                let lastMessage = spec.messages.last
+                let lastText = lastMessage?.text ?? ""
+                let lastDate = now.addingTimeInterval(lastMessage?.offset ?? 0)
+
+                let convData: [String: Any] = [
+                    "participant_ids":       [reviewerUID, spec.otherId],
+                    "participant_usernames": [reviewerUsername, spec.otherUsername],
+                    "created_at":            Timestamp(date: now.addingTimeInterval(-86400 * 2)),
+                    "last_message":          lastText,
+                    "last_message_date":     Timestamp(date: lastDate)
+                ]
+                try await db.collection("conversations").document(convId).setData(convData)
+
+                for (idx, m) in spec.messages.enumerated() {
+                    let msgId = "demo-msg-\(convId)-\(idx)"
+                    let senderId       = m.senderIsReviewer ? reviewerUID       : spec.otherId
+                    let senderUsername = m.senderIsReviewer ? reviewerUsername  : spec.otherUsername
+                    let msgData: [String: Any] = [
+                        "sender_id":       senderId,
+                        "sender_username": senderUsername,
+                        "text":            m.text,
+                        "sent_date":       Timestamp(date: now.addingTimeInterval(m.offset))
+                    ]
+                    try await db.collection("conversations").document(convId)
+                        .collection("messages").document(msgId).setData(msgData)
+                }
+                print("[AuthService] Seeded conversation \(convId) with \(spec.messages.count) messages to Firestore ✓")
+            } catch {
+                print("[AuthService] Failed to seed conversation \(convId): \(error.localizedDescription)")
+            }
+        }
+
+        // Refresh the local DMStore so the Messages tab shows the seeded data
+        // immediately, without waiting for the next view appear.
+        await DMStore.shared.loadFromFirestore(currentUserId: reviewerUID)
+        print("[AuthService] Demo seeding complete. DMStore now has \(DMStore.shared.conversations.count) conversations.")
     }
 
     // =========================================================================

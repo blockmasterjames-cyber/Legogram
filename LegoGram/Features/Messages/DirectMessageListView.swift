@@ -57,6 +57,13 @@ struct DirectMessageListView: View {
                 NewMessageView()
             }
         }
+        .task { await loadConversations() }
+    }
+
+    private func loadConversations() async {
+        let uid = UserSession.shared.uid
+        guard !uid.isEmpty else { return }
+        await dmStore.loadFromFirestore(currentUserId: uid)
     }
 
     // MARK: - Kid Safe Mode Block
