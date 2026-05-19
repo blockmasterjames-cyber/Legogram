@@ -9,7 +9,11 @@ struct DirectMessageThreadView: View {
     let conversation: DMConversation
 
     @ObservedObject private var dmStore = DMStore.shared
+    @ObservedObject private var postStore = PostStore.shared
     @State private var messageText = ""
+    @State private var showReportConfirm = false
+    @State private var showBlockConfirm  = false
+    @State private var lastReportReason = ""
     @FocusState private var inputFocused: Bool
 
     private var liveConversation: DMConversation {
@@ -26,8 +30,12 @@ struct DirectMessageThreadView: View {
                     ScrollView {
                         LazyVStack(spacing: 12) {
                             ForEach(liveConversation.messages) { message in
-                                MessageBubble(message: message)
-                                    .id(message.id)
+                                MessageBubble(
+                                    message: message,
+                                    canReport: !message.isFromCurrentUser,
+                                    onReport: { reason in submitMessageReport(message: message, reason: reason) }
+                                )
+                                .id(message.id)
                             }
                         }
                         .padding(.horizontal, 16)
@@ -51,6 +59,85 @@ struct DirectMessageThreadView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color.cardBackground, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    Section("Report this conversation") {
+                        Button("Inappropriate content") { submitThreadReport(reason: "Inappropriate content") }
+                        Button("Bullying or harassment") { submitThreadReport(reason: "Bullying or harassment") }
+                        Button("Spam") { submitThreadReport(reason: "Spam") }
+                    }
+                    Section {
+                        Button(role: .destructive) {
+                            showBlockConfirm = true
+                        } label: {
+                            Label("Block @\(conversation.otherUsername)",
+                                  systemImage: "hand.raised.fill")
+                        }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .foregroundColor(.legoYellow)
+                }
+            }
+        }
+        .alert("Report submitted", isPresented: $showReportConfirm) {
+            Button("OK") {}
+        } message: {
+            Text("Thanks for keeping BrickFeed safe! Our team will review this report (reason: \(lastReportReason)) within 24 hours.")
+        }
+        .alert("Block @\(conversation.otherUsername)?", isPresented: $showBlockConfirm) {
+            Button("Block", role: .destructive) {
+                postStore.blockUser(userId: conversation.otherUserId,
+                                    username: conversation.otherUsername,
+                                    reason: "Blocked from DM thread")
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("All of @\(conversation.otherUsername)'s messages, posts, and comments will be hidden immediately.")
+        }
+    }
+
+    // MARK: - Report Helpers
+
+    private func submitThreadReport(reason: String) {
+        lastReportReason = reason
+        showReportConfirm = true
+        Task {
+            let uid = UserSession.shared.uid
+            let reporterUsername = UserSession.shared.username
+            guard !uid.isEmpty else { return }
+            try? await FirebaseService.shared.reportContent(
+                contentType:        "dm_thread",
+                contentId:          conversation.id,
+                reportedUserId:     conversation.otherUserId,
+                reportedUsername:   conversation.otherUsername,
+                reportedBy:         uid,
+                reportedByUsername: reporterUsername,
+                reason:             reason,
+                contextText:        liveConversation.messages.last?.text ?? ""
+            )
+        }
+    }
+
+    private func submitMessageReport(message: DMMessage, reason: String) {
+        lastReportReason = reason
+        showReportConfirm = true
+        Task {
+            let uid = UserSession.shared.uid
+            let reporterUsername = UserSession.shared.username
+            guard !uid.isEmpty else { return }
+            try? await FirebaseService.shared.reportContent(
+                contentType:        "dm_message",
+                contentId:          message.id,
+                reportedUserId:     message.senderId,
+                reportedUsername:   message.senderUsername,
+                reportedBy:         uid,
+                reportedByUsername: reporterUsername,
+                reason:             reason,
+                contextText:        message.text
+            )
+        }
     }
 
     private func scrollToBottom(proxy: ScrollViewProxy) {
@@ -104,6 +191,8 @@ struct DirectMessageThreadView: View {
 
 struct MessageBubble: View {
     let message: DMMessage
+    var canReport: Bool = false
+    var onReport: ((String) -> Void)? = nil
 
     var body: some View {
         HStack {
@@ -119,6 +208,15 @@ struct MessageBubble: View {
                     .cornerRadius(18, corners: message.isFromCurrentUser
                                   ? [.topLeft, .topRight, .bottomLeft]
                                   : [.topLeft, .topRight, .bottomRight])
+                    .contextMenu {
+                        if canReport, let onReport {
+                            Section("Report this message") {
+                                Button("Inappropriate content") { onReport("Inappropriate content") }
+                                Button("Bullying or harassment") { onReport("Bullying or harassment") }
+                                Button("Spam") { onReport("Spam") }
+                            }
+                        }
+                    }
 
                 Text(message.timeAgo)
                     .font(.legoCaption)

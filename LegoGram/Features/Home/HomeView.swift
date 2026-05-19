@@ -248,6 +248,9 @@ struct PostCard: View {
     @State private var showHeart    = false
     @State private var isLiking     = false
     @State private var carouselPage = 0
+    @State private var showReportConfirm = false
+    @State private var showBlockConfirm  = false
+    @State private var lastReportReason  = ""
 
     private var legoSet: LegoSet? {
         post.isCustomBuild ? nil : LegoSetDatabase.set(for: post.legoSetNumber)
@@ -437,6 +440,17 @@ struct PostCard: View {
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.35), radius: 10, x: 0, y: 4)
         .padding(.horizontal, 16)
+        .alert("Report submitted", isPresented: $showReportConfirm) {
+            Button("OK") {}
+        } message: {
+            Text("Thanks for keeping BrickFeed safe! Our team will review this report (reason: \(lastReportReason)) within 24 hours.")
+        }
+        .alert("Block @\(post.username)?", isPresented: $showBlockConfirm) {
+            Button("Block", role: .destructive) { blockPostAuthor() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("All of @\(post.username)'s posts, comments, and messages will be hidden immediately. The block persists across devices and app restarts.")
+        }
     }
 
     // MARK: - Author Avatar
@@ -451,14 +465,27 @@ struct PostCard: View {
             )
     }
 
-    // MARK: - Report Menu
+    // MARK: - Report / Block Menu (Apple Guideline 1.2)
+    //
+    // Visible flag icon on every PostCard — required so every piece of UGC has
+    // a reachable report control. The same menu also exposes "Block User" so
+    // the reviewer can hide all of that user's content with one tap.
 
     private var reportMenu: some View {
         Menu {
-            Button("Inappropriate content") { reportPost(reason: "Inappropriate content") }
-            Button("Bullying") { reportPost(reason: "Bullying") }
-            Button("Spam") { reportPost(reason: "Spam") }
-            Button("Not LEGO related") { reportPost(reason: "Not LEGO related") }
+            Section("Report this post") {
+                Button("Inappropriate content") { reportPost(reason: "Inappropriate content") }
+                Button("Bullying or harassment") { reportPost(reason: "Bullying or harassment") }
+                Button("Spam") { reportPost(reason: "Spam") }
+                Button("Not LEGO related") { reportPost(reason: "Not LEGO related") }
+            }
+            Section {
+                Button(role: .destructive) {
+                    showBlockConfirm = true
+                } label: {
+                    Label("Block @\(post.username)", systemImage: "hand.raised.fill")
+                }
+            }
         } label: {
             Image(systemName: "flag")
                 .font(.system(size: 14))
@@ -518,19 +545,30 @@ struct PostCard: View {
 
     private func reportPost(reason: String) {
         postStore.reportPost(post)
+        lastReportReason = reason
+        showReportConfirm = true
         Task {
             let uid = UserSession.shared.uid
+            let reporterUsername = UserSession.shared.username
             guard !uid.isEmpty else { return }
             do {
                 try await FirebaseService.shared.reportPost(
                     postId: post.id,
+                    postOwnerId: post.userId,
+                    postOwnerUsername: post.username,
                     reportedBy: uid,
+                    reportedByUsername: reporterUsername,
                     reason: reason
                 )
             } catch {
                 print("[PostCard] Report error: \(error)")
             }
         }
+    }
+
+    private func blockPostAuthor() {
+        postStore.blockUser(userId: post.userId, username: post.username,
+                            reason: "Blocked from post menu")
     }
 
     // MARK: - Card Media Area (handles carousel or single image/video)

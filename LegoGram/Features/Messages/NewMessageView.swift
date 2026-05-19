@@ -175,8 +175,16 @@ struct NewMessageView: View {
             do {
                 let users = try await FirebaseService.shared.searchUsers(query: trimmed)
                 let currentUid = UserSession.shared.uid
+                let blockedIds = await PostStore.shared.blockedUserIDs
+                let blockedNames = await PostStore.shared.blockedUsers
                 await MainActor.run {
-                    searchResults = users.filter { $0.id != currentUid }
+                    // Hide self and any blocked users so blocked accounts can
+                    // never be DM'd (Apple Guideline 1.2).
+                    searchResults = users.filter {
+                        $0.id != currentUid &&
+                        !blockedIds.contains($0.id) &&
+                        !blockedNames.contains($0.username)
+                    }
                     isSearching = false
                 }
             } catch {

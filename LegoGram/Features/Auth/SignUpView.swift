@@ -21,6 +21,12 @@ struct SignUpView: View {
     @State private var showPrivacyPolicy  = false
     @State private var showTermsOfService = false
 
+    /// Required explicit agreement before the Create Account button is enabled.
+    /// Apple Guideline 1.2 requires the user to explicitly accept the EULA/
+    /// Terms before account creation completes — the passive "by signing in"
+    /// text is not sufficient.
+    @State private var hasAgreedToTerms = false
+
     private let privacyURL = URL(string: "https://blockmasterjames-cyber.github.io/brickfeed-legal/privacy.html")!
     private let termsURL   = URL(string: "https://blockmasterjames-cyber.github.io/brickfeed-legal/terms.html")!
 
@@ -186,20 +192,34 @@ struct SignUpView: View {
                             .multilineTextAlignment(.center).padding(.horizontal, 24)
                     }
 
-                    // Privacy & Terms (required before account creation)
-                    VStack(spacing: 4) {
-                        Text("By creating an account you agree to our")
-                            .font(.legoCaption).foregroundColor(.secondaryText)
+                    // Explicit Terms agreement gate (Apple Guideline 1.2).
+                    // Required to enable the Create Account button.
+                    VStack(alignment: .leading, spacing: 8) {
+                        Button {
+                            hasAgreedToTerms.toggle()
+                        } label: {
+                            HStack(alignment: .top, spacing: 10) {
+                                Image(systemName: hasAgreedToTerms ? "checkmark.square.fill" : "square")
+                                    .font(.system(size: 22))
+                                    .foregroundColor(hasAgreedToTerms ? .legoYellow : .secondaryText)
+                                Text("I agree to the BrickFeed Terms of Service, Privacy Policy, and Apple's standard EULA. I understand BrickFeed does not tolerate objectionable content or abusive users.")
+                                    .font(.legoCaption)
+                                    .foregroundColor(.lightText)
+                                    .multilineTextAlignment(.leading)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .buttonStyle(.plain)
+
                         HStack(spacing: 4) {
-                            Button("Privacy Policy") { showPrivacyPolicy = true }
+                            Button("View Privacy Policy") { showPrivacyPolicy = true }
                                 .font(.legoCaption).foregroundColor(.legoYellow)
-                            Text("and")
-                                .font(.legoCaption).foregroundColor(.secondaryText)
-                            Button("Terms of Service") { showTermsOfService = true }
+                            Text("·").font(.legoCaption).foregroundColor(.secondaryText)
+                            Button("View Terms of Service") { showTermsOfService = true }
                                 .font(.legoCaption).foregroundColor(.legoYellow)
                         }
+                        .padding(.leading, 32)
                     }
-                    .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
 
                     // Create Account Button
@@ -213,9 +233,10 @@ struct SignUpView: View {
                             }
                         }
                         .frame(maxWidth: .infinity).frame(height: 52)
-                        .background(Color.legoRed).cornerRadius(14)
+                        .background(hasAgreedToTerms ? Color.legoRed : Color.legoRed.opacity(0.35))
+                        .cornerRadius(14)
                     }
-                    .disabled(isLoading)
+                    .disabled(isLoading || !hasAgreedToTerms)
                     .padding(.horizontal, 24)
 
                     Button("Back to Login") { dismiss() }

@@ -17,10 +17,16 @@ struct PostDetailView: View {
     @State private var isLiking          = false
     @State private var isLoadingComments = false
     @State private var badWordWarning    = false
+    @State private var showReportConfirm = false
+    @State private var showBlockConfirm  = false
+    @State private var lastReportReason  = ""
+    @State private var blockTarget: Comment?
     @FocusState private var commentFieldFocused: Bool
 
     private var comments: [Comment] {
-        (postStore.comments[post.id] ?? []).sorted { $0.postedDate > $1.postedDate }
+        (postStore.comments[post.id] ?? [])
+            .filter { !postStore.isBlocked(userId: $0.userId, username: $0.username) }
+            .sorted { $0.postedDate > $1.postedDate }
     }
 
     private var legoSet: LegoSet? { LegoSetDatabase.set(for: post.legoSetNumber) }
@@ -138,10 +144,20 @@ struct PostDetailView: View {
                                 Spacer()
 
                                 Menu {
-                                    Button("Inappropriate content") { reportPost(reason: "Inappropriate content") }
-                                    Button("Bullying") { reportPost(reason: "Bullying") }
-                                    Button("Spam") { reportPost(reason: "Spam") }
-                                    Button("Not LEGO related") { reportPost(reason: "Not LEGO related") }
+                                    Section("Report this post") {
+                                        Button("Inappropriate content") { reportPost(reason: "Inappropriate content") }
+                                        Button("Bullying or harassment") { reportPost(reason: "Bullying or harassment") }
+                                        Button("Spam") { reportPost(reason: "Spam") }
+                                        Button("Not LEGO related") { reportPost(reason: "Not LEGO related") }
+                                    }
+                                    Section {
+                                        Button(role: .destructive) {
+                                            postStore.blockUser(userId: post.userId, username: post.username,
+                                                                reason: "Blocked from post detail menu")
+                                        } label: {
+                                            Label("Block @\(post.username)", systemImage: "hand.raised.fill")
+                                        }
+                                    }
                                 } label: {
                                     Image(systemName: "flag").font(.system(size: 18)).foregroundColor(.secondaryText)
                                 }
@@ -232,6 +248,46 @@ struct PostDetailView: View {
         .sheet(isPresented: $showingShareCard) {
             StoryShareCardView(post: post)
         }
+        .alert("Report submitted", isPresented: $showReportConfirm) {
+            Button("OK") {}
+        } message: {
+            Text("Thanks for keeping BrickFeed safe! Our team will review this report (reason: \(lastReportReason)) within 24 hours.")
+        }
+        .alert("Block this user?", isPresented: $showBlockConfirm, presenting: blockTarget) { target in
+            Button("Block @\(target.username)", role: .destructive) {
+                postStore.blockUser(userId: target.userId, username: target.username,
+                                    reason: "Blocked from post detail comment menu")
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { target in
+            Text("All of @\(target.username)'s posts, comments, and messages will be hidden immediately.")
+        }
+    }
+
+    // MARK: - Report Comment
+
+    private func submitReport(comment: Comment, reason: String) {
+        lastReportReason = reason
+        showReportConfirm = true
+        Task {
+            let uid = UserSession.shared.uid
+            let reporterUsername = UserSession.shared.username
+            guard !uid.isEmpty else { return }
+            do {
+                try await FirebaseService.shared.reportContent(
+                    contentType:        "comment",
+                    contentId:          comment.id,
+                    reportedUserId:     comment.userId,
+                    reportedUsername:   comment.username,
+                    reportedBy:         uid,
+                    reportedByUsername: reporterUsername,
+                    reason:             reason,
+                    contextText:        comment.text
+                )
+            } catch {
+                print("[PostDetailView] Report comment error: \(error)")
+            }
+        }
     }
 
     // MARK: - Helpers
@@ -261,10 +317,20 @@ struct PostDetailView: View {
 
     private func reportPost(reason: String) {
         postStore.reportPost(post)
+        lastReportReason = reason
+        showReportConfirm = true
         Task {
             let uid = UserSession.shared.uid
+            let reporterUsername = UserSession.shared.username
             guard !uid.isEmpty else { return }
-            try? await FirebaseService.shared.reportPost(postId: post.id, reportedBy: uid, reason: reason)
+            try? await FirebaseService.shared.reportPost(
+                postId: post.id,
+                postOwnerId: post.userId,
+                postOwnerUsername: post.username,
+                reportedBy: uid,
+                reportedByUsername: reporterUsername,
+                reason: reason
+            )
         }
     }
 
@@ -434,7 +500,14 @@ struct PostDetailView: View {
                 .padding(.horizontal, 16).padding(.vertical, 24)
             } else {
                 ForEach(comments) { comment in
-                    DetailCommentRow(comment: comment)
+                    DetailCommentRow(
+                        comment: comment,
+                        onReport: { reason in submitReport(comment: comment, reason: reason) },
+                        onBlock: {
+                            blockTarget = comment
+                            showBlockConfirm = true
+                        }
+                    )
                 }
             }
 
@@ -544,6 +617,8 @@ struct PostDetailView: View {
 
 private struct DetailCommentRow: View {
     let comment: Comment
+    var onReport: ((String) -> Void)? = nil
+    var onBlock:  (() -> Void)? = nil
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -572,6 +647,32 @@ private struct DetailCommentRow: View {
                     Spacer()
                     Text(comment.timeAgo)
                         .font(.legoCaption).foregroundColor(.secondaryText)
+
+                    if onReport != nil || onBlock != nil {
+                        Menu {
+                            if let onReport {
+                                Section("Report this comment") {
+                                    Button("Inappropriate content") { onReport("Inappropriate content") }
+                                    Button("Bullying or harassment") { onReport("Bullying or harassment") }
+                                    Button("Spam") { onReport("Spam") }
+                                }
+                            }
+                            if let onBlock {
+                                Section {
+                                    Button(role: .destructive) {
+                                        onBlock()
+                                    } label: {
+                                        Label("Block @\(comment.username)", systemImage: "hand.raised.fill")
+                                    }
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(.secondaryText)
+                                .padding(.horizontal, 6)
+                        }
+                    }
                 }
                 Text(comment.text)
                     .font(.legoBody).foregroundColor(.lightText)

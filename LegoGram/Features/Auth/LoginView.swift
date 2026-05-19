@@ -214,3 +214,182 @@ struct LoginView: View {
 #Preview {
     LoginView()
 }
+
+// MARK: - EULA Agreement Gate (Apple Guideline 1.2)
+//
+// Shown by ContentView whenever `eulaAccepted == false`. This is the
+// EXPLICIT agreement gate Apple requires before a user can register OR
+// log in — the passive "by signing in you agree" line on the login
+// screen is not sufficient on its own. We surface Apple's standard EULA
+// (Licensed Application End User License Agreement, Schedule 1 of the
+// Apple Developer Program), our own Privacy Policy, and the in-app
+// Terms of Service; the user must tap "I Agree" before LoginView is
+// shown. The acceptance is persisted in UserDefaults (eulaAccepted)
+// and, on first sign-in, mirrored to the user's Firestore record by
+// ContentView so we have a per-user record of consent.
+
+struct EULAAgreementView: View {
+
+    @AppStorage("eulaAccepted") private var eulaAccepted = false
+
+    @State private var hasCheckedAgree = false
+    @State private var showPrivacy = false
+    @State private var showTerms   = false
+    @State private var showAppleEULA = false
+
+    // Apple's standard licensed-application EULA (kept verbatim, summarized).
+    private let appleEULAURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
+    private let privacyURL   = URL(string: "https://blockmasterjames-cyber.github.io/brickfeed-legal/privacy")!
+    private let termsURL     = URL(string: "https://blockmasterjames-cyber.github.io/brickfeed-legal/terms")!
+
+    var body: some View {
+        ZStack {
+            Color.darkBackground.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                // Header
+                VStack(spacing: 14) {
+                    BrickFeedLogo()
+                        .scaleEffect(1.2)
+                        .padding(.top, 40)
+
+                    Text("Welcome to BrickFeed")
+                        .font(.legoScreenTitle)
+                        .foregroundColor(.lightText)
+
+                    Text("Before you continue, please review and agree to the terms below.")
+                        .font(.legoBody)
+                        .foregroundColor(.secondaryText)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                }
+                .padding(.bottom, 16)
+
+                // Scrollable EULA / community rules summary
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 14) {
+
+                        ruleHeader("Community Rules", icon: "person.3.fill")
+                        rule("No objectionable content — no bullying, hate speech, harassment, sexual content, violence, or anything inappropriate for kids.")
+                        rule("No spam, scams, or impersonation.")
+                        rule("Be respectful — this app is built around LEGO® building and is welcoming to kids.")
+
+                        ruleHeader("Zero Tolerance", icon: "exclamationmark.shield.fill")
+                        rule("Objectionable content and abusive users are removed within 24 hours of being reported.")
+                        rule("You can report any post, comment, or message using the flag icon.")
+                        rule("You can block any user from their profile or from any of their content — blocking is instant and persists across devices.")
+
+                        ruleHeader("End User License Agreement", icon: "doc.text.fill")
+                        Text("BrickFeed is licensed under Apple's standard Licensed Application End User License Agreement (EULA). By tapping \"I Agree\" you accept that EULA, BrickFeed's Terms of Service, and BrickFeed's Privacy Policy.")
+                            .font(.legoBody).foregroundColor(.lightText)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        VStack(spacing: 8) {
+                            documentLink("View Apple's Standard EULA") { showAppleEULA = true }
+                            documentLink("View BrickFeed Terms of Service") { showTerms = true }
+                            documentLink("View BrickFeed Privacy Policy") { showPrivacy = true }
+                        }
+                        .padding(.top, 4)
+
+                        Color.clear.frame(height: 8)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                }
+                .background(Color.cardBackground)
+                .cornerRadius(16)
+                .padding(.horizontal, 16)
+
+                // Agree checkbox + button
+                VStack(spacing: 14) {
+                    Button {
+                        hasCheckedAgree.toggle()
+                    } label: {
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: hasCheckedAgree ? "checkmark.square.fill" : "square")
+                                .font(.system(size: 22))
+                                .foregroundColor(hasCheckedAgree ? .legoYellow : .secondaryText)
+                            Text("I have read and agree to the End User License Agreement, Terms of Service, and Privacy Policy. I understand that BrickFeed does not tolerate objectionable content or abusive users.")
+                                .font(.legoCaption)
+                                .foregroundColor(.lightText)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Spacer(minLength: 0)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 16)
+
+                    Button {
+                        eulaAccepted = true
+                    } label: {
+                        Text("I Agree — Continue")
+                            .font(.legoCardTitle)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 52)
+                            .background(hasCheckedAgree ? Color.legoRed : Color.legoRed.opacity(0.35))
+                            .cornerRadius(14)
+                    }
+                    .disabled(!hasCheckedAgree)
+                    .padding(.horizontal, 16)
+                }
+                .padding(.top, 16)
+                .padding(.bottom, 32)
+            }
+        }
+        .preferredColorScheme(.dark)
+        .sheet(isPresented: $showPrivacy)   { SafariWebView(url: privacyURL) }
+        .sheet(isPresented: $showTerms)     { SafariWebView(url: termsURL) }
+        .sheet(isPresented: $showAppleEULA) { SafariWebView(url: appleEULAURL) }
+    }
+
+    // MARK: - Helpers
+
+    private func ruleHeader(_ title: String, icon: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon).foregroundColor(.legoYellow)
+            Text(title)
+                .font(.legoCardTitle)
+                .foregroundColor(.legoYellow)
+        }
+        .padding(.top, 6)
+    }
+
+    private func rule(_ text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 14))
+                .foregroundColor(.successGreen)
+                .padding(.top, 2)
+            Text(text)
+                .font(.legoBody)
+                .foregroundColor(.lightText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func documentLink(_ label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Image(systemName: "arrow.up.right.square.fill")
+                    .foregroundColor(.legoYellow)
+                Text(label)
+                    .font(.legoBody)
+                    .foregroundColor(.legoYellow)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundColor(.secondaryText)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color.darkBackground)
+            .cornerRadius(10)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+#Preview("EULA") {
+    EULAAgreementView()
+}

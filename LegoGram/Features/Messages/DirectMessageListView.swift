@@ -9,9 +9,23 @@ struct DirectMessageListView: View {
 
     @ObservedObject private var dmStore = DMStore.shared
     @ObservedObject private var appState = AppState.shared
+    @ObservedObject private var postStore = PostStore.shared
     @Environment(\.dismiss) private var dismiss
 
     @State private var showingNewMessage = false
+    @State private var showReportConfirm = false
+    @State private var showBlockConfirm  = false
+    @State private var pendingBlock: DMConversation?
+    @State private var lastReportReason = ""
+
+    /// Conversations filtered to exclude those with blocked users. The filter
+    /// is applied at render time so blocking takes effect instantly without
+    /// requiring a Firestore round trip.
+    private var visibleConversations: [DMConversation] {
+        dmStore.conversations.filter {
+            !postStore.isBlocked(userId: $0.otherUserId, username: $0.otherUsername)
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -129,7 +143,7 @@ struct DirectMessageListView: View {
 
     private var conversationList: some View {
         Group {
-            if dmStore.conversations.isEmpty {
+            if visibleConversations.isEmpty {
                 VStack(spacing: 16) {
                     Spacer()
                     Image(systemName: "bubble.left.and.bubble.right")
@@ -156,17 +170,90 @@ struct DirectMessageListView: View {
                 }
             } else {
                 List {
-                    ForEach(dmStore.conversations) { conversation in
+                    ForEach(visibleConversations) { conversation in
                         NavigationLink(destination: DirectMessageThreadView(conversation: conversation)) {
                             ConversationRow(conversation: conversation)
                         }
                         .listRowBackground(Color.cardBackground)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                pendingBlock = conversation
+                                showBlockConfirm = true
+                            } label: {
+                                Label("Block", systemImage: "hand.raised.fill")
+                            }
+                            Button {
+                                submitReport(conversation: conversation, reason: "Reported from DM list")
+                            } label: {
+                                Label("Report", systemImage: "flag.fill")
+                            }
+                            .tint(.orange)
+                        }
+                        .contextMenu {
+                            Section("Report this conversation") {
+                                Button("Inappropriate content") {
+                                    submitReport(conversation: conversation, reason: "Inappropriate content")
+                                }
+                                Button("Bullying or harassment") {
+                                    submitReport(conversation: conversation, reason: "Bullying or harassment")
+                                }
+                                Button("Spam") {
+                                    submitReport(conversation: conversation, reason: "Spam")
+                                }
+                            }
+                            Section {
+                                Button(role: .destructive) {
+                                    pendingBlock = conversation
+                                    showBlockConfirm = true
+                                } label: {
+                                    Label("Block @\(conversation.otherUsername)",
+                                          systemImage: "hand.raised.fill")
+                                }
+                            }
+                        }
                     }
                 }
                 .listStyle(.plain)
                 .background(Color.darkBackground)
                 .scrollContentBackground(.hidden)
             }
+        }
+        .alert("Report submitted", isPresented: $showReportConfirm) {
+            Button("OK") {}
+        } message: {
+            Text("Thanks for keeping BrickFeed safe! Our team will review this conversation (reason: \(lastReportReason)) within 24 hours.")
+        }
+        .alert("Block this user?", isPresented: $showBlockConfirm, presenting: pendingBlock) { conv in
+            Button("Block @\(conv.otherUsername)", role: .destructive) {
+                postStore.blockUser(userId: conv.otherUserId,
+                                    username: conv.otherUsername,
+                                    reason: "Blocked from DM list")
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { conv in
+            Text("All of @\(conv.otherUsername)'s messages, posts, and comments will be hidden immediately. The block persists across devices and app restarts.")
+        }
+    }
+
+    // MARK: - Report Conversation
+
+    private func submitReport(conversation: DMConversation, reason: String) {
+        lastReportReason = reason
+        showReportConfirm = true
+        Task {
+            let uid = UserSession.shared.uid
+            let reporterUsername = UserSession.shared.username
+            guard !uid.isEmpty else { return }
+            try? await FirebaseService.shared.reportContent(
+                contentType:        "dm_thread",
+                contentId:          conversation.id,
+                reportedUserId:     conversation.otherUserId,
+                reportedUsername:   conversation.otherUsername,
+                reportedBy:         uid,
+                reportedByUsername: reporterUsername,
+                reason:             reason,
+                contextText:        conversation.lastMessagePreview
+            )
         }
     }
 }
