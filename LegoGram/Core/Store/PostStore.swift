@@ -225,12 +225,20 @@ final class PostStore: ObservableObject {
     // MARK: - Comment Utilities
 
     /// Replaces comments for a specific post (called after Firestore fetch).
+    ///
+    /// Bug-17 follow-up: previously this unconditionally wrote
+    /// `posts[index].commentCount = comments.count`, which destructively
+    /// zeroed the denormalized count whenever a fetch returned an empty array
+    /// (race against the seeder, transient permission failure, etc.). The
+    /// zeroed count then persisted across the feed and survived navigating
+    /// back. We now only update the stored count when the fetch actually
+    /// returned comments — an empty result is treated as a no-op, leaving the
+    /// authoritative `comment_count` on the post intact.
     func setComments(_ comments: [Comment], for postId: String) {
         self.comments[postId] = comments
-        // Sync comment count
-        if let index = posts.firstIndex(where: { $0.id == postId }) {
-            posts[index].commentCount = comments.count
-        }
+        guard !comments.isEmpty,
+              let index = posts.firstIndex(where: { $0.id == postId }) else { return }
+        posts[index].commentCount = comments.count
     }
 
     // MARK: - Infinite Scroll

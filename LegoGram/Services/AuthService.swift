@@ -228,6 +228,14 @@ final class AuthService: ObservableObject {
         // immediately, without waiting for the next view appear.
         await DMStore.shared.loadFromFirestore(currentUserId: reviewerUID)
         print("[AuthService] Demo seeding complete. DMStore now has \(DMStore.shared.conversations.count) conversations.")
+
+        // Seed OG comment documents to /comments so every post's denormalized
+        // comment_count is backed by real Firestore documents. Same idempotent
+        // pattern (deterministic IDs + existence check) as the conversation
+        // seed above. Runs on every demo activation including the auto-restored
+        // session on launch, so the reviewer never sees a post that shows
+        // "5 comments" and opens to an empty list.
+        await OGAccountsService.shared.seedDemoCommentsToFirestoreIfNeeded()
     }
 
     // =========================================================================
