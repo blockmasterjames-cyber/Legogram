@@ -86,6 +86,11 @@ final class AuthService: ObservableObject {
 
         try await FirebaseService.shared.saveUser(newUser)
 
+        // Persist EULA acceptance to the new user's record so we have a
+        // per-account record of consent (Apple Guideline 1.2).
+        try? await FirebaseService.shared.saveEULAAcceptance(userId: uid)
+        UserDefaults.standard.set(true, forKey: "eulaAccepted")
+
         UserDefaults.standard.set(username, forKey: "profile_username")
         UserDefaults.standard.set(displayName, forKey: "profile_displayName")
         if isUnder13 {

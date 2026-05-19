@@ -13,6 +13,10 @@ struct CommentSheetView: View {
     @State private var isSubmitting = false
     @State private var isLoading = false
     @State private var badWordWarning = false
+    @State private var blockTarget: Comment?
+    @State private var showReportConfirm = false
+    @State private var showBlockConfirm  = false
+    @State private var lastReportReason  = ""
     @FocusState private var commentFocused: Bool
 
     private var comments: [Comment] {
@@ -48,7 +52,11 @@ struct CommentSheetView: View {
                         ScrollView {
                             LazyVStack(spacing: 0) {
                                 ForEach(comments) { comment in
-                                    CommentRow(comment: comment)
+                                    CommentRow(
+                                        comment: comment,
+                                        onReport: { reason in submitReport(comment: comment, reason: reason) },
+                                        onBlock:  { blockTarget = comment; showBlockConfirm = true }
+                                    )
                                     Divider().background(Color.secondaryText.opacity(0.15))
                                 }
                             }
@@ -75,6 +83,46 @@ struct CommentSheetView: View {
             }
         }
         .onAppear { loadComments() }
+        .alert("Report submitted", isPresented: $showReportConfirm) {
+            Button("OK") {}
+        } message: {
+            Text("Thanks for keeping BrickFeed safe! Our team will review this comment (reason: \(lastReportReason)) within 24 hours.")
+        }
+        .alert("Block this user?", isPresented: $showBlockConfirm, presenting: blockTarget) { target in
+            Button("Block @\(target.username)", role: .destructive) {
+                postStore.blockUser(userId: target.userId, username: target.username,
+                                    reason: "Blocked from comment menu")
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { target in
+            Text("All of @\(target.username)'s posts, comments, and messages will be hidden immediately.")
+        }
+    }
+
+    // MARK: - Report Comment
+
+    private func submitReport(comment: Comment, reason: String) {
+        lastReportReason = reason
+        showReportConfirm = true
+        Task {
+            let uid = userSession.uid
+            let reporterUsername = userSession.username
+            guard !uid.isEmpty else { return }
+            do {
+                try await FirebaseService.shared.reportContent(
+                    contentType:        "comment",
+                    contentId:          comment.id,
+                    reportedUserId:     comment.userId,
+                    reportedUsername:   comment.username,
+                    reportedBy:         uid,
+                    reportedByUsername: reporterUsername,
+                    reason:             reason,
+                    contextText:        comment.text
+                )
+            } catch {
+                print("[CommentSheetView] Report error: \(error)")
+            }
+        }
     }
 
     // MARK: - Header
@@ -222,6 +270,8 @@ struct CommentSheetView: View {
 
 struct CommentRow: View {
     let comment: Comment
+    var onReport: ((String) -> Void)? = nil
+    var onBlock:  (() -> Void)? = nil
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -258,6 +308,36 @@ struct CommentRow: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
+
+            // Report / Block menu — required on every comment by Apple
+            // Guideline 1.2. Hidden when no handlers are supplied so the
+            // existing CommentRow callers used in other read-only contexts
+            // (e.g. previews) keep working unchanged.
+            if onReport != nil || onBlock != nil {
+                Menu {
+                    if let onReport {
+                        Section("Report this comment") {
+                            Button("Inappropriate content") { onReport("Inappropriate content") }
+                            Button("Bullying or harassment") { onReport("Bullying or harassment") }
+                            Button("Spam") { onReport("Spam") }
+                        }
+                    }
+                    if let onBlock {
+                        Section {
+                            Button(role: .destructive) {
+                                onBlock()
+                            } label: {
+                                Label("Block @\(comment.username)", systemImage: "hand.raised.fill")
+                            }
+                        }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.secondaryText)
+                        .padding(.horizontal, 4)
+                }
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)

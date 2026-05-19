@@ -395,23 +395,41 @@ final class FirebaseService: ObservableObject {
         )
     }
 
+    /// Fetches all comments for a post from the top-level `/comments` collection.
+    ///
+    /// Build 16 rejection root cause: the previous implementation paired
+    /// `.whereField("post_id", isEqualTo: postId)` with `.order(by: "posted_date")`,
+    /// which requires a Firestore composite index. On a fresh device that index
+    /// did not exist, so the query failed silently and the sheet displayed zero
+    /// comments while the denormalized `comment_count` on the post still showed
+    /// "5 comments". We now drop the server-side ordering and sort client-side,
+    /// removing the composite-index dependency entirely.
     func fetchComments(for postId: String) async throws -> [Comment] {
-        let snap = try await db.collection("comments")
-            .whereField("post_id", isEqualTo: postId)
-            .order(by: "posted_date")
-            .getDocuments()
-        return snap.documents.compactMap { doc in
-            let data = doc.data()
-            let date = (data["posted_date"] as? Timestamp)?.dateValue() ?? Date()
-            return Comment(
-                id: doc.documentID,
-                postId: data["post_id"] as? String ?? postId,
-                userId: data["user_id"] as? String ?? "",
-                username: data["username"] as? String ?? "",
-                text: data["text"] as? String ?? "",
-                avatarURL: data["avatar_url"] as? String ?? "",
-                postedDate: date
-            )
+        print("[FirebaseService] fetchComments — START path=/comments postId=\(postId)")
+        do {
+            let snap = try await db.collection("comments")
+                .whereField("post_id", isEqualTo: postId)
+                .getDocuments()
+            let comments: [Comment] = snap.documents.compactMap { doc in
+                let data = doc.data()
+                let date = (data["posted_date"] as? Timestamp)?.dateValue() ?? Date()
+                return Comment(
+                    id: doc.documentID,
+                    postId: data["post_id"] as? String ?? postId,
+                    userId: data["user_id"] as? String ?? "",
+                    username: data["username"] as? String ?? "",
+                    text: data["text"] as? String ?? "",
+                    avatarURL: data["avatar_url"] as? String ?? "",
+                    postedDate: date
+                )
+            }
+            .sorted { $0.postedDate < $1.postedDate }
+            print("[FirebaseService] fetchComments — OK postId=\(postId) returned \(comments.count) comments")
+            return comments
+        } catch {
+            print("[FirebaseService] fetchComments — ERROR postId=\(postId) error=\(error.localizedDescription)")
+            print("[FirebaseService] fetchComments — full error: \(error)")
+            throw error
         }
     }
 
@@ -447,17 +465,130 @@ final class FirebaseService: ObservableObject {
     }
 
     // =========================================================================
-    // MARK: - Reports
+    // MARK: - Reports (Apple Guideline 1.2 — UGC safety)
     // =========================================================================
 
-    func reportPost(postId: String, reportedBy: String, reason: String) async throws {
+    /// Generic report writer. Used by every "Report" control in the app
+    /// (posts, comments, DM messages, DM threads, and the synthetic "block"
+    /// report). Writes one document to /reports containing every field Apple
+    /// asks moderators to be able to act on.
+    func reportContent(
+        contentType: String,
+        contentId: String,
+        reportedUserId: String,
+        reportedUsername: String,
+        reportedBy: String,
+        reportedByUsername: String,
+        reason: String,
+        contextText: String = ""
+    ) async throws {
         let data: [String: Any] = [
-            "post_id":     postId,
-            "reported_by": reportedBy,
-            "reason":      reason,
-            "reported_at": Timestamp(date: Date())
+            "content_type":         contentType,
+            "content_id":           contentId,
+            "reported_user_id":     reportedUserId,
+            "reported_username":    reportedUsername,
+            "reported_by":          reportedBy,
+            "reported_by_username": reportedByUsername,
+            "reason":               reason,
+            "context_text":         contextText,
+            "reported_at":          Timestamp(date: Date())
         ]
         try await db.collection("reports").addDocument(data: data)
+        print("[FirebaseService] reportContent ✓ type=\(contentType) id=\(contentId) by=\(reportedBy) reason=\(reason)")
+    }
+
+    /// Convenience wrapper kept for call sites that already report posts.
+    func reportPost(postId: String, postOwnerId: String = "", postOwnerUsername: String = "",
+                    reportedBy: String, reportedByUsername: String = "", reason: String) async throws {
+        try await reportContent(
+            contentType: "post",
+            contentId: postId,
+            reportedUserId: postOwnerId,
+            reportedUsername: postOwnerUsername,
+            reportedBy: reportedBy,
+            reportedByUsername: reportedByUsername,
+            reason: reason
+        )
+    }
+
+    // =========================================================================
+    // MARK: - Blocking (Apple Guideline 1.2 — UGC safety)
+    // =========================================================================
+
+    /// Persists a block from `currentUserId` against `targetUserId` and writes
+    /// a moderation record to /reports so the developer is notified of the
+    /// inappropriate content. The block is stored under
+    /// /users/{currentUserId}/blocked_users/{targetUserId} so it is loaded into
+    /// the app on every fresh launch — content stays hidden across devices.
+    func blockUser(
+        currentUserId: String,
+        currentUsername: String,
+        targetUserId: String,
+        targetUsername: String,
+        reason: String = "User blocked"
+    ) async throws {
+        guard !currentUserId.isEmpty, !targetUserId.isEmpty else { return }
+        let data: [String: Any] = [
+            "blocked_user_id":   targetUserId,
+            "blocked_username":  targetUsername,
+            "blocked_at":        Timestamp(date: Date())
+        ]
+        try await db.collection("users").document(currentUserId)
+            .collection("blocked_users").document(targetUserId).setData(data)
+
+        // Also create a moderation report so the developer can act on it.
+        try? await reportContent(
+            contentType: "block",
+            contentId: targetUserId,
+            reportedUserId: targetUserId,
+            reportedUsername: targetUsername,
+            reportedBy: currentUserId,
+            reportedByUsername: currentUsername,
+            reason: reason
+        )
+        print("[FirebaseService] blockUser ✓ \(currentUserId) blocked \(targetUserId) (@\(targetUsername))")
+    }
+
+    func unblockUser(currentUserId: String, targetUserId: String) async throws {
+        guard !currentUserId.isEmpty, !targetUserId.isEmpty else { return }
+        try await db.collection("users").document(currentUserId)
+            .collection("blocked_users").document(targetUserId).delete()
+        print("[FirebaseService] unblockUser ✓ \(currentUserId) unblocked \(targetUserId)")
+    }
+
+    /// Returns every (userId, username) the current user has blocked. Called on
+    /// app start so the in-memory PostStore filter applies before any feed or
+    /// DM list query renders content.
+    func fetchBlockedUsers(userId: String) async throws -> [(id: String, username: String)] {
+        guard !userId.isEmpty else { return [] }
+        let snap = try await db.collection("users").document(userId)
+            .collection("blocked_users")
+            .getDocuments()
+        let result: [(id: String, username: String)] = snap.documents.map { doc in
+            let data = doc.data()
+            return (
+                id: data["blocked_user_id"] as? String ?? doc.documentID,
+                username: data["blocked_username"] as? String ?? ""
+            )
+        }
+        print("[FirebaseService] fetchBlockedUsers — userId=\(userId) returned \(result.count) blocked users")
+        return result
+    }
+
+    // =========================================================================
+    // MARK: - EULA Acceptance (Apple Guideline 1.2 — UGC safety)
+    // =========================================================================
+
+    /// Records that the user has explicitly agreed to the EULA / Terms.
+    /// Persisted so the developer can prove acceptance per-user.
+    func saveEULAAcceptance(userId: String) async throws {
+        guard !userId.isEmpty else { return }
+        let data: [String: Any] = [
+            "eula_accepted":    true,
+            "eula_accepted_at": Timestamp(date: Date())
+        ]
+        try await db.collection("users").document(userId)
+            .setData(data, merge: true)
     }
 
     // =========================================================================

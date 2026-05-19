@@ -14,6 +14,8 @@ struct OtherProfileView: View {
     @State private var showingBlockedConfirm = false
     @State private var showingMessageThread = false
     @State private var dmConversation: DMConversation?
+    @State private var showReportConfirm = false
+    @State private var lastReportReason  = ""
 
     private var theirPosts: [LegoPost] {
         postStore.posts.filter { $0.username == username }
@@ -82,10 +84,18 @@ struct OtherProfileView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
-                    Button(role: .destructive) {
-                        showingBlockAlert = true
-                    } label: {
-                        Label("Block @\(username)", systemImage: "hand.raised.fill")
+                    Section("Report this user") {
+                        Button("Inappropriate content") { submitReport(reason: "Inappropriate content") }
+                        Button("Bullying or harassment") { submitReport(reason: "Bullying or harassment") }
+                        Button("Spam") { submitReport(reason: "Spam") }
+                        Button("Impersonation") { submitReport(reason: "Impersonation") }
+                    }
+                    Section {
+                        Button(role: .destructive) {
+                            showingBlockAlert = true
+                        } label: {
+                            Label("Block @\(username)", systemImage: "hand.raised.fill")
+                        }
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -96,17 +106,53 @@ struct OtherProfileView: View {
         // Block confirmation
         .alert("Block @\(username)?", isPresented: $showingBlockAlert) {
             Button("Block", role: .destructive) {
-                postStore.blockUser(username)
+                postStore.blockUser(userId: targetUserId, username: username,
+                                    reason: "Blocked from profile")
                 showingBlockedConfirm = true
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Blocking this user will hide all of their posts from your feed. You can unblock them in Settings.")
+            Text("Blocking this user will instantly hide all of their posts, comments, and messages from you. The block persists across devices and app restarts.")
         }
         .alert("@\(username) has been blocked.", isPresented: $showingBlockedConfirm) {
             Button("OK") {}
         } message: {
-            Text("You won't see their posts anymore. Thanks for keeping BrickFeed safe!")
+            Text("You won't see their content anymore. Thanks for keeping BrickFeed safe!")
+        }
+        .alert("Report submitted", isPresented: $showReportConfirm) {
+            Button("OK") {}
+        } message: {
+            Text("Thanks for keeping BrickFeed safe! Our team will review @\(username) (reason: \(lastReportReason)) within 24 hours.")
+        }
+    }
+
+    /// Resolves the userId for the displayed username. Prefers OGAccountsService
+    /// (where most usernames come from), then falls back to the first matching
+    /// post's user_id. Empty string if neither is available — Firestore block
+    /// still gets written using the username-only path in PostStore.
+    private var targetUserId: String {
+        if let og = OGAccountsService.ogAccounts.first(where: { $0.username == username }) {
+            return og.id
+        }
+        return postStore.posts.first(where: { $0.username == username })?.userId ?? ""
+    }
+
+    private func submitReport(reason: String) {
+        lastReportReason = reason
+        showReportConfirm = true
+        Task {
+            let uid = UserSession.shared.uid
+            let reporterUsername = UserSession.shared.username
+            guard !uid.isEmpty else { return }
+            try? await FirebaseService.shared.reportContent(
+                contentType:        "user",
+                contentId:          targetUserId.isEmpty ? username : targetUserId,
+                reportedUserId:     targetUserId,
+                reportedUsername:   username,
+                reportedBy:         uid,
+                reportedByUsername: reporterUsername,
+                reason:             reason
+            )
         }
     }
 

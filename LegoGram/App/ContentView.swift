@@ -16,6 +16,13 @@ struct ContentView: View {
 
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
+    /// Set to true ONLY after the user explicitly taps "I Agree" on the
+    /// EULAAgreementView. Apple Guideline 1.2 requires an explicit agreement
+    /// gate before a user can sign up OR sign in — passive Terms text is not
+    /// sufficient. This flag persists in UserDefaults so the gate is shown
+    /// once per device and enforced on every fresh install.
+    @AppStorage("eulaAccepted") private var eulaAccepted = false
+
     var body: some View {
         ZStack(alignment: .top) {
             Group {
@@ -30,7 +37,13 @@ struct ContentView: View {
                     }
 
                 case .loggedIn:
-                    if authService.needsAppleProfileSetup {
+                    if !eulaAccepted {
+                        // Existing signed-in user who hasn't yet accepted the
+                        // EULA gate (e.g. they updated the app). Apple Guideline
+                        // 1.2 requires explicit agreement before account use, so
+                        // we enforce it before MainTabView renders.
+                        EULAAgreementView()
+                    } else if authService.needsAppleProfileSetup {
                         // New Apple Sign In user — must complete username + birthday setup
                         AppleSignInSetupView()
                     } else if !hasSeenOnboarding {
@@ -42,7 +55,11 @@ struct ContentView: View {
                     }
 
                 case .loggedOut:
-                    LoginView()
+                    if eulaAccepted {
+                        LoginView()
+                    } else {
+                        EULAAgreementView()
+                    }
                 }
             }
 
@@ -102,6 +119,19 @@ struct ContentView: View {
                         }
                     }
 
+                    // Load blocked users from Firestore so the content filter
+                    // applies before any feed / DM / comment query renders.
+                    // Apple Guideline 1.2 requires blocks to persist across
+                    // launches and apply on a fresh device — this is the load
+                    // path that makes that work.
+                    await PostStore.shared.loadBlockedUsers(currentUserId: user.uid)
+
+                    // Persist EULA acceptance to the user's Firestore doc so
+                    // the developer has a record of the explicit agreement.
+                    if UserDefaults.standard.bool(forKey: "eulaAccepted") {
+                        try? await FirebaseService.shared.saveEULAAcceptance(userId: user.uid)
+                    }
+
                     // Load Firestore posts into feed
                     do {
                         let posts = try await FirebaseService.shared.fetchFeedPosts()
@@ -127,6 +157,8 @@ struct ContentView: View {
                     PostStore.shared.followingUsernames.removeAll()
                     PostStore.shared.posts.removeAll()
                     PostStore.shared.likedPostIDs.removeAll()
+                    PostStore.shared.blockedUserIDs.removeAll()
+                    PostStore.shared.blockedUsers.removeAll()
                 }
             }
         }
