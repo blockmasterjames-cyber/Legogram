@@ -210,4 +210,84 @@ final class OGAccountsService {
             store.posts = userPosts + Self.ogPosts
         }
     }
+
+    // =========================================================================
+    // MARK: - Demo Comment Seeding
+    // =========================================================================
+
+    /// Kid-appropriate, LEGO-themed comment lines used to populate the OG
+    /// posts. The seed picks N entries per post (N = `post.commentCount`) and
+    /// rotates through them so every post gets a varied, realistic thread.
+    private static let demoCommentTexts: [String] = [
+        "This build is incredible! 🧱",
+        "How long did this take you?",
+        "Wow, the details are amazing!",
+        "I have this set too — love it!",
+        "Adding this to my wishlist 🤩",
+        "Best build I've seen all week 🔥",
+        "Did you follow the instructions or freestyle?",
+        "Looks even better in person I bet!",
+        "Super clean work, nice job!",
+        "Goals 🙌",
+        "My little brother would lose his mind over this.",
+        "Display shelf material right here.",
+        "The colors really pop on this one.",
+        "How many pieces was it again?",
+        "Saving this for inspiration!"
+    ]
+
+    /// Seeds the `/comments` collection with real comment documents that match
+    /// the denormalized `comment_count` on each OG post. The post documents
+    /// themselves never lived in Firestore (the feed falls back to the static
+    /// `ogPosts` list), so the comments are written *to* the same global
+    /// `/comments` collection that `FirebaseService.fetchComments(for:)` reads
+    /// from — that's the only path the comment UI uses.
+    ///
+    /// Idempotent: each comment has a deterministic ID
+    /// `ogcomment-{postId}-{n}`; the seed checks `getDocument().exists` before
+    /// writing, so re-running on the reviewer's auto-restored session never
+    /// duplicates a comment.
+    func seedDemoCommentsToFirestoreIfNeeded() async {
+        print("[OGAccountsService] Checking if OG comments need seeding to Firestore...")
+        var seeded = 0
+        var skipped = 0
+        for post in Self.ogPosts {
+            let count = post.commentCount
+            guard count > 0 else { continue }
+
+            // Authors are every OG account EXCEPT the one who owns the post,
+            // so a thread never has the author commenting on their own build.
+            let candidates = Self.ogAccounts.filter { $0.username != post.username }
+            guard !candidates.isEmpty else { continue }
+
+            for n in 0..<count {
+                let commentId = "ogcomment-\(post.id)-\(n)"
+                do {
+                    let doc = try await db.collection("comments").document(commentId).getDocument()
+                    if doc.exists {
+                        skipped += 1
+                        continue
+                    }
+                    let commenter = candidates[n % candidates.count]
+                    let text      = Self.demoCommentTexts[n % Self.demoCommentTexts.count]
+                    // Stagger posted_date so the client-side sort is stable
+                    // and the thread reads chronologically.
+                    let postedDate = post.postedDate.addingTimeInterval(TimeInterval(60 * (n + 1)))
+                    let data: [String: Any] = [
+                        "post_id":     post.id,
+                        "user_id":     commenter.id,
+                        "username":    commenter.username,
+                        "text":        text,
+                        "avatar_url":  "",
+                        "posted_date": FirebaseFirestore.Timestamp(date: postedDate)
+                    ]
+                    try await db.collection("comments").document(commentId).setData(data)
+                    seeded += 1
+                } catch {
+                    print("[OGAccountsService] Could not seed \(commentId): \(error.localizedDescription)")
+                }
+            }
+        }
+        print("[OGAccountsService] OG comment seeding complete — wrote \(seeded), skipped \(skipped) existing.")
+    }
 }

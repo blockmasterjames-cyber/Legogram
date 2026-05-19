@@ -49,7 +49,7 @@ struct HomeView: View {
                             } else {
                                 if !followedPosts.isEmpty {
                                     LazyVGrid(columns: gridColumns(for: geo.size.width), spacing: 16) {
-                                        ForEach(followedPosts) { post in
+                                        ForEach(followedPosts, id: \.id) { post in
                                             PostCard(
                                                 post: post,
                                                 showFollowButton: true,
@@ -66,7 +66,7 @@ struct HomeView: View {
                                 if !recommendedPosts.isEmpty {
                                     recommendedHeader
                                     LazyVGrid(columns: gridColumns(for: geo.size.width), spacing: 16) {
-                                        ForEach(recommendedPosts) { post in
+                                        ForEach(recommendedPosts, id: \.id) { post in
                                             PostCard(
                                                 post: post,
                                                 showFollowButton: true,
