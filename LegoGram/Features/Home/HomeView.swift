@@ -266,8 +266,6 @@ struct PostCard: View {
             // MARK: Square Image / Video (or Carousel)
             ZStack(alignment: .topTrailing) {
                 cardMediaArea
-                    .onTapGesture(count: 2) { handleDoubleTap() }
-                    .onTapGesture(count: 1) { onTap() }
 
                 if post.isVideoPost {
                     Image(systemName: "play.circle.fill")
@@ -438,6 +436,9 @@ struct PostCard: View {
         }
         .background(Color.cardBackground)
         .cornerRadius(16)
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) { handleDoubleTap() }
+        .onTapGesture(count: 1) { onTap() }
         .shadow(color: .black.opacity(0.35), radius: 10, x: 0, y: 4)
         .padding(.horizontal, 16)
         .alert("Report submitted", isPresented: $showReportConfirm) {
