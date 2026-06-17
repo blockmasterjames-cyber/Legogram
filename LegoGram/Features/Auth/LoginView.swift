@@ -270,9 +270,9 @@ struct EULAAgreementView: View {
                     VStack(alignment: .leading, spacing: 14) {
 
                         ruleHeader("Community Rules", icon: "person.3.fill")
-                        rule("No objectionable content — no bullying, hate speech, harassment, sexual content, violence, or anything inappropriate for kids.")
+                        rule("No objectionable content — no bullying, hate speech, harassment, sexual content, violence, or anything inappropriate for a general audience.")
                         rule("No spam, scams, or impersonation.")
-                        rule("Be respectful — this app is built around LEGO® building and is welcoming to kids.")
+                        rule("Be respectful — this app is built around LEGO® building and is welcoming to builders of all ages.")
 
                         ruleHeader("Zero Tolerance", icon: "exclamationmark.shield.fill")
                         rule("Objectionable content and abusive users are removed within 24 hours of being reported.")

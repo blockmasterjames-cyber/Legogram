@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The account creation screen.
-/// Birthday is required for COPPA compliance. Under-13 users get Kid Safe Mode automatically.
+/// Birthday is required for COPPA compliance. Safe Mode is enabled automatically for accounts that require it.
 struct SignUpView: View {
 
     @Environment(\.dismiss) private var dismiss
@@ -122,12 +122,12 @@ struct SignUpView: View {
                                 .padding(.horizontal, 4)
                             }
 
-                            // Kid Safe Mode notice when under 13
+                            // Safe Mode notice
                             if showKidSafeMessage {
                                 HStack(spacing: 6) {
                                     Image(systemName: "shield.checkmark.fill")
                                         .font(.system(size: 14)).foregroundColor(.successGreen)
-                                    Text("Since you're under 13, Kid Safe Mode will be automatically enabled to keep you protected! 🛡️")
+                                    Text("Safe Mode will be turned on for your account to add extra content filtering. 🛡️")
                                         .font(.system(size: 12, design: .rounded))
                                         .foregroundColor(.successGreen)
                                         .fixedSize(horizontal: false, vertical: true)
@@ -136,7 +136,7 @@ struct SignUpView: View {
                                 .background(Color.successGreen.opacity(0.12))
                                 .cornerRadius(10)
 
-                                // Parent/guardian email — REQUIRED for under-13
+                                // Parent/guardian email — REQUIRED for accounts that need approval
                                 VStack(alignment: .leading, spacing: 6) {
                                     HStack(spacing: 6) {
                                         Image(systemName: "envelope.badge.shield.half.filled.fill")
@@ -160,7 +160,7 @@ struct SignUpView: View {
                                     .overlay(RoundedRectangle(cornerRadius: 12)
                                         .stroke(Color.legoYellow.opacity(0.5), lineWidth: 1))
 
-                                    Text("A welcome email explaining BrickFeed's safety features will be sent to your parent. Required for accounts under 13.")
+                                    Text("A welcome email explaining BrickFeed's safety features will be sent to this address.")
                                         .font(.system(size: 11, design: .rounded))
                                         .foregroundColor(.secondaryText)
                                 }
@@ -169,11 +169,11 @@ struct SignUpView: View {
                                 .cornerRadius(10)
                             }
 
-                            // COPPA notice
+                            // Optional content-filtering notice
                             HStack(spacing: 6) {
                                 Image(systemName: "shield.checkmark.fill")
                                     .font(.system(size: 12)).foregroundColor(.successGreen)
-                                Text("Users under 13 get Kid Safe Mode for extra protection")
+                                Text("Safe Mode adds extra content filtering for builders who want it")
                                     .font(.system(size: 11, design: .rounded))
                                     .foregroundColor(.secondaryText)
                             }
@@ -308,9 +308,9 @@ struct SignUpView: View {
         guard hasBirthday else {
             errorMessage = "Please select your birthday — it is required to create an account."; return
         }
-        // Parent email required for under-13
+        // Parent email required for accounts that need approval
         if isUnder13 && parentEmail.trimmingCharacters(in: .whitespaces).isEmpty {
-            errorMessage = "A parent or guardian email is required for accounts under 13."; return
+            errorMessage = "A parent or guardian email is required to finish creating this account."; return
         }
         if isUnder13 && !parentEmail.contains("@") {
             errorMessage = "Please enter a valid parent or guardian email address."; return

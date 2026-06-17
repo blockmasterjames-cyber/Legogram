@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// The Direct Messages entry point.
-/// Kid Safe Mode ON → friendly block popup
-/// Kid Safe Mode OFF → DM list with compose button (no age gate)
+/// Safe Mode ON → friendly block popup
+/// Safe Mode OFF → DM list with compose button (no age gate)
 struct DirectMessageListView: View {
 
     @AppStorage("settings_kidSafeMode") private var kidSafeMode = false
@@ -15,6 +15,8 @@ struct DirectMessageListView: View {
     @State private var showingNewMessage = false
     @State private var showReportConfirm = false
     @State private var showBlockConfirm  = false
+    @State private var showBlockedConfirm = false   // post-block confirmation (Issue 1)
+    @State private var blockedUsername   = ""
     @State private var pendingBlock: DMConversation?
     @State private var lastReportReason = ""
 
@@ -33,7 +35,7 @@ struct DirectMessageListView: View {
                 Color.darkBackground.ignoresSafeArea()
 
                 if kidSafeMode {
-                    kidSafeModeBlockView
+                    safeModeBlockView
                 } else {
                     conversationList
                 }
@@ -80,9 +82,9 @@ struct DirectMessageListView: View {
         await dmStore.loadFromFirestore(currentUserId: uid)
     }
 
-    // MARK: - Kid Safe Mode Block
+    // MARK: - Safe Mode Block
 
-    private var kidSafeModeBlockView: some View {
+    private var safeModeBlockView: some View {
         VStack(spacing: 24) {
             Spacer()
 
@@ -96,7 +98,7 @@ struct DirectMessageListView: View {
                     .foregroundColor(.lightText)
                     .multilineTextAlignment(.center)
 
-                Text("Direct Messages are turned off in Kid Safe Mode.\n\nAsk a parent or guardian to turn off Kid Safe Mode in Settings if you are old enough.")
+                Text("Direct Messages are turned off while Safe Mode is on.\n\nYou can turn Safe Mode off in Settings.")
                     .font(.legoBody)
                     .foregroundColor(.secondaryText)
                     .multilineTextAlignment(.center)
@@ -228,11 +230,14 @@ struct DirectMessageListView: View {
                 postStore.blockUser(userId: conv.otherUserId,
                                     username: conv.otherUsername,
                                     reason: "Blocked from DM list")
+                blockedUsername = conv.otherUsername
+                showBlockedConfirm = true
             }
             Button("Cancel", role: .cancel) {}
         } message: { conv in
             Text("All of @\(conv.otherUsername)'s messages, posts, and comments will be hidden immediately. The block persists across devices and app restarts.")
         }
+        .blockConfirmationAlert(username: blockedUsername, isPresented: $showBlockedConfirm)
     }
 
     // MARK: - Report Conversation

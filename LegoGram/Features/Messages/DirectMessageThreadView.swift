@@ -13,6 +13,7 @@ struct DirectMessageThreadView: View {
     @State private var messageText = ""
     @State private var showReportConfirm = false
     @State private var showBlockConfirm  = false
+    @State private var showBlockedConfirm = false   // post-block confirmation (Issue 1)
     @State private var lastReportReason = ""
     @FocusState private var inputFocused: Bool
 
@@ -91,11 +92,13 @@ struct DirectMessageThreadView: View {
                 postStore.blockUser(userId: conversation.otherUserId,
                                     username: conversation.otherUsername,
                                     reason: "Blocked from DM thread")
+                showBlockedConfirm = true
             }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("All of @\(conversation.otherUsername)'s messages, posts, and comments will be hidden immediately.")
         }
+        .blockConfirmationAlert(username: conversation.otherUsername, isPresented: $showBlockedConfirm)
     }
 
     // MARK: - Report Helpers

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A fun, kid-friendly sheet explaining how BrickFeed points are earned.
+/// A fun sheet explaining how BrickFeed points are earned.
 /// Shows current points total and leaderboard rank.
 struct PointsExplanationView: View {
 

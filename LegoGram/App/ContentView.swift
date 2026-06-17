@@ -144,6 +144,9 @@ struct ContentView: View {
                     } catch {
                         OGAccountsService.shared.loadOGPostsIfNeeded()
                     }
+                    // Initial feed load has settled — HomeView swaps the spinner
+                    // for the posts (or the real zero-state) without a scroll.
+                    PostStore.shared.isLoadingFeed = false
 
                     // Load liked post IDs from Firestore
                     let postIds = PostStore.shared.posts.map { $0.id }
@@ -159,6 +162,8 @@ struct ContentView: View {
                     PostStore.shared.likedPostIDs.removeAll()
                     PostStore.shared.blockedUserIDs.removeAll()
                     PostStore.shared.blockedUsers.removeAll()
+                    // Reset so the next sign-in shows the loading spinner again.
+                    PostStore.shared.isLoadingFeed = true
                 }
             }
         }

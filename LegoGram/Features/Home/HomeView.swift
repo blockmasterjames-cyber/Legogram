@@ -5,6 +5,7 @@ import AVKit
 struct HomeView: View {
 
     @ObservedObject private var postStore = PostStore.shared
+    @ObservedObject private var appState  = AppState.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @State private var selectedPost: LegoPost?          // navigate to post detail
@@ -26,12 +27,20 @@ struct HomeView: View {
             .sorted { $0.likeCount > $1.likeCount }
     }
 
-    private func gridColumns(for width: CGFloat) -> [GridItem] {
-        let count: Int
-        if width >= 1000 { count = 3 }
-        else if width >= 600 { count = 2 }
-        else { count = 1 }
-        return Array(repeating: GridItem(.flexible(), spacing: 16), count: count)
+    /// Adaptive columns replace the old GeometryReader-derived width math.
+    /// The `GeometryReader` that used to wrap the feed `ScrollView` was the
+    /// root cause of Issue 2: its `LazyVStack`/`LazyVGrid` were laid out once
+    /// while `posts` was still empty (the fetch runs right after sign-in) and
+    /// were NOT re-measured when the async fetch populated the feed — so the
+    /// posts stayed invisible until a scroll forced a fresh layout pass. An
+    /// adaptive grid needs no surrounding geometry, so the feed renders the
+    /// instant the posts arrive. Column count is unchanged in practice:
+    /// 1 column on iPhone, 2–3 on iPad depending on width.
+    private let feedColumns = [GridItem(.adaptive(minimum: 320, maximum: 640), spacing: 16)]
+
+    /// True only when there are genuinely no posts to show (after loading).
+    private var feedIsEmpty: Bool {
+        followedPosts.isEmpty && recommendedPosts.isEmpty
     }
 
     var body: some View {
@@ -39,59 +48,10 @@ struct HomeView: View {
             ZStack {
                 Color.darkBackground.ignoresSafeArea()
 
-                GeometryReader { geo in
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            // Pull-to-refresh is handled by .refreshable below
-
-                            if followedPosts.isEmpty && recommendedPosts.isEmpty {
-                                emptyState
-                            } else {
-                                if !followedPosts.isEmpty {
-                                    LazyVGrid(columns: gridColumns(for: geo.size.width), spacing: 16) {
-                                        ForEach(followedPosts, id: \.id) { post in
-                                            PostCard(
-                                                post: post,
-                                                showFollowButton: true,
-                                                onTap: { selectedPost = post },
-                                                onCommentTap: { commentPost = post },
-                                                onProfileTap: { selectedUsername = post.username }
-                                            )
-                                        }
-                                    }
-                                    .padding(.horizontal, horizontalSizeClass == .regular ? 16 : 0)
-                                    .padding(.top, 8)
-                                }
-
-                                if !recommendedPosts.isEmpty {
-                                    recommendedHeader
-                                    LazyVGrid(columns: gridColumns(for: geo.size.width), spacing: 16) {
-                                        ForEach(recommendedPosts, id: \.id) { post in
-                                            PostCard(
-                                                post: post,
-                                                showFollowButton: true,
-                                                onTap: { selectedPost = post },
-                                                onCommentTap: { commentPost = post },
-                                                onProfileTap: { selectedUsername = post.username }
-                                            )
-                                        }
-                                    }
-                                    .padding(.horizontal, horizontalSizeClass == .regular ? 16 : 0)
-                                }
-                            }
-
-                            infiniteScrollTrigger
-                        }
-                        .padding(.bottom, 80)
-                        .padding(.top, 8)
+                feedArea
+                    .safeAreaInset(edge: .top) {
+                        feedHeader
                     }
-                    .refreshable {
-                        await postStore.refreshPosts()
-                    }
-                }
-                .safeAreaInset(edge: .top) {
-                    feedHeader
-                }
             }
             .navigationDestination(item: $selectedPost) { post in
                 PostDetailView(post: post)
@@ -113,11 +73,104 @@ struct HomeView: View {
                 Task { await loadUnreadCount() }
             }
         }
+        // Issue 1 — after a Block confirmation anywhere in the app, AppState
+        // bumps this token. We pop the Home tab back to its feed root by
+        // clearing every pushed screen and dismissing every Home-rooted sheet,
+        // so the user always lands on the feed with the blocked user gone.
+        .onChange(of: appState.homeFeedResetToken) { _, _ in
+            returnToFeedRoot()
+        }
         .sheet(item: $commentPost) { post in
             CommentSheetView(post: post)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
+    }
+
+    // MARK: - Feed Area (loading / empty / posts)
+
+    /// Three-way feed state (Issue 2):
+    ///   • still loading + nothing yet  → centered spinner
+    ///   • genuinely no posts           → existing zero-state
+    ///   • posts available              → the grid
+    /// Swapping between these branches is a structural view change, so the
+    /// posts subtree is built fresh the moment the fetch returns — the feed no
+    /// longer waits for a scroll to appear.
+    @ViewBuilder
+    private var feedArea: some View {
+        if postStore.isLoadingFeed && feedIsEmpty {
+            loadingState
+        } else if feedIsEmpty {
+            ScrollView {
+                emptyState
+            }
+            .refreshable { await postStore.refreshPosts() }
+        } else {
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    if !followedPosts.isEmpty {
+                        LazyVGrid(columns: feedColumns, spacing: 16) {
+                            ForEach(followedPosts, id: \.id) { post in
+                                PostCard(
+                                    post: post,
+                                    showFollowButton: true,
+                                    onTap: { selectedPost = post },
+                                    onCommentTap: { commentPost = post },
+                                    onProfileTap: { selectedUsername = post.username }
+                                )
+                            }
+                        }
+                        .padding(.horizontal, horizontalSizeClass == .regular ? 16 : 0)
+                        .padding(.top, 8)
+                    }
+
+                    if !recommendedPosts.isEmpty {
+                        recommendedHeader
+                        LazyVGrid(columns: feedColumns, spacing: 16) {
+                            ForEach(recommendedPosts, id: \.id) { post in
+                                PostCard(
+                                    post: post,
+                                    showFollowButton: true,
+                                    onTap: { selectedPost = post },
+                                    onCommentTap: { commentPost = post },
+                                    onProfileTap: { selectedUsername = post.username }
+                                )
+                            }
+                        }
+                        .padding(.horizontal, horizontalSizeClass == .regular ? 16 : 0)
+                    }
+
+                    infiniteScrollTrigger
+                }
+                .padding(.bottom, 80)
+                .padding(.top, 8)
+            }
+            .refreshable {
+                await postStore.refreshPosts()
+            }
+        }
+    }
+
+    /// Centered spinner shown while the initial feed fetch is in flight.
+    private var loadingState: some View {
+        VStack {
+            Spacer()
+            ProgressView()
+                .tint(.legoYellow)
+                .scaleEffect(1.5)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Pops the Home tab back to its feed root: clears any pushed detail/profile
+    /// screen and dismisses any Home-rooted sheet (comments, DMs, notifications).
+    private func returnToFeedRoot() {
+        selectedPost        = nil
+        selectedUsername    = nil
+        commentPost         = nil
+        showingDMSheet      = false
+        showingNotifications = false
     }
 
     // MARK: - Feed Header
@@ -250,6 +303,7 @@ struct PostCard: View {
     @State private var carouselPage = 0
     @State private var showReportConfirm = false
     @State private var showBlockConfirm  = false
+    @State private var showBlockedConfirm = false   // post-block confirmation (Issue 1)
     @State private var lastReportReason  = ""
 
     private var legoSet: LegoSet? {
@@ -452,6 +506,7 @@ struct PostCard: View {
         } message: {
             Text("All of @\(post.username)'s posts, comments, and messages will be hidden immediately. The block persists across devices and app restarts.")
         }
+        .blockConfirmationAlert(username: post.username, isPresented: $showBlockedConfirm)
     }
 
     // MARK: - Author Avatar
@@ -570,6 +625,7 @@ struct PostCard: View {
     private func blockPostAuthor() {
         postStore.blockUser(userId: post.userId, username: post.username,
                             reason: "Blocked from post menu")
+        showBlockedConfirm = true
     }
 
     // MARK: - Card Media Area (handles carousel or single image/video)

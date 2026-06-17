@@ -178,14 +178,14 @@ private struct OnboardingSlide3: View {
                     .font(.legoScreenTitle).foregroundColor(.lightText)
                     .multilineTextAlignment(.center)
 
-                Text("BrickFeed is a safe place — kid safe mode protects younger builders and keeps the community fun for everyone.")
+                Text("BrickFeed is a safe place — Safe Mode adds extra content filtering and keeps the community fun for everyone.")
                     .font(.legoBody).foregroundColor(.secondaryText)
                     .multilineTextAlignment(.center).padding(.horizontal)
             }
 
             VStack(alignment: .leading, spacing: 16) {
                 safetyRow(icon: "person.badge.shield.checkmark.fill",
-                          text: "Kid Safe Mode for under-13 builders", color: .successGreen)
+                          text: "Safe Mode — extra content filtering for builders who want it", color: .successGreen)
                 safetyRow(icon: "xmark.circle.fill",
                           text: "Built-in bad word filter always on", color: .legoYellow)
                 safetyRow(icon: "flag.fill",

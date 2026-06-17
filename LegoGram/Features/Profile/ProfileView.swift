@@ -247,7 +247,7 @@ struct ProfileView: View {
                 if currentUser?.isKidAccount == true || kidSafeMode {
                     HStack(spacing: 3) {
                         Image(systemName: "shield.checkmark.fill").font(.system(size: 10))
-                        Text("Kid Safe").font(.system(size: 10, weight: .bold, design: .rounded))
+                        Text("Safe Mode").font(.system(size: 10, weight: .bold, design: .rounded))
                     }
                     .foregroundColor(.white)
                     .padding(.horizontal, 8).padding(.vertical, 3)

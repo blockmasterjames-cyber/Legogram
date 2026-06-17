@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Shown when a kid (under 13) account tries to turn OFF Kid Safe Mode.
+/// Shown when a protected account tries to turn OFF Safe Mode.
 /// Requires parent/guardian email approval before the mode is disabled.
 struct ParentalApprovalView: View {
 
@@ -37,7 +37,7 @@ struct ParentalApprovalView: View {
                                 .foregroundColor(.lightText)
                                 .multilineTextAlignment(.center)
 
-                            Text("To turn off Kid Safe Mode, a parent or guardian must approve this change.")
+                            Text("To turn off Safe Mode, a parent or guardian must approve this change.")
                                 .font(.legoBody)
                                 .foregroundColor(.secondaryText)
                                 .multilineTextAlignment(.center)
@@ -54,7 +54,7 @@ struct ParentalApprovalView: View {
                                 Text("Email Sent!")
                                     .font(.legoCardTitle).foregroundColor(.lightText)
 
-                                Text("An approval request has been sent to your parent or guardian at \(parentEmail.isEmpty ? storedParentEmail : parentEmail).\n\nKid Safe Mode will remain ON until they approve.")
+                                Text("An approval request has been sent to your parent or guardian at \(parentEmail.isEmpty ? storedParentEmail : parentEmail).\n\nSafe Mode will remain ON until they approve.")
                                     .font(.legoBody)
                                     .foregroundColor(.secondaryText)
                                     .multilineTextAlignment(.center)
@@ -122,7 +122,7 @@ struct ParentalApprovalView: View {
                                 HStack(spacing: 8) {
                                     Image(systemName: "info.circle.fill")
                                         .foregroundColor(.legoYellow)
-                                    Text("Your parent will receive an email with instructions to approve this change. Kid Safe Mode stays ON until they do.")
+                                    Text("Your parent will receive an email with instructions to approve this change. Safe Mode stays ON until they do.")
                                         .font(.legoCaption).foregroundColor(.secondaryText)
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
@@ -159,7 +159,7 @@ struct ParentalApprovalView: View {
                     }
                 }
             }
-            .navigationTitle("Kid Safe Mode")
+            .navigationTitle("Safe Mode")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Color.cardBackground, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
@@ -204,7 +204,7 @@ struct ParentalApprovalView: View {
             await MainActor.run {
                 isSending = false
                 emailSent = true
-                // Keep kid safe mode ON — parent hasn't approved yet
+                // Keep Safe Mode ON — parent hasn't approved yet
                 kidSafeMode = true
             }
         }

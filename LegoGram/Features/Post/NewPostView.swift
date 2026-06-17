@@ -170,7 +170,7 @@ struct NewPostView: View {
         .alert("Video Too Long", isPresented: $videoTooLong) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("For kid safety, videos must be 60 seconds or less. Please pick a shorter video!")
+            Text("To keep clips short, videos must be 60 seconds or less. Please pick a shorter video!")
         }
     }
 
