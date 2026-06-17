@@ -47,7 +47,7 @@ struct SettingsView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 24) {
 
-                            kidSafetySection
+                            safetySection
                             accountSection
                             preferencesSection
                             legalSection
@@ -122,17 +122,17 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Kid Safety Section
+    // MARK: - Safety Section
 
-    private var kidSafetySection: some View {
+    private var safetySection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("KID SAFETY")
+            Text("SAFETY")
                 .font(.legoCaption).foregroundColor(.secondaryText).padding(.horizontal)
 
             VStack(spacing: 0) {
-                // Kid Safe Mode toggle — under-13 requires parental approval to turn OFF
+                // Safe Mode toggle — protected accounts require approval to turn OFF
                 alignedToggleRow(
-                    label: "Kid Safe Mode",
+                    label: "Safe Mode",
                     icon: "shield.checkmark.fill",
                     tint: .successGreen,
                     isOn: Binding(
@@ -191,12 +191,12 @@ struct SettingsView: View {
 
             if isKidAccount && kidSafeMode {
                 infoRow(icon: "lock.shield.fill", color: .successGreen,
-                        text: "Kid Safe Mode is required for your account. A parent must approve turning it off.")
+                        text: "Safe Mode is required for your account. A parent or guardian must approve turning it off.")
             } else {
                 infoRow(icon: "info.circle", color: .legoYellow,
                         text: kidSafeMode
-                              ? "Kid Safe Mode is ON — only verified kid-friendly content is shown."
-                              : "Turn on Kid Safe Mode to limit content to verified kid-friendly posts.")
+                              ? "Safe Mode is ON — extra content filtering is applied."
+                              : "Turn on Safe Mode to add extra content filtering.")
             }
 
             infoRow(icon: "text.badge.xmark", color: .successGreen,

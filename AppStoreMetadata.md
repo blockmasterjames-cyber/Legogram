@@ -17,7 +17,7 @@ com.brickfeed.app
 
 ## Description (4000 characters max)
 
-BrickFeed is the ultimate social network for LEGO fans of all ages! Share photos of your amazing brick builds, discover incredible creations from builders around the world, and earn points while connecting with a safe, kid-friendly community that loves LEGO just as much as you do.
+BrickFeed is the ultimate social network for LEGO fans of all ages! Share photos of your amazing brick builds, discover incredible creations from builders around the world, and earn points while connecting with a safe, welcoming community that loves LEGO just as much as you do.
 
 BUILD. SHARE. EARN POINTS. INSPIRE.
 
@@ -53,12 +53,12 @@ Climb the Global Leaderboard and show the BrickFeed community who the top builde
 
 💬 DIRECT MESSAGES:
 • Chat privately with builders you follow
-• Age verification required to keep younger users safe
+• Age verification required to help keep the community safe
 
 🛡️ SAFE AND FUN FOR EVERYONE:
 BrickFeed is designed with safety as a top priority:
 
-• Kid Safe Mode automatically enabled for users under 13 (COPPA compliant)
+• Optional Safe Mode adds extra content filtering for builders who want it
 • Built-in bad word filter removes inappropriate language from all posts and comments
 • Report any post with one tap — choose from: Inappropriate content, Bullying, Spam, Not LEGO related
 • Block any builder to hide their content from your feed
@@ -73,7 +73,7 @@ LEGO is a trademark of the LEGO Group, which does not sponsor, authorize, or end
 ---
 
 ## Keywords (100 characters max)
-lego,kids,social,builds,bricks,creative,safe,builders,minifigures,sets,moc,brick,fan,share,points
+lego,social,builds,bricks,creative,safe,builders,minifigures,sets,moc,brick,fan,share,points
 
 ---
 
@@ -95,12 +95,12 @@ https://blockmasterjames-cyber.github.io/brickfeed-legal/terms
 Social Networking
 
 ## Secondary Category
-Kids
+Entertainment
 
 ---
 
 ## Age Rating
-4+ (Made for Kids: Yes)
+13+ — general audience, NOT in the Kids Category (Made for Kids: No)
 
 ### Age Rating Questionnaire Answers
 - Cartoon or fantasy violence: No
@@ -127,7 +127,7 @@ v1.0.0 — Initial Release!
 • Share photos of your LEGO builds with builders worldwide
 • Earn points for posting, likes, comments, and follows
 • Global and Friends Leaderboard to see who's on top
-• Full COPPA compliance — Kid Safe Mode for under-13 users
+• COPPA-compliant safeguards with optional Safe Mode content filtering
 • Sign in with Apple and email/password login
 • Built-in bad word filter for a safe community
 • Report and block tools for moderation
@@ -153,7 +153,7 @@ v1.0.0 — Initial Release!
 
 - BrickFeed uses Sign in with Apple and email/password authentication via Firebase Auth.
 - New Apple Sign In users are directed to a username and birthday setup screen before reaching the feed.
-- Kid Safe Mode is automatically enabled for all users under 13 (birthday captured at signup for COPPA compliance).
+- Safe Mode (an optional content filter) is enabled automatically for accounts created with an under-13 birthday, as a COPPA safeguard (birthday captured at signup). The app is positioned for a general audience aged 13+ and is not directed to children.
 - The bad word filter is always active — cannot be disabled by users.
 - All affiliate/buy links go to the official LEGO Store website (lego.com).
 - Direct messaging requires the user to confirm they are 13+ before accessing.
@@ -172,5 +172,5 @@ v1.0.0 — Initial Release!
 4. Global Leaderboard with trophy icons and current user highlighted
 5. New Post screen with LEGO set search
 6. Onboarding screen showing the points system
-7. Settings with Kid Safe Mode toggle and account deletion option
+7. Settings with Safe Mode toggle and account deletion option
 8. Sign up screen showing birthday picker and Privacy Policy link

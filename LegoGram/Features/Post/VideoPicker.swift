@@ -3,7 +3,7 @@ import PhotosUI
 import AVFoundation
 
 /// Lets the user pick a video from their photo library for a new post.
-/// Videos must be under 60 seconds for kid safety — longer videos are rejected with a friendly message.
+/// Videos must be under 60 seconds — longer videos are rejected with a friendly message.
 struct VideoPicker: UIViewControllerRepresentable {
 
     /// Binding to the selected video file URL (nil if nothing chosen yet).
@@ -55,7 +55,7 @@ struct VideoPicker: UIViewControllerRepresentable {
                     return
                 }
 
-                // Check duration — max 60 seconds for kid safety
+                // Check duration — max 60 seconds
                 let asset = AVURLAsset(url: tempURL)
                 Task {
                     do {

@@ -114,11 +114,7 @@ struct OtherProfileView: View {
         } message: {
             Text("Blocking this user will instantly hide all of their posts, comments, and messages from you. The block persists across devices and app restarts.")
         }
-        .alert("@\(username) has been blocked.", isPresented: $showingBlockedConfirm) {
-            Button("OK") {}
-        } message: {
-            Text("You won't see their content anymore. Thanks for keeping BrickFeed safe!")
-        }
+        .blockConfirmationAlert(username: username, isPresented: $showingBlockedConfirm)
         .alert("Report submitted", isPresented: $showReportConfirm) {
             Button("OK") {}
         } message: {
@@ -215,7 +211,7 @@ struct OtherProfileView: View {
                         )
                 }
 
-                // Message button (available to all non-kid-safe users)
+                // Message button (available unless Safe Mode is on)
                 if !kidSafeMode {
                     Button {
                         let conv = DMStore.shared.conversation(with: username)

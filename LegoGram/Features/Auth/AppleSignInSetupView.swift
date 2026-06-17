@@ -107,7 +107,7 @@ struct AppleSignInSetupView: View {
                                 HStack(spacing: 6) {
                                     Image(systemName: "shield.checkmark.fill")
                                         .font(.system(size: 14)).foregroundColor(.successGreen)
-                                    Text("Since you're under 13, Kid Safe Mode will be automatically enabled to keep you protected! 🛡️")
+                                    Text("Safe Mode will be turned on for your account to add extra content filtering. 🛡️")
                                         .font(.system(size: 12, design: .rounded))
                                         .foregroundColor(.successGreen)
                                         .fixedSize(horizontal: false, vertical: true)

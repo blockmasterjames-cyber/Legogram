@@ -22,6 +22,7 @@ struct PostDetailView: View {
     @State private var isLiking            = false
     @State private var showReportConfirm   = false
     @State private var showBlockConfirm    = false
+    @State private var showBlockedConfirm  = false   // post-block confirmation (Issue 1)
     @State private var lastReportReason    = ""
 
     private var legoSet: LegoSet? { LegoSetDatabase.set(for: post.legoSetNumber) }
@@ -253,11 +254,13 @@ struct PostDetailView: View {
             Button("Block", role: .destructive) {
                 postStore.blockUser(userId: post.userId, username: post.username,
                                     reason: "Blocked from post detail menu")
+                showBlockedConfirm = true
             }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("All of @\(post.username)'s posts, comments, and messages will be hidden immediately.")
         }
+        .blockConfirmationAlert(username: post.username, isPresented: $showBlockedConfirm)
     }
 
     // MARK: - Helpers

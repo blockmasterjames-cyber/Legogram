@@ -1,6 +1,6 @@
 import Foundation
 
-/// A kid-safe bad word filter for BrickFeed.
+/// A bad word filter for BrickFeed.
 /// Replaces inappropriate words with stars so the app stays fun and safe for everyone.
 /// Applied to all comments, bios, post descriptions, display names, and DM messages.
 /// Filtered content is logged to Firestore moderation_logs for review.
@@ -17,7 +17,7 @@ struct BadWordFilter {
         "cuss", "curse",
         "frick", "fricking",
 
-        // Body / toilet humor (kid-relevant)
+        // Body / toilet humor
         "butt", "butts",
         "poop", "pee", "pee-pee", "poopy",
         "fart", "farted",

@@ -16,6 +16,8 @@ struct CommentSheetView: View {
     @State private var blockTarget: Comment?
     @State private var showReportConfirm = false
     @State private var showBlockConfirm  = false
+    @State private var showBlockedConfirm = false   // post-block confirmation (Issue 1)
+    @State private var blockedUsername   = ""
     @State private var lastReportReason  = ""
     @FocusState private var commentFocused: Bool
 
@@ -92,11 +94,14 @@ struct CommentSheetView: View {
             Button("Block @\(target.username)", role: .destructive) {
                 postStore.blockUser(userId: target.userId, username: target.username,
                                     reason: "Blocked from comment menu")
+                blockedUsername = target.username
+                showBlockedConfirm = true
             }
             Button("Cancel", role: .cancel) {}
         } message: { target in
             Text("All of @\(target.username)'s posts, comments, and messages will be hidden immediately.")
         }
+        .blockConfirmationAlert(username: blockedUsername, isPresented: $showBlockedConfirm)
     }
 
     // MARK: - Report Comment

@@ -46,6 +46,14 @@ final class PostStore: ObservableObject {
     /// True while simulated "load more" network fetch is running.
     @Published var isLoadingMore: Bool = false
 
+    /// True while the initial sign-in feed fetch is still in flight. HomeView
+    /// shows a centered spinner (instead of the genuinely-empty zero-state)
+    /// while this is true, then swaps straight to the posts the instant they
+    /// arrive — no scroll required (Issue 2). Defaults to `true` so a fresh
+    /// launch shows the spinner; ContentView sets it `false` once the sign-in
+    /// feed load settles, and back to `true` on sign-out.
+    @Published var isLoadingFeed: Bool = true
+
     private init() {}
 
     // MARK: - Feed (visible posts)
