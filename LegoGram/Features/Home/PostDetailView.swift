@@ -236,7 +236,6 @@ struct PostDetailView: View {
                     .font(.legoCardTitle).foregroundColor(.lightText).lineLimit(1)
             }
         }
-        .navigationDestination(for: String.self) { username in OtherProfileView(username: username) }
         .sheet(isPresented: $showingShareCard) {
             StoryShareCardView(post: post)
         }
@@ -433,5 +432,8 @@ struct PostDetailView: View {
 #Preview {
     NavigationStack {
         PostDetailView(post: .placeholder)
+            .navigationDestination(for: String.self) { username in
+                OtherProfileView(username: username)
+            }
     }
 }
