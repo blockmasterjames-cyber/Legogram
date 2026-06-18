@@ -326,14 +326,14 @@ struct SearchView: View {
             do {
                 let results = try await FirebaseService.shared.searchUsers(query: query)
                 // Filter out the current user AND any blocked users so blocked
-                // content never reappears in search (Apple Guideline 1.2).
+                // content never reappears in search (Apple Guideline 1.2). Uses
+                // the shared PostStore.isBlocked(...) so the same non-empty
+                // matching rule as the feed applies — empty identifiers never
+                // match, so a block can't sweep up unrelated results.
                 let currentUid = UserSession.shared.uid
-                let blockedIds = PostStore.shared.blockedUserIDs
-                let blockedNames = PostStore.shared.blockedUsers
                 userResults = results.filter {
                     $0.id != currentUid &&
-                    !blockedIds.contains($0.id) &&
-                    !blockedNames.contains($0.username)
+                    !PostStore.shared.isBlocked(userId: $0.id, username: $0.username)
                 }
             } catch {
                 print("[SearchView] User search error: \(error.localizedDescription)")
