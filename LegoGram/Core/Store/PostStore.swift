@@ -59,20 +59,48 @@ final class PostStore: ObservableObject {
     // MARK: - Feed (visible posts)
 
     /// Posts filtered to exclude blocked users and reported posts.
-    /// Filters by BOTH userId and username so a blocked user stays hidden
-    /// even if their username record is missing on a particular document.
+    ///
+    /// Every visibility decision routes through `isBlocked(userId:username:)`
+    /// so the feed, comment list, DM list, and user search all share ONE
+    /// matching rule. A post is hidden only when its author's NON-EMPTY userId
+    /// matches a blocked userId, or its NON-EMPTY username matches a blocked
+    /// username. An empty identifier never matches — so posts whose
+    /// `user_id`/`username` are absent in Firestore (decoded to "") are NOT
+    /// swept up when a block exists. That empty-vs-empty match was the cause of
+    /// the "block one user → entire feed vanishes" over-match.
     var visiblePosts: [LegoPost] {
-        posts.filter {
-            !blockedUserIDs.contains($0.userId) &&
-            !blockedUsers.contains($0.username) &&
-            !reportedPostIDs.contains($0.id)
+        let afterBlock = posts.filter {
+            !isBlocked(userId: $0.userId, username: $0.username)
         }
+        logVisibleFilter(total: posts.count, kept: afterBlock.count)
+        return afterBlock.filter { !reportedPostIDs.contains($0.id) }
     }
 
-    /// Returns true if a comment, message, or other piece of content from
-    /// `userId` / `username` is currently blocked by the signed-in user.
+    /// Returns true ONLY when this content's author is genuinely blocked:
+    /// a non-empty userId present in `blockedUserIDs`, or a non-empty username
+    /// present in `blockedUsers`. Empty/nil identifiers are treated as
+    /// "not blocked", so content with a missing author field is never hidden by
+    /// a stray empty entry (defense-in-depth alongside the empty-filtering done
+    /// when the blocked sets are populated). Used by the feed, comment filter,
+    /// DM list, and user search so all four stay consistent.
     func isBlocked(userId: String, username: String) -> Bool {
-        blockedUserIDs.contains(userId) || blockedUsers.contains(username)
+        (!userId.isEmpty && blockedUserIDs.contains(userId)) ||
+        (!username.isEmpty && blockedUsers.contains(username))
+    }
+
+    /// One-line over-match canary for the block filter. Logs only when at least
+    /// one block is active AND the (blocked, hidden, total) signature changes,
+    /// so SwiftUI re-renders don't spam the console but a regression — e.g.
+    /// hiding all T posts after a single block — is immediately visible.
+    private var lastVisibleFilterLog = ""
+    private func logVisibleFilter(total: Int, kept: Int) {
+        let blockedEntries = blockedUserIDs.count + blockedUsers.count
+        guard blockedEntries > 0 else { return }
+        let hidden = total - kept
+        let signature = "\(blockedEntries)|\(hidden)|\(total)"
+        guard signature != lastVisibleFilterLog else { return }
+        lastVisibleFilterLog = signature
+        print("[PostStore] visiblePosts — \(blockedEntries) blocked entries, hid \(hidden) of \(total) posts")
     }
 
     // MARK: - Post Actions
@@ -192,7 +220,7 @@ final class PostStore: ObservableObject {
     }
 
     func isBlocked(_ username: String) -> Bool {
-        blockedUsers.contains(username)
+        !username.isEmpty && blockedUsers.contains(username)
     }
 
     /// Loads blocked users from Firestore into in-memory state. Called on
