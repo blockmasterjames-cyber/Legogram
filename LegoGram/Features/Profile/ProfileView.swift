@@ -80,6 +80,9 @@ struct ProfileView: View {
             .navigationDestination(item: $selectedPost) { post in
                 PostDetailView(post: post)
             }
+            .navigationDestination(for: String.self) { username in
+                OtherProfileView(username: username)
+            }
         }
         .sheet(isPresented: $showingEditProfile)       { EditProfileView() }
         .sheet(isPresented: $showingSettings)          { SettingsView() }

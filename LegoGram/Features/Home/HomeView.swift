@@ -5,11 +5,9 @@ import AVKit
 struct HomeView: View {
 
     @ObservedObject private var postStore = PostStore.shared
-    @ObservedObject private var appState  = AppState.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @State private var selectedPost: LegoPost?          // navigate to post detail
-    @State private var selectedUsername: String?         // navigate to profile
     @State private var commentPost: LegoPost?            // opens comment sheet
     @State private var showingDMSheet        = false
     @State private var showingNotifications  = false
@@ -56,7 +54,11 @@ struct HomeView: View {
             .navigationDestination(item: $selectedPost) { post in
                 PostDetailView(post: post)
             }
-            .navigationDestination(item: $selectedUsername) { username in
+            // Single String destination for this stack. Both the feed's
+            // author taps (PostCard) and the post-detail author link push a
+            // username value that resolves here — so there is exactly one
+            // navigationDestination(for: String.self) per navigation stack.
+            .navigationDestination(for: String.self) { username in
                 OtherProfileView(username: username)
             }
         }
@@ -72,13 +74,6 @@ struct HomeView: View {
                 // Refresh badge after closing notifications
                 Task { await loadUnreadCount() }
             }
-        }
-        // Issue 1 — after a Block confirmation anywhere in the app, AppState
-        // bumps this token. We pop the Home tab back to its feed root by
-        // clearing every pushed screen and dismissing every Home-rooted sheet,
-        // so the user always lands on the feed with the blocked user gone.
-        .onChange(of: appState.homeFeedResetToken) { _, _ in
-            returnToFeedRoot()
         }
         .sheet(item: $commentPost) { post in
             CommentSheetView(post: post)
@@ -115,8 +110,7 @@ struct HomeView: View {
                                     post: post,
                                     showFollowButton: true,
                                     onTap: { selectedPost = post },
-                                    onCommentTap: { commentPost = post },
-                                    onProfileTap: { selectedUsername = post.username }
+                                    onCommentTap: { commentPost = post }
                                 )
                             }
                         }
@@ -132,8 +126,7 @@ struct HomeView: View {
                                     post: post,
                                     showFollowButton: true,
                                     onTap: { selectedPost = post },
-                                    onCommentTap: { commentPost = post },
-                                    onProfileTap: { selectedUsername = post.username }
+                                    onCommentTap: { commentPost = post }
                                 )
                             }
                         }
@@ -161,16 +154,6 @@ struct HomeView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    /// Pops the Home tab back to its feed root: clears any pushed detail/profile
-    /// screen and dismisses any Home-rooted sheet (comments, DMs, notifications).
-    private func returnToFeedRoot() {
-        selectedPost        = nil
-        selectedUsername    = nil
-        commentPost         = nil
-        showingDMSheet      = false
-        showingNotifications = false
     }
 
     // MARK: - Feed Header
@@ -295,7 +278,6 @@ struct PostCard: View {
     var showFollowButton: Bool = false
     let onTap: () -> Void
     let onCommentTap: () -> Void
-    let onProfileTap: () -> Void
 
     @ObservedObject private var postStore = PostStore.shared
     @State private var showHeart    = false
@@ -402,8 +384,9 @@ struct PostCard: View {
             // MARK: Card Info
             VStack(alignment: .leading, spacing: 8) {
 
-                // Username row with avatar
-                Button(action: onProfileTap) {
+                // Username row with avatar — pushes the author's profile via
+                // the stack's single String navigationDestination.
+                NavigationLink(value: post.username) {
                     HStack(spacing: 8) {
                         postAuthorAvatar
                         Text("@\(post.username)")
