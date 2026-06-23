@@ -35,6 +35,7 @@
 		AA000100000000000000001A /* Comment.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000001A /* Comment.swift */; };
 		AA000100000000000000001B /* BadWordFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000001B /* BadWordFilter.swift */; };
 		AA00010000000000000000B1 /* BlockConfirmation.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00020000000000000000B1 /* BlockConfirmation.swift */; };
+		AA00010000000000000000B2 /* ReportConfirmation.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00020000000000000000B2 /* ReportConfirmation.swift */; };
 		AA000100000000000000001C /* PostDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000001C /* PostDetailView.swift */; };
 		AA000100000000000000001D /* OtherProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000001D /* OtherProfileView.swift */; };
 		AA000100000000000000001E /* VideoPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000001E /* VideoPicker.swift */; };
@@ -97,6 +98,7 @@
 		AA000200000000000000001A /* Comment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Comment.swift; sourceTree = "<group>"; };
 		AA000200000000000000001B /* BadWordFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BadWordFilter.swift; sourceTree = "<group>"; };
 		AA00020000000000000000B1 /* BlockConfirmation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockConfirmation.swift; sourceTree = "<group>"; };
+		AA00020000000000000000B2 /* ReportConfirmation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportConfirmation.swift; sourceTree = "<group>"; };
 		AA000200000000000000001C /* PostDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailView.swift; sourceTree = "<group>"; };
 		AA000200000000000000001D /* OtherProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OtherProfileView.swift; sourceTree = "<group>"; };
 		AA000200000000000000001E /* VideoPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPicker.swift; sourceTree = "<group>"; };
@@ -225,6 +227,7 @@
 				AA0002000000000000000007 /* LoadingView.swift */,
 				AA000200000000000000001B /* BadWordFilter.swift */,
 				AA00020000000000000000B1 /* BlockConfirmation.swift */,
+				AA00020000000000000000B2 /* ReportConfirmation.swift */,
 				AA000200000000000000001F /* View+HideKeyboard.swift */,
 				AA000200000000000000002E /* NetworkMonitor.swift */,
 				AA0002000000000000000035 /* NotificationManager.swift */,
@@ -483,6 +486,7 @@
 				AA000100000000000000001A /* Comment.swift in Sources */,
 				AA000100000000000000001B /* BadWordFilter.swift in Sources */,
 				AA00010000000000000000B1 /* BlockConfirmation.swift in Sources */,
+				AA00010000000000000000B2 /* ReportConfirmation.swift in Sources */,
 				AA000100000000000000001C /* PostDetailView.swift in Sources */,
 				AA000100000000000000001D /* OtherProfileView.swift in Sources */,
 				AA000100000000000000001E /* VideoPicker.swift in Sources */,

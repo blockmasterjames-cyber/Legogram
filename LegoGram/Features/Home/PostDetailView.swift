@@ -23,7 +23,6 @@ struct PostDetailView: View {
     @State private var showReportConfirm   = false
     @State private var showBlockConfirm    = false
     @State private var showBlockedConfirm  = false   // post-block confirmation (Issue 1)
-    @State private var lastReportReason    = ""
 
     private var legoSet: LegoSet? { LegoSetDatabase.set(for: post.legoSetNumber) }
 
@@ -244,11 +243,7 @@ struct PostDetailView: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
-        .alert("Report submitted", isPresented: $showReportConfirm) {
-            Button("OK") {}
-        } message: {
-            Text("Thanks for keeping BrickFeed safe! Our team will review this report (reason: \(lastReportReason)) within 24 hours.")
-        }
+        .reportConfirmationAlert(isPresented: $showReportConfirm)
         .alert("Block @\(post.username)?", isPresented: $showBlockConfirm) {
             Button("Block", role: .destructive) {
                 postStore.blockUser(userId: post.userId, username: post.username,
@@ -285,7 +280,6 @@ struct PostDetailView: View {
 
     private func reportPost(reason: String) {
         postStore.reportPost(post)
-        lastReportReason = reason
         showReportConfirm = true
         Task {
             let uid = UserSession.shared.uid
