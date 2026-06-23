@@ -15,7 +15,6 @@ struct OtherProfileView: View {
     @State private var showingMessageThread = false
     @State private var dmConversation: DMConversation?
     @State private var showReportConfirm = false
-    @State private var lastReportReason  = ""
 
     private var theirPosts: [LegoPost] {
         postStore.posts.filter { $0.username == username }
@@ -115,11 +114,7 @@ struct OtherProfileView: View {
             Text("Blocking this user will instantly hide all of their posts, comments, and messages from you. The block persists across devices and app restarts.")
         }
         .blockConfirmationAlert(username: username, isPresented: $showingBlockedConfirm)
-        .alert("Report submitted", isPresented: $showReportConfirm) {
-            Button("OK") {}
-        } message: {
-            Text("Thanks for keeping BrickFeed safe! Our team will review @\(username) (reason: \(lastReportReason)) within 24 hours.")
-        }
+        .reportConfirmationAlert(isPresented: $showReportConfirm)
     }
 
     /// Resolves the userId for the displayed username. Prefers OGAccountsService
@@ -134,7 +129,6 @@ struct OtherProfileView: View {
     }
 
     private func submitReport(reason: String) {
-        lastReportReason = reason
         showReportConfirm = true
         Task {
             let uid = UserSession.shared.uid

@@ -14,7 +14,6 @@ struct DirectMessageThreadView: View {
     @State private var showReportConfirm = false
     @State private var showBlockConfirm  = false
     @State private var showBlockedConfirm = false   // post-block confirmation (Issue 1)
-    @State private var lastReportReason = ""
     @FocusState private var inputFocused: Bool
 
     private var liveConversation: DMConversation {
@@ -82,11 +81,7 @@ struct DirectMessageThreadView: View {
                 }
             }
         }
-        .alert("Report submitted", isPresented: $showReportConfirm) {
-            Button("OK") {}
-        } message: {
-            Text("Thanks for keeping BrickFeed safe! Our team will review this report (reason: \(lastReportReason)) within 24 hours.")
-        }
+        .reportConfirmationAlert(isPresented: $showReportConfirm)
         .alert("Block @\(conversation.otherUsername)?", isPresented: $showBlockConfirm) {
             Button("Block", role: .destructive) {
                 postStore.blockUser(userId: conversation.otherUserId,
@@ -104,7 +99,6 @@ struct DirectMessageThreadView: View {
     // MARK: - Report Helpers
 
     private func submitThreadReport(reason: String) {
-        lastReportReason = reason
         showReportConfirm = true
         Task {
             let uid = UserSession.shared.uid
@@ -124,7 +118,6 @@ struct DirectMessageThreadView: View {
     }
 
     private func submitMessageReport(message: DMMessage, reason: String) {
-        lastReportReason = reason
         showReportConfirm = true
         Task {
             let uid = UserSession.shared.uid
