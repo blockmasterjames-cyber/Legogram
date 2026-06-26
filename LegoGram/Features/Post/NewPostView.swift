@@ -23,6 +23,11 @@ struct NewPostView: View {
     @State private var videoTooLong          = false
     @State private var multiPickerItems: [PhotosPickerItem] = []
 
+    // Square crop: each picked/taken photo is cropped to a square before it
+    // lands in `selectedImages`. Multiple picks are cropped one at a time.
+    @State private var cropQueue: [UIImage] = []
+    @State private var cropItem:  CropItem?
+
     // Feature 7: searchable set field
     @State private var setSearchText           = ""
     @State private var setSearchResults: [LegoSet] = []
@@ -138,15 +143,41 @@ struct NewPostView: View {
         }
         .sheet(isPresented: $showingCamera) {
             CameraPicker(selectedImage: Binding(
-                get: { selectedImages.first },
-                set: { if let img = $0 { addImage(img) } }
+                get: { nil },
+                set: { newImg in
+                    if let img = newImg {
+                        showingCamera = false
+                        enqueueForCropping([img])
+                    }
+                }
             )).ignoresSafeArea()
         }
         .sheet(isPresented: $showingLibrary) {
             PhotoLibraryPicker(selectedImage: Binding(
-                get: { selectedImages.first },
-                set: { if let img = $0 { addImage(img) } }
+                get: { nil },
+                set: { newImg in
+                    if let img = newImg {
+                        showingLibrary = false
+                        enqueueForCropping([img])
+                    }
+                }
             )).ignoresSafeArea()
+        }
+        .fullScreenCover(item: $cropItem) { item in
+            CropView(
+                image: item.image,
+                onDone: { cropped in
+                    addImage(cropped)
+                    cropItem = nil
+                    scheduleNextCrop()
+                },
+                onCancel: {
+                    // Skip this image; continue with any remaining queued ones.
+                    cropItem = nil
+                    scheduleNextCrop()
+                },
+                cropAspect: 1.0
+            )
         }
         .sheet(isPresented: $showingVideoPicker) {
             VideoPicker(selectedVideoURL: $selectedVideoURL, videoTooLong: $videoTooLong)
@@ -178,21 +209,26 @@ struct NewPostView: View {
 
     private var mediaArea: some View {
         VStack(spacing: 0) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.cardBackground)
-                    .frame(height: 260)
+            // Square media area — photos are already cropped to squares, so a
+            // full-width square frame shows the whole chosen image.
+            GeometryReader { geo in
+                let side = geo.size.width
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.cardBackground)
 
-                if !selectedImages.isEmpty {
-                    photoCarouselPreview
-                } else if let videoURL = selectedVideoURL {
-                    videoPreview(url: videoURL)
-                } else {
-                    mediaPlaceholder
+                    if !selectedImages.isEmpty {
+                        photoCarouselPreview(side: side)
+                    } else if let videoURL = selectedVideoURL {
+                        videoPreview(url: videoURL, side: side)
+                    } else {
+                        mediaPlaceholder
+                    }
                 }
+                .frame(width: side, height: side)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .frame(height: 260)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .aspectRatio(1, contentMode: .fit)
             .padding(.horizontal)
 
             // Photo count indicator + Add More button
@@ -228,14 +264,14 @@ struct NewPostView: View {
 
     // MARK: - Photo Carousel Preview
 
-    private var photoCarouselPreview: some View {
+    private func photoCarouselPreview(side: CGFloat) -> some View {
         ZStack(alignment: .bottom) {
             TabView(selection: $carouselPage) {
                 ForEach(Array(selectedImages.enumerated()), id: \.offset) { idx, image in
                     ZStack(alignment: .topTrailing) {
                         Image(uiImage: image)
                             .resizable().scaledToFill()
-                            .frame(height: 260).clipped()
+                            .frame(width: side, height: side).clipped()
 
                         Button {
                             let i: Int = idx; withAnimation { selectedImages.remove(at: i) }
@@ -567,10 +603,10 @@ struct NewPostView: View {
 
     // MARK: - Media Sub-Views
 
-    private func videoPreview(url: URL) -> some View {
+    private func videoPreview(url: URL, side: CGFloat) -> some View {
         ZStack(alignment: .topTrailing) {
             VideoPlayer(player: AVPlayer(url: url))
-                .frame(height: 260).disabled(true)
+                .frame(width: side, height: side).disabled(true)
 
             Button { withAnimation { selectedVideoURL = nil } } label: {
                 Image(systemName: "xmark.circle.fill")
@@ -667,8 +703,11 @@ struct NewPostView: View {
     // MARK: - Helpers
 
     private func addImage(_ image: UIImage) {
-        if selectedImages.count < 10 {
-            selectedImages.append(image)
+        guard selectedImages.count < 10 else { return }
+        selectedImages.append(image)
+        // Show the newly added photo in the carousel.
+        if selectedImages.count > 1 {
+            carouselPage = selectedImages.count - 1
         }
     }
 
@@ -676,7 +715,8 @@ struct NewPostView: View {
         guard !items.isEmpty else { return }
         Task {
             var newImages: [UIImage] = []
-            let remaining = max(0, 10 - selectedImages.count)
+            // Account for photos already chosen and any still waiting to be cropped.
+            let remaining = max(0, 10 - selectedImages.count - cropQueue.count)
             for item in items.prefix(remaining) {
                 if let data = try? await item.loadTransferable(type: Data.self),
                    let img = UIImage(data: data) {
@@ -684,14 +724,31 @@ struct NewPostView: View {
                 }
             }
             await MainActor.run {
-                // APPEND to existing selection instead of replacing
-                selectedImages = Array((selectedImages + newImages).prefix(10))
                 multiPickerItems = []
-                // Reset carousel to last page to show newly added photos
-                if selectedImages.count > 1 {
-                    carouselPage = selectedImages.count - 1
-                }
+                // Crop each picked photo to a square (one at a time) before it
+                // is added to the selection.
+                enqueueForCropping(newImages)
             }
+        }
+    }
+
+    // MARK: - Square Crop Queue
+
+    /// Queues images and kicks off the square cropper for the next one.
+    private func enqueueForCropping(_ images: [UIImage]) {
+        guard !images.isEmpty else { return }
+        cropQueue.append(contentsOf: images)
+        scheduleNextCrop()
+    }
+
+    /// Presents the cropper for the next queued image once any currently
+    /// presented picker/cropper has had time to dismiss.
+    private func scheduleNextCrop() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            guard cropItem == nil else { return }
+            guard selectedImages.count < 10 else { cropQueue.removeAll(); return }
+            guard !cropQueue.isEmpty else { return }
+            cropItem = CropItem(image: cropQueue.removeFirst())
         }
     }
 
@@ -800,6 +857,14 @@ struct NewPostView: View {
             }
         }
     }
+}
+
+// MARK: - Crop Queue Item
+
+/// Identifiable wrapper so a `UIImage` can drive `.fullScreenCover(item:)`.
+private struct CropItem: Identifiable {
+    let id = UUID()
+    let image: UIImage
 }
 
 #Preview {
