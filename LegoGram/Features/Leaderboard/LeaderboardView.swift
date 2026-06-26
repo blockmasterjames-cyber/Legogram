@@ -27,7 +27,7 @@ struct LeaderboardView: View {
             .map { idx, e in BuilderEntry(rank: idx + 1, username: e.username,
                                           displayName: e.displayName, score: e.score,
                                           avatarURL: e.avatarURL,
-                                          isCurrentUser: e.isCurrentUser) }
+                                          isCurrentUser: e.isCurrentUser, uid: e.uid) }
     }
 
     private var activeBuilders: [BuilderEntry] {
@@ -140,7 +140,8 @@ struct LeaderboardView: View {
                 globalBuilders = seededUsers.enumerated().map { idx, user in
                     BuilderEntry(rank: idx + 1, username: user.username,
                                  displayName: user.displayName, score: user.totalPoints,
-                                 avatarURL: user.avatarURL, isCurrentUser: user.id == cuid)
+                                 avatarURL: user.avatarURL, isCurrentUser: user.id == cuid,
+                                 uid: user.id)
                 }
                 isLoading = false
                 return
@@ -153,7 +154,8 @@ struct LeaderboardView: View {
                     displayName:   user.displayName,
                     score:         user.totalPoints,
                     avatarURL:     user.avatarURL,
-                    isCurrentUser: user.id == currentUid
+                    isCurrentUser: user.id == currentUid,
+                    uid:           user.id
                 )
             }
             isLoading = false
@@ -176,6 +178,9 @@ struct BuilderEntry: Identifiable {
     let score: Int
     let avatarURL: String
     let isCurrentUser: Bool
+    /// Firebase uid of this builder, for the admin badge. May be "" for OG
+    /// seed accounts that have no real uid.
+    let uid: String
 }
 
 // MARK: - Builder Row
@@ -226,6 +231,7 @@ struct BuilderRow: View {
                 HStack(spacing: 6) {
                     Text("@\(builder.username)")
                         .font(.legoCardTitle).foregroundColor(.lightText)
+                    AdminBadge(uid: builder.uid, size: 12)
                     if builder.isCurrentUser {
                         Text("You")
                             .font(.system(size: 10, weight: .bold, design: .rounded))

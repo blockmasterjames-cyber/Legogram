@@ -247,6 +247,7 @@ struct ProfileView: View {
             HStack(spacing: 8) {
                 Text("@\(username)")
                     .font(.legoScreenTitle).foregroundColor(.lightText)
+                AdminBadge(uid: currentUser?.id ?? "", size: 16)
                 if currentUser?.isKidAccount == true || kidSafeMode {
                     HStack(spacing: 3) {
                         Image(systemName: "shield.checkmark.fill").font(.system(size: 10))

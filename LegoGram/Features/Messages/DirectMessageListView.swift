@@ -273,8 +273,11 @@ struct ConversationRow: View {
                 )
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("@\(conversation.otherUsername)")
-                    .font(.legoCardTitle).foregroundColor(.lightText)
+                HStack(spacing: 4) {
+                    Text("@\(conversation.otherUsername)")
+                        .font(.legoCardTitle).foregroundColor(.lightText)
+                    AdminBadge(uid: conversation.otherUserId, size: 12)
+                }
                 Text(conversation.lastMessagePreview)
                     .font(.legoBody).foregroundColor(.secondaryText)
                     .lineLimit(1)

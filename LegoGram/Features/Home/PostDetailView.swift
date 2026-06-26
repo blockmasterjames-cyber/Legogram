@@ -66,8 +66,11 @@ struct PostDetailView: View {
                                         .font(.legoCardTitle).foregroundColor(.white)
                                 )
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("@\(post.username)")
-                                    .font(.legoCardTitle).foregroundColor(.lightText)
+                                HStack(spacing: 4) {
+                                    Text("@\(post.username)")
+                                        .font(.legoCardTitle).foregroundColor(.lightText)
+                                    AdminBadge(uid: post.userId)
+                                }
                                 Text(post.postedDate.formatted(date: .abbreviated, time: .shortened))
                                     .font(.legoCaption).foregroundColor(.secondaryText)
                             }

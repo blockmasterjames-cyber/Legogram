@@ -65,7 +65,8 @@ final class FirebaseService: ObservableObject {
             isUnder9:       data["is_under_9"]      as? Bool   ?? false,
             parentEmail:    data["parent_email"]    as? String ?? "",
             joinDate:       joinTimestamp?.dateValue() ?? Date(),
-            birthday:       birthdayTimestamp?.dateValue()
+            birthday:       birthdayTimestamp?.dateValue(),
+            isBanned:       data["is_banned"]       as? Bool   ?? false
         )
     }
 
@@ -746,6 +747,127 @@ final class FirebaseService: ObservableObject {
             "logged_at":      Timestamp(date: Date())
         ]
         try await db.collection("moderation_logs").addDocument(data: data)
+    }
+
+    // =========================================================================
+    // MARK: - Admin / Moderation (Build 1)
+    // =========================================================================
+
+    /// Whether an `admins/{uid}` document exists. This is the single
+    /// authoritative source of admin status — the `admins` collection is
+    /// console-only (rules forbid client writes), so it cannot be self-granted.
+    func checkIsAdmin(uid: String) async -> Bool {
+        guard !uid.isEmpty else { return false }
+        do {
+            let doc = try await db.collection("admins").document(uid).getDocument()
+            return doc.exists
+        } catch {
+            print("[FirebaseService] checkIsAdmin error: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    /// Reads every admin uid (the `admins` collection's document IDs) once, for
+    /// the session-wide badge cache (`AdminRegistry`). Reads are permitted by
+    /// the rules; writes are not.
+    func fetchAdminUids() async -> Set<String> {
+        do {
+            let snap = try await db.collection("admins").getDocuments()
+            return Set(snap.documents.map { $0.documentID })
+        } catch {
+            print("[FirebaseService] fetchAdminUids error: \(error.localizedDescription)")
+            return []
+        }
+    }
+
+    /// Fetches reports newest-first. "Open" reports are those without
+    /// `status == "resolved"`. We order by date only and filter resolved
+    /// client-side to avoid needing a composite index.
+    func fetchReports(includeResolved: Bool) async throws -> [AdminReport] {
+        let snap = try await db.collection("reports")
+            .order(by: "reported_at", descending: true)
+            .getDocuments()
+        let all = snap.documents.map { reportFromDocument($0) }
+        return includeResolved ? all : all.filter { !$0.isResolved }
+    }
+
+    /// Marks a report resolved (handled). Used by every action and by Dismiss.
+    func resolveReport(reportId: String, adminUid: String) async throws {
+        try await db.collection("reports").document(reportId).updateData([
+            "status":       "resolved",
+            "resolved_at":  Timestamp(date: Date()),
+            "resolved_by":  adminUid
+        ])
+    }
+
+    /// Deletes a single comment document. If the comment stores its `post_id`,
+    /// also decrements that post's `comment_count`.
+    func deleteComment(commentId: String) async throws {
+        let ref = db.collection("comments").document(commentId)
+        let doc = try? await ref.getDocument()
+        let postId = doc?.data()?["post_id"] as? String
+        try await ref.delete()
+        if let postId, !postId.isEmpty {
+            try? await db.collection("posts").document(postId)
+                .updateData(["comment_count": FieldValue.increment(Int64(-1))])
+        }
+    }
+
+    /// Bans a user by setting `is_banned: true`. This is the ONLY write path for
+    /// that field (never `saveUser`); the rules restrict it to admins.
+    func banUser(uid: String) async throws {
+        guard !uid.isEmpty else { return }
+        try await db.collection("users").document(uid)
+            .updateData(["is_banned": true])
+    }
+
+    /// Lifts a ban by setting `is_banned: false`.
+    func unbanUser(uid: String) async throws {
+        guard !uid.isEmpty else { return }
+        try await db.collection("users").document(uid)
+            .updateData(["is_banned": false])
+    }
+
+    /// Writes an audit record to `moderation_logs/{autoId}` for an admin action.
+    func logModerationAction(
+        action: String,
+        adminUid: String,
+        targetUserId: String,
+        contentType: String,
+        contentId: String,
+        note: String = ""
+    ) async {
+        let data: [String: Any] = [
+            "action":          action,
+            "admin_uid":       adminUid,
+            "target_user_id":  targetUserId,
+            "content_type":    contentType,
+            "content_id":      contentId,
+            "timestamp":       Timestamp(date: Date()),
+            "note":            note
+        ]
+        try? await db.collection("moderation_logs").addDocument(data: data)
+    }
+
+    private func reportFromDocument(_ doc: QueryDocumentSnapshot) -> AdminReport {
+        let data = doc.data()
+        let reportedAt = (data["reported_at"] as? Timestamp)?.dateValue() ?? Date()
+        let resolvedAt = (data["resolved_at"] as? Timestamp)?.dateValue()
+        return AdminReport(
+            id:                 doc.documentID,
+            contentType:        data["content_type"]         as? String ?? "",
+            contentId:          data["content_id"]           as? String ?? "",
+            reportedUserId:     data["reported_user_id"]     as? String ?? "",
+            reportedUsername:   data["reported_username"]    as? String ?? "",
+            reportedBy:         data["reported_by"]          as? String ?? "",
+            reportedByUsername: data["reported_by_username"] as? String ?? "",
+            reason:             data["reason"]               as? String ?? "",
+            contextText:        data["context_text"]         as? String ?? "",
+            reportedAt:         reportedAt,
+            status:             data["status"]               as? String,
+            resolvedBy:         data["resolved_by"]          as? String,
+            resolvedAt:         resolvedAt
+        )
     }
 
     // =========================================================================

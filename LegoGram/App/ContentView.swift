@@ -26,6 +26,11 @@ struct ContentView: View {
     var body: some View {
         ZStack(alignment: .top) {
             Group {
+                if userSession.isSuspended {
+                    // Ban gate: a banned user was signed out during load and is
+                    // shown the suspension screen instead of the app.
+                    SuspendedAccountView { userSession.isSuspended = false }
+                } else {
                 switch authState {
                 case .loading:
                     ZStack {
@@ -60,6 +65,7 @@ struct ContentView: View {
                     } else {
                         EULAAgreementView()
                     }
+                }
                 }
             }
 
@@ -101,6 +107,10 @@ struct ContentView: View {
                 if let user {
                     authState = .loggedIn
                     await userSession.loadCurrentUser()
+
+                    // Load the admin badge cache once per session (admins/{uid}
+                    // collection — the same secure source as the admin gate).
+                    await AdminRegistry.shared.refresh()
 
                     // Demo seeding for the Apple reviewer account. Idempotent —
                     // skips if the seed conversations already exist in Firestore.
@@ -165,6 +175,40 @@ struct ContentView: View {
                     // Reset so the next sign-in shows the loading spinner again.
                     PostStore.shared.isLoadingFeed = true
                 }
+            }
+        }
+    }
+}
+
+// MARK: - Suspended Account Screen
+
+/// Shown when a banned user (is_banned == true) is blocked from entering the
+/// app. They have already been signed out by the ban gate in
+/// `UserSession.loadCurrentUser`; this just explains why and returns to login.
+private struct SuspendedAccountView: View {
+    let onDismiss: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.darkBackground.ignoresSafeArea()
+            VStack(spacing: 22) {
+                Image(systemName: "exclamationmark.octagon.fill")
+                    .font(.system(size: 72)).foregroundColor(.legoRed)
+                Text("Account Suspended")
+                    .font(.legoScreenTitle).foregroundColor(.lightText)
+                Text("Your account has been suspended for violating BrickFeed's community guidelines. If you believe this is a mistake, please contact support.")
+                    .font(.legoBody).foregroundColor(.secondaryText)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+                Button(action: onDismiss) {
+                    Text("OK")
+                        .font(.legoCardTitle).foregroundColor(.darkBackground)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Color.legoYellow)
+                        .cornerRadius(14)
+                }
+                .padding(.horizontal, 40)
             }
         }
     }

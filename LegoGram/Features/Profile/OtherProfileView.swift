@@ -44,9 +44,12 @@ struct OtherProfileView: View {
 
                     // MARK: Username & Bio
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("@\(username)")
-                            .font(.legoScreenTitle)
-                            .foregroundColor(.lightText)
+                        HStack(spacing: 6) {
+                            Text("@\(username)")
+                                .font(.legoScreenTitle)
+                                .foregroundColor(.lightText)
+                            AdminBadge(uid: targetUserId, size: 16)
+                        }
 
                         Text("Brick fan sharing builds on BrickFeed 🧱")
                             .font(.legoBody)

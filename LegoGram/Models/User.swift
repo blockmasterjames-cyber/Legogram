@@ -32,6 +32,13 @@ struct User: Identifiable, Codable, Hashable {
     var joinDate: Date
     var birthday: Date?
 
+    // MARK: - Moderation
+    /// Admin-set ban flag (Firestore `is_banned`). Read-only from the app's
+    /// perspective: it is written ONLY by the admin ban/unban methods, never by
+    /// `saveUser`, and the rules restrict it to admins. Declared last (with a
+    /// default) so the memberwise initializer's other call sites are unaffected.
+    var isBanned: Bool = false
+
     // MARK: - Firestore Field Keys
     enum CodingKeys: String, CodingKey {
         case id
@@ -47,6 +54,7 @@ struct User: Identifiable, Codable, Hashable {
         case totalPoints    = "total_points"
         case isKidAccount   = "is_kid_account"
         case isUnder9       = "is_under_9"
+        case isBanned       = "is_banned"
         case parentEmail    = "parent_email"
         case joinDate       = "join_date"
         case birthday

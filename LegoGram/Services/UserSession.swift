@@ -15,6 +15,15 @@ final class UserSession: ObservableObject {
     @Published var currentUser: User?
     @Published var isLoading = false
 
+    /// Whether the signed-in user is an admin. Derived ONLY from the existence
+    /// of `admins/{uid}` (console-only collection) — never from a user-doc
+    /// field, so it cannot be self-granted.
+    @Published var isAdmin = false
+
+    /// Set true when a banned user is blocked from entering the app. ContentView
+    /// observes this to show the suspension screen.
+    @Published var isSuspended = false
+
     /// Cached avatar UIImage loaded from Firebase Storage URL
     @Published var avatarImage: UIImage?
     /// Cached background UIImage loaded from Firebase Storage URL
@@ -40,12 +49,35 @@ final class UserSession: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         do {
-            currentUser = try await FirebaseService.shared.fetchUser(userId: uid)
+            let loaded = try await FirebaseService.shared.fetchUser(userId: uid)
+
+            // Ban gate: a banned user is signed out and shown a suspension
+            // message instead of entering the app.
+            if loaded.isBanned {
+                isSuspended = true
+                currentUser = nil
+                isAdmin = false
+                try? Auth.auth().signOut()
+                return
+            }
+
+            currentUser = loaded
             // Load photos from Firebase Storage URLs
             await loadPhotosFromFirebase()
+            // Resolve admin status from the console-only admins collection.
+            await refreshAdminStatus()
         } catch {
             print("[UserSession] Failed to load user profile: \(error.localizedDescription)")
         }
+    }
+
+    // MARK: - Admin Status
+
+    /// Refreshes `isAdmin` by checking whether `admins/{uid}` exists.
+    func refreshAdminStatus() async {
+        let currentUid = uid
+        guard !currentUid.isEmpty else { isAdmin = false; return }
+        isAdmin = await FirebaseService.shared.checkIsAdmin(uid: currentUid)
     }
 
     // MARK: - Load Photos from Firebase Storage URLs
@@ -139,6 +171,10 @@ final class UserSession: ObservableObject {
         currentUser      = nil
         avatarImage      = nil
         backgroundImage  = nil
+        isAdmin          = false
+        // Note: `isSuspended` is intentionally NOT reset here — it must survive
+        // the sign-out that the ban gate triggers so the suspension screen can
+        // show. It is cleared when the user dismisses that screen.
     }
 }
 
