@@ -62,8 +62,10 @@ struct DirectMessageThreadView: View {
         // loadFromFirestore only runs from the Messages list). Also bring up the
         // keyboard so the user can type right away.
         .task {
+            print("🔵DMDEBUG [thread] opened — conversation.id=\(conversation.id), store has \(dmStore.conversations.count) convs, this id present=\(dmStore.conversations.contains(where: { $0.id == conversation.id }))")
             inputFocused = true
             await dmStore.loadMessages(for: conversation.id)
+            print("🔵DMDEBUG [thread] loadMessages done — conversation.id=\(conversation.id), messages count now=\(dmStore.conversations.first(where: { $0.id == conversation.id })?.messages.count ?? -1)")
         }
         .toolbarBackground(Color.cardBackground, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
@@ -184,6 +186,7 @@ struct DirectMessageThreadView: View {
     }
 
     private func sendMessage() {
+        print("🔵DMDEBUG [thread] sendMessage tapped — text=\(messageText) conversationId=\(conversation.id)")
         let trimmed = messageText.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
         dmStore.sendMessage(text: trimmed, in: conversation.id)
