@@ -336,15 +336,16 @@ struct PostCard: View {
                         Task {
                             let currentUid = UserSession.shared.uid
                             guard !currentUid.isEmpty else { return }
-                            let targetId = OGAccountsService.ogAccounts
-                                .first(where: { $0.username == post.username })?.id ?? post.userId
+                            let targetId = post.userId
                             do {
                                 if !isFollowed {
                                     try await FirebaseService.shared.followUser(
                                         currentUserId: currentUid, targetUserId: targetId)
+                                    FollowingRegistry.shared.follow(uid: targetId)
                                 } else {
                                     try await FirebaseService.shared.unfollowUser(
                                         currentUserId: currentUid, targetUserId: targetId)
+                                    FollowingRegistry.shared.unfollow(uid: targetId)
                                 }
                             } catch {
                                 print("[PostCard] Follow/unfollow error: \(error)")
@@ -391,6 +392,7 @@ struct PostCard: View {
                         postAuthorAvatar
                         Text("@\(post.username)")
                             .font(.legoCardTitle).foregroundColor(.lightText)
+                        FollowingBadge(uid: post.userId)
                         Spacer()
                     }
                 }
