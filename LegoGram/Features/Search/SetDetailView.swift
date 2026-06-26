@@ -235,7 +235,12 @@ struct SetDetailView: View {
             Spacer()
 
             // Follow button
-            Button { postStore.toggleFollow(post.username) } label: {
+            Button {
+                let shouldFollow = !postStore.isFollowing(post.username)
+                Task {
+                    await postStore.performFollow(targetUid: post.userId, username: post.username, shouldFollow: shouldFollow)
+                }
+            } label: {
                 let following = postStore.isFollowing(post.username)
                 Text(following ? "Following" : "Follow")
                     .font(.system(size: 12, weight: .bold, design: .rounded))

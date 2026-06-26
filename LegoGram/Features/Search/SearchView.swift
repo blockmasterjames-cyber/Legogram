@@ -385,24 +385,9 @@ struct UserSearchRow: View {
 
             // Follow / Unfollow button
             Button {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                    postStore.toggleFollow(user.username)
-                }
-                // Also update Firestore
+                let shouldFollow = !postStore.isFollowing(user.username)
                 Task {
-                    let currentUid = UserSession.shared.uid
-                    guard !currentUid.isEmpty else { return }
-                    do {
-                        if postStore.isFollowing(user.username) {
-                            try await FirebaseService.shared.followUser(currentUserId: currentUid, targetUserId: user.id)
-                            FollowingRegistry.shared.follow(uid: user.id)
-                        } else {
-                            try await FirebaseService.shared.unfollowUser(currentUserId: currentUid, targetUserId: user.id)
-                            FollowingRegistry.shared.unfollow(uid: user.id)
-                        }
-                    } catch {
-                        print("[UserSearchRow] Follow/unfollow error: \(error)")
-                    }
+                    await postStore.performFollow(targetUid: user.id, username: user.username, shouldFollow: shouldFollow)
                 }
             } label: {
                 Text(postStore.isFollowing(user.username) ? "Unfollow" : "Follow")

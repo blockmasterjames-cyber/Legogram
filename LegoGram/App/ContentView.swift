@@ -120,9 +120,18 @@ struct ContentView: View {
                         await AuthService.shared.activateDemoModeIfNeeded(email: email)
                     }
 
-                    // Populate FollowingRegistry with the user's real followed UIDs
+                    // Restore the user's followed set from Firestore so follows
+                    // persist across relaunches. The `following` subcollection
+                    // stores UIDs: FollowingRegistry (UID set, drives
+                    // FollowingBadge) is refreshed directly, and the same UIDs
+                    // are resolved to usernames to repopulate
+                    // PostStore.followingUsernames — the set every Follow-button
+                    // label and the Home "Following" feed actually read.
                     if let followingIds = try? await FirebaseService.shared.fetchFollowingIds(userId: user.uid) {
                         FollowingRegistry.shared.refresh(with: followingIds)
+                        if let usernames = try? await FirebaseService.shared.fetchUsernames(for: followingIds) {
+                            PostStore.shared.followingUsernames = usernames
+                        }
                     }
 
                     // Load blocked users from Firestore so the content filter

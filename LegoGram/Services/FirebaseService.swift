@@ -23,7 +23,13 @@ final class FirebaseService: ObservableObject {
         return userFromData(data, id: userId)
     }
 
-    func saveUser(_ user: User) async throws {
+    /// Writes a user document. `follower_count` / `following_count` are
+    /// deliberately NOT written here on updates: they are denormalized counters
+    /// mutated ONLY by `followUser`/`unfollowUser` via `FieldValue.increment`.
+    /// Writing them wholesale from a (potentially stale) in-memory `User` would
+    /// silently clobber real follow activity. On user CREATION (`isNewUser`)
+    /// they are initialized to 0 so the doc starts in a known state.
+    func saveUser(_ user: User, isNewUser: Bool = false) async throws {
         var data: [String: Any] = [
             "username":        user.username,
             "display_name":    user.displayName,
@@ -38,8 +44,6 @@ final class FirebaseService: ObservableObject {
             "bio":             user.bio,
             "avatar_url":      user.avatarURL,
             "background_url":  user.backgroundURL,
-            "follower_count":  user.followerCount,
-            "following_count": user.followingCount,
             "post_count":      user.postCount,
             "total_likes":     user.totalLikes,
             "total_points":    user.totalPoints,
@@ -48,6 +52,12 @@ final class FirebaseService: ObservableObject {
             "parent_email":    user.parentEmail,
             "join_date":       Timestamp(date: user.joinDate)
         ]
+        // Initialize the follow counters once, on creation only. Never written
+        // on updates — see the doc comment above.
+        if isNewUser {
+            data["follower_count"]  = 0
+            data["following_count"] = 0
+        }
         if let birthday = user.birthday {
             data["birthday"] = Timestamp(date: birthday)
         }
@@ -176,6 +186,28 @@ final class FirebaseService: ObservableObject {
         let snap = try await db.collection("users").document(userId)
             .collection("following").getDocuments()
         return Set(snap.documents.map { $0.documentID })
+    }
+
+    /// Resolves a set of user UIDs to their usernames. Used at launch to restore
+    /// `PostStore.followingUsernames` from the `following` subcollection (which
+    /// stores only UIDs as document IDs). Batched in chunks of 10 to respect
+    /// Firestore's `in`-query limit.
+    func fetchUsernames(for ids: Set<String>) async throws -> Set<String> {
+        guard !ids.isEmpty else { return [] }
+        var usernames = Set<String>()
+        let idArray = Array(ids)
+        for start in stride(from: 0, to: idArray.count, by: 10) {
+            let chunk = Array(idArray[start..<min(start + 10, idArray.count)])
+            let snap = try await db.collection("users")
+                .whereField(FieldPath.documentID(), in: chunk)
+                .getDocuments()
+            for doc in snap.documents {
+                if let uname = doc.data()["username"] as? String, !uname.isEmpty {
+                    usernames.insert(uname)
+                }
+            }
+        }
+        return usernames
     }
 
     func fetchFollowerCount(userId: String) async throws -> Int {

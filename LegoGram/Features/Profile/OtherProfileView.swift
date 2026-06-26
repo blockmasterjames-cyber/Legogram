@@ -303,15 +303,16 @@ struct OtherProfileView: View {
             HStack(spacing: 8) {
                 // Follow / Unfollow
                 Button {
-                    let wasFollowing = postStore.isFollowing(username)
-                    postStore.toggleFollow(username)
-                    let uid = targetUserId
-                    if !uid.isEmpty {
-                        if wasFollowing {
-                            FollowingRegistry.shared.unfollow(uid: uid)
-                        } else {
-                            FollowingRegistry.shared.follow(uid: uid)
-                        }
+                    // Prefer the freshly-fetched profile doc id (reliable even
+                    // when the user has no post in the loaded feed); fall back to
+                    // the post-derived uid. Routes through the shared helper so
+                    // Firestore counters + subcollections + both in-memory
+                    // mechanisms all update together.
+                    let uid = profileUser?.id ?? targetUserId
+                    guard !uid.isEmpty else { return }
+                    let shouldFollow = !postStore.isFollowing(username)
+                    Task {
+                        await postStore.performFollow(targetUid: uid, username: username, shouldFollow: shouldFollow)
                     }
                 } label: {
                     let following = postStore.isFollowing(username)

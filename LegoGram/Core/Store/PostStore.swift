@@ -257,6 +257,58 @@ final class PostStore: ObservableObject {
         }
     }
 
+    /// THE single entry point for follow / unfollow actions, used by EVERY
+    /// Follow button (Home, Search, OtherProfile, SetDetail). It keeps all four
+    /// follow-tracking mechanisms in sync so they can never drift apart again:
+    ///   1. Firestore counters + subcollections — via `FirebaseService.followUser`
+    ///      / `unfollowUser` (the authoritative, batch-written source of truth).
+    ///   2. `FollowingRegistry` (UID set) — drives `FollowingBadge`.
+    ///   3. `followingUsernames` (username set) — drives every Follow-button
+    ///      label, the Home "Following" feed filter, and the Leaderboard.
+    ///   4. the signed-in user's in-memory `following_count` — so their own
+    ///      profile updates live.
+    ///
+    /// The in-memory state (2 + 3 + 4) is updated optimistically for an instant
+    /// UI response, then rolled back if the Firestore write fails.
+    func performFollow(targetUid: String, username: String, shouldFollow: Bool) async {
+        let currentUid = UserSession.shared.uid
+        guard !currentUid.isEmpty, !targetUid.isEmpty, targetUid != currentUid else { return }
+
+        // Optimistic in-memory update (mechanisms 2 + 3).
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            if shouldFollow {
+                followingUsernames.insert(username)
+                FollowingRegistry.shared.follow(uid: targetUid)
+            } else {
+                followingUsernames.remove(username)
+                FollowingRegistry.shared.unfollow(uid: targetUid)
+            }
+        }
+
+        do {
+            if shouldFollow {
+                try await FirebaseService.shared.followUser(currentUserId: currentUid, targetUserId: targetUid)
+            } else {
+                try await FirebaseService.shared.unfollowUser(currentUserId: currentUid, targetUserId: targetUid)
+            }
+            // Mechanism 4: keep the signed-in user's own following count live
+            // without a full re-fetch (mirrors the Firestore increment).
+            UserSession.shared.adjustFollowingCount(by: shouldFollow ? 1 : -1)
+        } catch {
+            // Roll back the optimistic update so the UI matches Firestore.
+            withAnimation {
+                if shouldFollow {
+                    followingUsernames.remove(username)
+                    FollowingRegistry.shared.unfollow(uid: targetUid)
+                } else {
+                    followingUsernames.insert(username)
+                    FollowingRegistry.shared.follow(uid: targetUid)
+                }
+            }
+            print("[PostStore] performFollow error: \(error)")
+        }
+    }
+
     // MARK: - Comment Utilities
 
     /// Replaces comments for a specific post (called after Firestore fetch).

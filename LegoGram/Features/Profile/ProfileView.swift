@@ -84,6 +84,10 @@ struct ProfileView: View {
                 OtherProfileView(username: username)
             }
         }
+        // Re-read follower/following from Firestore when the profile opens so the
+        // counts reflect followers gained while the app was running (the in-memory
+        // user is otherwise only loaded at launch).
+        .task { await userSession.refreshFollowCounts() }
         .sheet(isPresented: $showingEditProfile)       { EditProfileView() }
         .sheet(isPresented: $showingSettings)          { SettingsView() }
         .sheet(isPresented: $showingPointsExplanation) { PointsExplanationView() }
