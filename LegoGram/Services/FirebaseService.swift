@@ -849,6 +849,80 @@ final class FirebaseService: ObservableObject {
     }
 
     // =========================================================================
+    // MARK: - LEGO Set Catalog (lego_sets collection)
+    // =========================================================================
+
+    /// Searches the full LEGO catalog stored in the `lego_sets` Firestore
+    /// collection. Firestore can't do substring "contains" queries, so this
+    /// uses the standard prefix-range technique on `name_lower` (and on
+    /// `set_number` when the query looks numeric), then merges + dedupes.
+    func searchLegoSets(query: String, limit: Int = 25) async throws -> [LegoSet] {
+        let q = query.lowercased().trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return [] }
+        let end = q + "\u{f8ff}"
+
+        var seen = Set<String>()
+        var results: [LegoSet] = []
+
+        // 1) Prefix match on the lowercased name.
+        let nameSnap = try await db.collection("lego_sets")
+            .whereField("name_lower", isGreaterThanOrEqualTo: q)
+            .whereField("name_lower", isLessThan: end)
+            .limit(to: limit)
+            .getDocuments()
+        for doc in nameSnap.documents {
+            let set = legoSetFromData(doc.data(), id: doc.documentID)
+            if seen.insert(set.setNumber).inserted { results.append(set) }
+        }
+
+        // 2) If the query looks like a set number (starts with a digit),
+        //    also prefix-match on set_number and merge (deduped by number).
+        if let first = q.first, first.isNumber {
+            let numSnap = try await db.collection("lego_sets")
+                .whereField("set_number", isGreaterThanOrEqualTo: q)
+                .whereField("set_number", isLessThan: end)
+                .limit(to: limit)
+                .getDocuments()
+            for doc in numSnap.documents {
+                let set = legoSetFromData(doc.data(), id: doc.documentID)
+                if seen.insert(set.setNumber).inserted { results.append(set) }
+            }
+        }
+
+        // Newest sets first so recent releases surface at the top.
+        return results.sorted { $0.releaseYear > $1.releaseYear }
+    }
+
+    /// Fetches a single set by its number (the document ID in `lego_sets`).
+    func fetchLegoSet(setNumber: String) async throws -> LegoSet? {
+        let id = setNumber.trimmingCharacters(in: .whitespaces)
+        guard !id.isEmpty else { return nil }
+        let doc = try await db.collection("lego_sets").document(id).getDocument()
+        guard doc.exists, let data = doc.data() else { return nil }
+        return legoSetFromData(data, id: doc.documentID)
+    }
+
+    /// Maps a `lego_sets` Firestore document into a `LegoSet`. Number fields are
+    /// read defensively as either Int or Double so any numeric encoding works.
+    private func legoSetFromData(_ data: [String: Any], id: String) -> LegoSet {
+        let pieceCount  = (data["piece_count"]  as? Int) ?? Int(data["piece_count"]  as? Double ?? 0)
+        let releaseYear = (data["release_year"] as? Int) ?? Int(data["release_year"] as? Double ?? 0)
+        let retailPrice = (data["retail_price"] as? Double) ?? Double(data["retail_price"] as? Int ?? 0)
+        let number      = data["set_number"] as? String ?? id
+        return LegoSet(
+            id:          number,
+            setNumber:   number,
+            name:        data["name"]      as? String ?? "",
+            theme:       data["theme"]     as? String ?? "",
+            pieceCount:  pieceCount,
+            retailPrice: retailPrice,
+            buyLink:     data["buy_link"]  as? String ?? "",
+            imageURL:    data["image_url"] as? String ?? "",
+            releaseYear: releaseYear
+        )
+    }
+
+    // =========================================================================
     // MARK: - Storage Operations
     // =========================================================================
 

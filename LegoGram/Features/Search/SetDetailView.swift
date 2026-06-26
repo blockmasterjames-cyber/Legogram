@@ -111,17 +111,19 @@ struct SetDetailView: View {
             Label("\(set.pieceCount) pieces", systemImage: "square.grid.3x3.fill")
                 .font(.legoBody).foregroundColor(.secondaryText)
 
-            // Price + Buy button
+            // Price (only when known) + Find on LEGO.com button
             HStack {
-                Text("$\(String(format: "%.2f", set.retailPrice))")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
-                    .foregroundColor(.legoYellow)
+                if set.retailPrice > 0 {
+                    Text("$\(String(format: "%.2f", set.retailPrice))")
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .foregroundColor(.legoYellow)
+                }
 
                 Spacer()
 
                 if let url = URL(string: set.legoStoreURL) {
                     Link(destination: url) {
-                        Label("Buy Set", systemImage: "cart.fill")
+                        Label("Find on LEGO.com", systemImage: "magnifyingglass")
                             .font(.system(size: 13, weight: .bold, design: .rounded))
                             .foregroundColor(.darkBackground)
                             .padding(.horizontal, 14).padding(.vertical, 9)
