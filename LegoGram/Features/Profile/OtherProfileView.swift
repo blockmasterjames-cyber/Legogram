@@ -280,22 +280,54 @@ struct OtherProfileView: View {
     @ViewBuilder
     private func gridTile(for post: LegoPost) -> some View {
         ZStack {
-            if let image = postStore.postImages[post.id] {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .aspectRatio(1, contentMode: .fill)
+            Color.clear
+                .aspectRatio(1, contentMode: .fit)
+                .overlay {
+                    Group {
+                        if let image = postStore.postImages[post.id] {
+                            Image(uiImage: image).resizable().scaledToFill()
+                        } else if !post.imageURL.isEmpty, let url = URL(string: post.imageURL) {
+                            AsyncImage(url: url) { phase in
+                                switch phase {
+                                case .success(let img): img.resizable().scaledToFill()
+                                case .empty:
+                                    ZStack {
+                                        Color.legoRed.opacity(0.2)
+                                        ProgressView().tint(.legoYellow).scaleEffect(0.7)
+                                    }
+                                default: setNumberPlaceholder(for: post)
+                                }
+                            }
+                        } else if post.isCustomBuild {
+                            ZStack {
+                                Color.blue.opacity(0.22)
+                                VStack(spacing: 4) {
+                                    Image(systemName: "hammer.fill")
+                                        .font(.system(size: 20)).foregroundColor(.legoYellow)
+                                    Text(post.customBuildName.isEmpty ? "Custom" : post.customBuildName)
+                                        .font(.legoCaption).foregroundColor(.legoYellow)
+                                        .multilineTextAlignment(.center).lineLimit(2).padding(.horizontal, 4)
+                                }
+                            }
+                        } else if let url = LegoSetDatabase.set(for: post.legoSetNumber)?.setImageURL {
+                            AsyncImage(url: url) { phase in
+                                switch phase {
+                                case .success(let img): img.resizable().scaledToFill()
+                                case .empty:
+                                    ZStack {
+                                        Color.legoRed.opacity(0.2)
+                                        ProgressView().tint(.legoYellow).scaleEffect(0.7)
+                                    }
+                                default: setNumberPlaceholder(for: post)
+                                }
+                            }
+                        } else {
+                            setNumberPlaceholder(for: post)
+                        }
+                    }
                     .clipped()
-            } else {
-                Rectangle()
-                    .fill(Color.legoRed.opacity(0.25))
-                    .aspectRatio(1, contentMode: .fit)
-                    .overlay(
-                        Text("#\(post.legoSetNumber)")
-                            .font(.legoCaption)
-                            .foregroundColor(.legoYellow)
-                    )
-            }
+                }
+                .clipped()
 
             // Video badge
             if post.isVideoPost {
@@ -309,6 +341,13 @@ struct OtherProfileView: View {
                     Spacer()
                 }
             }
+        }
+    }
+
+    private func setNumberPlaceholder(for post: LegoPost) -> some View {
+        ZStack {
+            Color.legoRed.opacity(0.25)
+            Text("#\(post.legoSetNumber)").font(.legoCaption).foregroundColor(.legoYellow)
         }
     }
 
