@@ -240,21 +240,26 @@ struct PostDetailView: View {
         .toolbarBackground(Color.cardBackground, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button { dismiss() } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                        Text("Back")
-                    }
-                    .foregroundColor(.legoYellow)
-                }
-            }
+            // No custom leading back button — the system navigation bar already
+            // provides one. Adding our own here (without hiding the system one)
+            // produced TWO back controls side by side. We keep only the system
+            // back button, matching every other pushed screen (OtherProfileView,
+            // SetDetailView).
             ToolbarItem(placement: .principal) {
                 Text(post.isCustomBuild
                      ? post.customBuildName
                      : (legoSet?.name ?? post.legoSetName))
                     .font(.legoCardTitle).foregroundColor(.lightText).lineLimit(1)
             }
+        }
+        // PostDetailView's author row uses NavigationLink(value: post.username),
+        // which needs a String destination to resolve. Declaring it here makes
+        // the screen self-contained, so the author link works no matter which
+        // stack pushed PostDetailView (Home/Profile already register one, but
+        // Search→SetDetail and Leaderboard→OtherProfileView paths did not — so
+        // tapping the name there used to silently do nothing).
+        .navigationDestination(for: String.self) { username in
+            OtherProfileView(username: username)
         }
         .sheet(isPresented: $showingShareCard) {
             StoryShareCardView(post: post)
