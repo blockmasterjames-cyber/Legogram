@@ -195,6 +195,7 @@ struct OtherProfileView: View {
     /// `sendMessage(in: convId)` can find it and the very first message
     /// persists instead of being dropped.
     private func startConversation() {
+        print("🔵DMDEBUG [profile] startConversation tapped — username=\(username) recipientId=\(messageRecipientId)")
         let recipientId = messageRecipientId
         guard !recipientId.isEmpty, !isStartingConversation else { return }
         isStartingConversation = true
@@ -209,12 +210,14 @@ struct OtherProfileView: View {
                     otherUserId:     recipientId,
                     otherUsername:   username
                 )
+                print("🔵DMDEBUG [profile] getOrCreateConversation returned convId=\(convId)")
                 await MainActor.run {
                     // Reuse an already-loaded conversation (keeps its messages);
                     // otherwise insert a fresh one keyed on the real convId.
                     let conv: DMConversation
                     if let existing = DMStore.shared.conversations.first(where: { $0.id == convId }) {
                         conv = existing
+                        print("🔵DMDEBUG [profile] reusing existing conv id=\(convId)")
                     } else {
                         conv = DMConversation(
                             id: convId,
@@ -223,12 +226,15 @@ struct OtherProfileView: View {
                             messages: []
                         )
                         DMStore.shared.conversations.append(conv)
+                        print("🔵DMDEBUG [profile] inserted NEW conv id=\(convId) — store now has \(DMStore.shared.conversations.count) convs")
                     }
                     dmConversation = conv
                     isStartingConversation = false
+                    print("🔵DMDEBUG [profile] navigating to thread with conversation.id=\(conv.id)")
                     showingMessageThread = true
                 }
             } catch {
+                print("🔵DMDEBUG [profile] startConversation ERROR: \(error)")
                 // Network fallback: still open a store-backed conversation keyed
                 // on the real recipient uid so it can persist once back online.
                 await MainActor.run {

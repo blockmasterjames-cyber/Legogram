@@ -923,29 +923,37 @@ final class FirebaseService: ObservableObject {
     /// Returns the conversation document ID.
     func getOrCreateConversation(currentUserId: String, currentUsername: String,
                                   otherUserId: String, otherUsername: String) async throws -> String {
-        // Check if conversation already exists (either direction)
-        let existingSnap = try await db.collection("conversations")
-            .whereField("participant_ids", arrayContains: currentUserId)
-            .getDocuments()
+        print("🔵DMDEBUG [fb] getOrCreateConversation — currentUserId=\(currentUserId) otherUserId=\(otherUserId)")
+        do {
+            // Check if conversation already exists (either direction)
+            let existingSnap = try await db.collection("conversations")
+                .whereField("participant_ids", arrayContains: currentUserId)
+                .getDocuments()
 
-        for doc in existingSnap.documents {
-            let participantIds = doc.data()["participant_ids"] as? [String] ?? []
-            if participantIds.contains(otherUserId) {
-                return doc.documentID
+            for doc in existingSnap.documents {
+                let participantIds = doc.data()["participant_ids"] as? [String] ?? []
+                if participantIds.contains(otherUserId) {
+                    print("🔵DMDEBUG [fb] getOrCreateConversation returning id=\(doc.documentID)")
+                    return doc.documentID
+                }
             }
-        }
 
-        // Create new conversation
-        let convId = UUID().uuidString
-        let data: [String: Any] = [
-            "participant_ids": [currentUserId, otherUserId],
-            "participant_usernames": [currentUsername, otherUsername],
-            "created_at": Timestamp(date: Date()),
-            "last_message": "",
-            "last_message_date": Timestamp(date: Date())
-        ]
-        try await db.collection("conversations").document(convId).setData(data)
-        return convId
+            // Create new conversation
+            let convId = UUID().uuidString
+            let data: [String: Any] = [
+                "participant_ids": [currentUserId, otherUserId],
+                "participant_usernames": [currentUsername, otherUsername],
+                "created_at": Timestamp(date: Date()),
+                "last_message": "",
+                "last_message_date": Timestamp(date: Date())
+            ]
+            try await db.collection("conversations").document(convId).setData(data)
+            print("🔵DMDEBUG [fb] getOrCreateConversation returning id=\(convId)")
+            return convId
+        } catch {
+            print("🔵DMDEBUG [fb] getOrCreateConversation ERROR: \(error)")
+            throw error
+        }
     }
 
     /// Sends a message in a conversation and updates the last message preview.

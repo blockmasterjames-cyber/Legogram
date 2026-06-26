@@ -140,7 +140,9 @@ final class DMStore: ObservableObject {
     /// instant UI update, then writes it to Firestore. Moves the conversation
     /// to the top of the list.
     func sendMessage(text: String, in conversationId: String) {
+        print("🔵DMDEBUG [store] sendMessage called — conversationId=\(conversationId), text=\(text)")
         let filtered = BadWordFilter.filter(text.trimmingCharacters(in: .whitespaces))
+        print("🔵DMDEBUG [store] filtered text=\(filtered) isEmpty=\(filtered.isEmpty)")
         guard !filtered.isEmpty else { return }
 
         let senderId = UserSession.shared.uid
@@ -154,8 +156,13 @@ final class DMStore: ObservableObject {
             sentDate: Date()
         )
 
-        guard let idx = conversations.firstIndex(where: { $0.id == conversationId }) else { return }
+        print("🔵DMDEBUG [store] looking for conversationId=\(conversationId) — store has ids: \(conversations.map { $0.id })")
+        guard let idx = conversations.firstIndex(where: { $0.id == conversationId }) else {
+            print("🔵DMDEBUG [store] ❌ GUARD FAILED — no conversation with id=\(conversationId) — DROPPING MESSAGE")
+            return
+        }
         conversations[idx].messages.append(msg)
+        print("🔵DMDEBUG [store] ✅ appending message to conv id=\(conversationId) — messages count now=\(conversations[idx].messages.count)")
 
         // Move most-recently-active conversation to top
         let updated = conversations.remove(at: idx)
@@ -164,6 +171,7 @@ final class DMStore: ObservableObject {
         // Persist to Firestore so the message survives reload and is visible
         // to the other participant.
         Task {
+            print("🔵DMDEBUG [store] firestore write starting for convId=\(conversationId)")
             do {
                 try await FirebaseService.shared.sendDMMessage(
                     conversationId: conversationId,
@@ -171,7 +179,9 @@ final class DMStore: ObservableObject {
                     senderUsername: senderUsername,
                     text: filtered
                 )
+                print("🔵DMDEBUG [store] firestore write OK")
             } catch {
+                print("🔵DMDEBUG [store] firestore write ERROR: \(error)")
                 print("[DMStore] Failed to persist message to Firestore: \(error.localizedDescription)")
             }
         }
