@@ -18,6 +18,7 @@ struct DirectMessageListView: View {
     @State private var showBlockedConfirm = false   // post-block confirmation (Issue 1)
     @State private var blockedUsername   = ""
     @State private var pendingBlock: DMConversation?
+    @State private var lastReportReason = ""
 
     /// Conversations filtered to exclude those with blocked users. The filter
     /// is applied at render time so blocking takes effect instantly without
@@ -219,7 +220,11 @@ struct DirectMessageListView: View {
                 .scrollContentBackground(.hidden)
             }
         }
-        .reportConfirmationAlert(isPresented: $showReportConfirm)
+        .alert("Report submitted", isPresented: $showReportConfirm) {
+            Button("OK") {}
+        } message: {
+            Text("Thanks for keeping BrickFeed safe! Our team will review this conversation (reason: \(lastReportReason)) within 24 hours.")
+        }
         .alert("Block this user?", isPresented: $showBlockConfirm, presenting: pendingBlock) { conv in
             Button("Block @\(conv.otherUsername)", role: .destructive) {
                 postStore.blockUser(userId: conv.otherUserId,
@@ -238,6 +243,7 @@ struct DirectMessageListView: View {
     // MARK: - Report Conversation
 
     private func submitReport(conversation: DMConversation, reason: String) {
+        lastReportReason = reason
         showReportConfirm = true
         Task {
             let uid = UserSession.shared.uid
@@ -273,10 +279,11 @@ struct ConversationRow: View {
                 )
 
             VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 4) {
+                HStack(spacing: 6) {
                     Text("@\(conversation.otherUsername)")
                         .font(.legoCardTitle).foregroundColor(.lightText)
-                    AdminBadge(uid: conversation.otherUserId, size: 12)
+                    AdminBadge(uid: conversation.otherUserId)
+                    FollowingBadge(uid: conversation.otherUserId)
                 }
                 Text(conversation.lastMessagePreview)
                     .font(.legoBody).foregroundColor(.secondaryText)

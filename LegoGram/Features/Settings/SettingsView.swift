@@ -241,8 +241,6 @@ struct SettingsView: View {
 
     private var accountSection: some View {
         settingsSection("Account") {
-            labelRow(label: "Display Name",
-                     value: userSession.currentUser?.displayName ?? "", icon: "person.fill")
             labelRow(label: "Username",
                      value: "@\(userSession.currentUser?.username ?? "")", icon: "at")
         }

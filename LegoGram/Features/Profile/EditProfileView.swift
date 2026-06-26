@@ -8,7 +8,6 @@ struct EditProfileView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var userSession = UserSession.shared
 
-    @State private var draftDisplayName = ""
     @State private var draftUsername    = ""
     @State private var draftBio         = ""
 
@@ -29,9 +28,6 @@ struct EditProfileView: View {
                     VStack(spacing: 24) {
 
                         avatarSection.padding(.top, 8)
-
-                        formField(label: "Display Name", icon: "person.fill",
-                                  placeholder: "Your name", text: $draftDisplayName)
 
                         // Username field
                         VStack(alignment: .leading, spacing: 8) {
@@ -103,7 +99,6 @@ struct EditProfileView: View {
             }
         }
         .onAppear {
-            draftDisplayName = userSession.displayName
             draftUsername    = userSession.username
             draftBio         = userSession.bio
             previewAvatar    = userSession.avatarImage
@@ -185,15 +180,10 @@ struct EditProfileView: View {
     // MARK: - Save
 
     private func saveChanges() {
-        let trimmedName     = draftDisplayName.trimmingCharacters(in: .whitespaces)
         let trimmedUsername = draftUsername.trimmingCharacters(in: .whitespaces)
             .lowercased().filter { $0.isLetter || $0.isNumber || $0 == "_" }
         let trimmedBio      = draftBio.trimmingCharacters(in: .whitespaces)
 
-        guard !trimmedName.isEmpty else {
-            saveError = "Display name cannot be empty."
-            return
-        }
         guard !trimmedUsername.isEmpty else {
             saveError = "Username cannot be empty."
             return
@@ -205,7 +195,7 @@ struct EditProfileView: View {
         Task {
             do {
                 try await userSession.updateProfile(
-                    displayName: trimmedName,
+                    displayName: userSession.currentUser?.displayName ?? "",
                     username:    trimmedUsername,
                     bio:         trimmedBio
                 )

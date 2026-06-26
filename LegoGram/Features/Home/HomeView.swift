@@ -12,7 +12,6 @@ struct HomeView: View {
     @State private var showingDMSheet        = false
     @State private var showingNotifications  = false
     @State private var unreadNotifCount      = 0
-    @State private var showReportConfirm     = false     // feed report confirmation (hosted here so it survives the card being hidden)
 
     // MARK: - Feed Sections
 
@@ -81,10 +80,6 @@ struct HomeView: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
-        // Hosted on HomeView (not PostCard): reporting a post removes it from
-        // visiblePosts, which tears down its PostCard, so an alert attached to
-        // the card would never appear. PostCard signals this via onReport.
-        .reportConfirmationAlert(isPresented: $showReportConfirm)
     }
 
     // MARK: - Feed Area (loading / empty / posts)
@@ -115,8 +110,7 @@ struct HomeView: View {
                                     post: post,
                                     showFollowButton: true,
                                     onTap: { selectedPost = post },
-                                    onCommentTap: { commentPost = post },
-                                    onReport: { showReportConfirm = true }
+                                    onCommentTap: { commentPost = post }
                                 )
                             }
                         }
@@ -132,8 +126,7 @@ struct HomeView: View {
                                     post: post,
                                     showFollowButton: true,
                                     onTap: { selectedPost = post },
-                                    onCommentTap: { commentPost = post },
-                                    onReport: { showReportConfirm = true }
+                                    onCommentTap: { commentPost = post }
                                 )
                             }
                         }
@@ -285,14 +278,15 @@ struct PostCard: View {
     var showFollowButton: Bool = false
     let onTap: () -> Void
     let onCommentTap: () -> Void
-    let onReport: () -> Void
 
     @ObservedObject private var postStore = PostStore.shared
     @State private var showHeart    = false
     @State private var isLiking     = false
     @State private var carouselPage = 0
+    @State private var showReportConfirm = false
     @State private var showBlockConfirm  = false
     @State private var showBlockedConfirm = false   // post-block confirmation (Issue 1)
+    @State private var lastReportReason  = ""
 
     private var legoSet: LegoSet? {
         post.isCustomBuild ? nil : LegoSetDatabase.set(for: post.legoSetNumber)
@@ -342,15 +336,16 @@ struct PostCard: View {
                         Task {
                             let currentUid = UserSession.shared.uid
                             guard !currentUid.isEmpty else { return }
-                            let targetId = OGAccountsService.ogAccounts
-                                .first(where: { $0.username == post.username })?.id ?? post.userId
+                            let targetId = post.userId
                             do {
                                 if !isFollowed {
                                     try await FirebaseService.shared.followUser(
                                         currentUserId: currentUid, targetUserId: targetId)
+                                    FollowingRegistry.shared.follow(uid: targetId)
                                 } else {
                                     try await FirebaseService.shared.unfollowUser(
                                         currentUserId: currentUid, targetUserId: targetId)
+                                    FollowingRegistry.shared.unfollow(uid: targetId)
                                 }
                             } catch {
                                 print("[PostCard] Follow/unfollow error: \(error)")
@@ -398,6 +393,7 @@ struct PostCard: View {
                         Text("@\(post.username)")
                             .font(.legoCardTitle).foregroundColor(.lightText)
                         AdminBadge(uid: post.userId)
+                        FollowingBadge(uid: post.userId)
                         Spacer()
                     }
                 }
@@ -485,6 +481,11 @@ struct PostCard: View {
         .onTapGesture(count: 1) { onTap() }
         .shadow(color: .black.opacity(0.35), radius: 10, x: 0, y: 4)
         .padding(.horizontal, 16)
+        .alert("Report submitted", isPresented: $showReportConfirm) {
+            Button("OK") {}
+        } message: {
+            Text("Thanks for keeping BrickFeed safe! Our team will review this report (reason: \(lastReportReason)) within 24 hours.")
+        }
         .alert("Block @\(post.username)?", isPresented: $showBlockConfirm) {
             Button("Block", role: .destructive) { blockPostAuthor() }
             Button("Cancel", role: .cancel) {}
@@ -586,7 +587,8 @@ struct PostCard: View {
 
     private func reportPost(reason: String) {
         postStore.reportPost(post)
-        onReport()
+        lastReportReason = reason
+        showReportConfirm = true
         Task {
             let uid = UserSession.shared.uid
             let reporterUsername = UserSession.shared.username

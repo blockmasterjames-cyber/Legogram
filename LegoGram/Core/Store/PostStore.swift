@@ -2,7 +2,6 @@ import SwiftUI
 import Foundation
 
 /// PostStore is the single source of truth for posts, comments, likes, blocks, and reports.
-/// Sprint 9: All fake/seed data removed. OG posts loaded via OGAccountsService.
 @MainActor
 final class PostStore: ObservableObject {
 

@@ -24,10 +24,10 @@ struct LeaderboardView: View {
         return globalBuilders
             .filter { followed.contains($0.username) }
             .enumerated()
-            .map { idx, e in BuilderEntry(rank: idx + 1, username: e.username,
+            .map { idx, e in BuilderEntry(rank: idx + 1, userId: e.userId, username: e.username,
                                           displayName: e.displayName, score: e.score,
                                           avatarURL: e.avatarURL,
-                                          isCurrentUser: e.isCurrentUser, uid: e.uid) }
+                                          isCurrentUser: e.isCurrentUser) }
     }
 
     private var activeBuilders: [BuilderEntry] {
@@ -130,32 +130,15 @@ struct LeaderboardView: View {
             let currentUid = userSession.uid
             print("[Leaderboard] Loaded \(users.count) users successfully")
 
-            // If Firestore has no users yet, seed the OG accounts and reload
-            if users.isEmpty {
-                print("[Leaderboard] No users found — seeding OG accounts and retrying")
-                await OGAccountsService.shared.seedOGAccountsToFirestoreIfNeeded()
-                let seededUsers = try await FirebaseService.shared.fetchLeaderboard(limit: 50)
-                print("[Leaderboard] After seeding: \(seededUsers.count) users")
-                let cuid = userSession.uid
-                globalBuilders = seededUsers.enumerated().map { idx, user in
-                    BuilderEntry(rank: idx + 1, username: user.username,
-                                 displayName: user.displayName, score: user.totalPoints,
-                                 avatarURL: user.avatarURL, isCurrentUser: user.id == cuid,
-                                 uid: user.id)
-                }
-                isLoading = false
-                return
-            }
-
             globalBuilders = users.enumerated().map { idx, user in
                 BuilderEntry(
                     rank:          idx + 1,
+                    userId:        user.id,
                     username:      user.username,
                     displayName:   user.displayName,
                     score:         user.totalPoints,
                     avatarURL:     user.avatarURL,
-                    isCurrentUser: user.id == currentUid,
-                    uid:           user.id
+                    isCurrentUser: user.id == currentUid
                 )
             }
             isLoading = false
@@ -173,14 +156,12 @@ struct LeaderboardView: View {
 struct BuilderEntry: Identifiable {
     let id = UUID()
     let rank: Int
+    let userId: String
     let username: String
     let displayName: String
     let score: Int
     let avatarURL: String
     let isCurrentUser: Bool
-    /// Firebase uid of this builder, for the admin badge. May be "" for OG
-    /// seed accounts that have no real uid.
-    let uid: String
 }
 
 // MARK: - Builder Row
@@ -231,7 +212,8 @@ struct BuilderRow: View {
                 HStack(spacing: 6) {
                     Text("@\(builder.username)")
                         .font(.legoCardTitle).foregroundColor(.lightText)
-                    AdminBadge(uid: builder.uid, size: 12)
+                    AdminBadge(uid: builder.userId)
+                    FollowingBadge(uid: builder.userId)
                     if builder.isCurrentUser {
                         Text("You")
                             .font(.system(size: 10, weight: .bold, design: .rounded))
@@ -240,10 +222,6 @@ struct BuilderRow: View {
                             .background(Color.legoYellow)
                             .cornerRadius(5)
                     }
-                }
-                if !builder.displayName.isEmpty {
-                    Text(builder.displayName)
-                        .font(.legoCaption).foregroundColor(.secondaryText)
                 }
             }
 

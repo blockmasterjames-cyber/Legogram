@@ -120,13 +120,9 @@ struct ContentView: View {
                         await AuthService.shared.activateDemoModeIfNeeded(email: email)
                     }
 
-                    // Load following list from Firestore into PostStore
+                    // Populate FollowingRegistry with the user's real followed UIDs
                     if let followingIds = try? await FirebaseService.shared.fetchFollowingIds(userId: user.uid) {
-                        for id in followingIds {
-                            if let ogAccount = OGAccountsService.ogAccounts.first(where: { $0.id == id }) {
-                                PostStore.shared.followingUsernames.insert(ogAccount.username)
-                            }
-                        }
+                        FollowingRegistry.shared.refresh(with: followingIds)
                     }
 
                     // Load blocked users from Firestore so the content filter
@@ -145,14 +141,9 @@ struct ContentView: View {
                     // Load Firestore posts into feed
                     do {
                         let posts = try await FirebaseService.shared.fetchFeedPosts()
-                        if !posts.isEmpty {
-                            PostStore.shared.posts = posts
-                        } else {
-                            // Fall back to OG posts if no Firestore posts yet
-                            OGAccountsService.shared.loadOGPostsIfNeeded()
-                        }
+                        PostStore.shared.posts = posts
                     } catch {
-                        OGAccountsService.shared.loadOGPostsIfNeeded()
+                        print("[ContentView] Failed to load feed posts: \(error.localizedDescription)")
                     }
                     // Initial feed load has settled — HomeView swaps the spinner
                     // for the posts (or the real zero-state) without a scroll.
@@ -172,6 +163,7 @@ struct ContentView: View {
                     PostStore.shared.likedPostIDs.removeAll()
                     PostStore.shared.blockedUserIDs.removeAll()
                     PostStore.shared.blockedUsers.removeAll()
+                    FollowingRegistry.shared.refresh(with: [])
                     // Reset so the next sign-in shows the loading spinner again.
                     PostStore.shared.isLoadingFeed = true
                 }
