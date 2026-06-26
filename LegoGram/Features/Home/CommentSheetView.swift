@@ -9,16 +9,24 @@ struct CommentSheetView: View {
     @ObservedObject private var postStore = PostStore.shared
     @ObservedObject private var userSession = UserSession.shared
 
+    @ObservedObject private var adminRegistry = AdminRegistry.shared
+
     @State private var commentText = ""
     @State private var isSubmitting = false
     @State private var isLoading = false
     @State private var badWordWarning = false
     @State private var blockTarget: Comment?
-    @State private var showReportConfirm = false
-    @State private var showBlockConfirm  = false
+    @State private var showReportConfirm  = false
+    @State private var showBlockConfirm   = false
     @State private var showBlockedConfirm = false   // post-block confirmation (Issue 1)
-    @State private var blockedUsername   = ""
-    @State private var lastReportReason  = ""
+    @State private var blockedUsername    = ""
+    @State private var lastReportReason   = ""
+    // Admin delete comment – two-step confirmation
+    @State private var adminDeleteTarget:        Comment?
+    @State private var showAdminDeleteConfirm1   = false
+    @State private var showAdminDeleteConfirm2   = false
+    @State private var isAdminDeleting           = false
+    @State private var adminDeleteError: String?
     @FocusState private var commentFocused: Bool
 
     private var comments: [Comment] {
@@ -57,7 +65,10 @@ struct CommentSheetView: View {
                                     CommentRow(
                                         comment: comment,
                                         onReport: { reason in submitReport(comment: comment, reason: reason) },
-                                        onBlock:  { blockTarget = comment; showBlockConfirm = true }
+                                        onBlock:  { blockTarget = comment; showBlockConfirm = true },
+                                        onAdminDelete: adminRegistry.isAdmin(userSession.uid)
+                                            ? { adminDeleteTarget = comment; showAdminDeleteConfirm1 = true }
+                                            : nil
                                     )
                                     Divider().background(Color.secondaryText.opacity(0.15))
                                 }
@@ -102,6 +113,62 @@ struct CommentSheetView: View {
             Text("All of @\(target.username)'s posts, comments, and messages will be hidden immediately.")
         }
         .blockConfirmationAlert(username: blockedUsername, isPresented: $showBlockedConfirm)
+        // Admin delete comment – step 1
+        .alert("Delete this comment?", isPresented: $showAdminDeleteConfirm1) {
+            Button("Continue", role: .destructive) { showAdminDeleteConfirm2 = true }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This permanently removes the comment for everyone.")
+        }
+        // Admin delete comment – step 2
+        .alert("Are you sure?", isPresented: $showAdminDeleteConfirm2) {
+            Button("Delete", role: .destructive) {
+                if let target = adminDeleteTarget { adminDeleteComment(target) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This cannot be undone.")
+        }
+        .alert("Delete failed", isPresented: Binding(
+            get: { adminDeleteError != nil },
+            set: { if !$0 { adminDeleteError = nil } }
+        )) {
+            Button("OK") {}
+        } message: {
+            Text(adminDeleteError ?? "")
+        }
+    }
+
+    // MARK: - Admin Delete Comment
+
+    private func adminDeleteComment(_ comment: Comment) {
+        isAdminDeleting = true
+        Task {
+            let adminUid  = userSession.uid
+            let ownerUid  = comment.userId
+            let commentId = comment.id
+            do {
+                try await FirebaseService.shared.deleteComment(commentId: commentId)
+                await FirebaseService.shared.logModerationAction(
+                    action: "remove_content",
+                    adminUid: adminUid,
+                    targetUserId: ownerUid,
+                    contentType: "comment",
+                    contentId: commentId,
+                    note: "deleted on sight"
+                )
+                await MainActor.run {
+                    postStore.comments[post.id]?.removeAll { $0.id == commentId }
+                    isAdminDeleting   = false
+                    adminDeleteTarget = nil
+                }
+            } catch {
+                await MainActor.run {
+                    adminDeleteError = error.localizedDescription
+                    isAdminDeleting  = false
+                }
+            }
+        }
     }
 
     // MARK: - Report Comment
@@ -275,8 +342,9 @@ struct CommentSheetView: View {
 
 struct CommentRow: View {
     let comment: Comment
-    var onReport: ((String) -> Void)? = nil
-    var onBlock:  (() -> Void)? = nil
+    var onReport:      ((String) -> Void)? = nil
+    var onBlock:       (() -> Void)?       = nil
+    var onAdminDelete: (() -> Void)?       = nil
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -320,7 +388,7 @@ struct CommentRow: View {
             // Guideline 1.2. Hidden when no handlers are supplied so the
             // existing CommentRow callers used in other read-only contexts
             // (e.g. previews) keep working unchanged.
-            if onReport != nil || onBlock != nil {
+            if onReport != nil || onBlock != nil || onAdminDelete != nil {
                 Menu {
                     if let onReport {
                         Section("Report this comment") {
@@ -335,6 +403,15 @@ struct CommentRow: View {
                                 onBlock()
                             } label: {
                                 Label("Block @\(comment.username)", systemImage: "hand.raised.fill")
+                            }
+                        }
+                    }
+                    if let onAdminDelete {
+                        Section {
+                            Button(role: .destructive) {
+                                onAdminDelete()
+                            } label: {
+                                Label("Delete Comment (Admin)", systemImage: "trash.fill")
                             }
                         }
                     }
