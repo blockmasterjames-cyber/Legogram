@@ -303,6 +303,7 @@ struct CommentRow: View {
                     Text("@\(comment.username)")
                         .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundColor(.lightText)
+                    FollowingBadge(uid: comment.userId)
                     Text(comment.timeAgo)
                         .font(.legoCaption)
                         .foregroundColor(.secondaryText)

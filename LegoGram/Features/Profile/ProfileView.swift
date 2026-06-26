@@ -257,9 +257,6 @@ struct ProfileView: View {
                     .background(Color.successGreen).cornerRadius(6)
                 }
             }
-            if !displayName.isEmpty {
-                Text(displayName).font(.legoCardTitle).foregroundColor(.legoYellow)
-            }
             if !bio.isEmpty {
                 Text(BadWordFilter.filter(bio))
                     .font(.legoBody).foregroundColor(.secondaryText)

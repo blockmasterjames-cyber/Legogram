@@ -71,8 +71,6 @@ struct SignUpView: View {
                     // Fields
                     VStack(spacing: 14) {
 
-                        fieldView(placeholder: "Display Name", icon: "person.fill", text: $displayName)
-
                         // Username
                         HStack(spacing: 0) {
                             Text("@")
@@ -299,9 +297,6 @@ struct SignUpView: View {
     // MARK: - Sign Up Action
 
     private func performSignUp() {
-        guard !displayName.trimmingCharacters(in: .whitespaces).isEmpty else {
-            errorMessage = "Please enter your display name."; return
-        }
         let trimmedUsername = username.trimmingCharacters(in: .whitespaces)
         guard !trimmedUsername.isEmpty else {
             errorMessage = "Please enter a username."; return
@@ -323,10 +318,7 @@ struct SignUpView: View {
         if isUnder13 && !parentEmail.contains("@") {
             errorMessage = "Please enter a valid parent or guardian email address."; return
         }
-        // Validate display name / username for bad words
-        if let nameError = BadWordFilter.validateUsername(displayName.trimmingCharacters(in: .whitespaces)) {
-            errorMessage = nameError; return
-        }
+        // Validate username for bad words
         if let usernameError = BadWordFilter.validateUsername(trimmedUsername) {
             errorMessage = usernameError; return
         }
@@ -346,7 +338,7 @@ struct SignUpView: View {
                     email: email,
                     password: password,
                     username: trimmedUsername,
-                    displayName: displayName.trimmingCharacters(in: .whitespaces),
+                    displayName: "",
                     birthday: birthday,
                     parentEmail: isUnder13 ? parentEmail.trimmingCharacters(in: .whitespaces) : ""
                 )

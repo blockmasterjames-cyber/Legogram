@@ -122,15 +122,11 @@ struct OtherProfileView: View {
         }
     }
 
-    /// Resolves the userId for the displayed username. Prefers OGAccountsService
-    /// (where most usernames come from), then falls back to the first matching
-    /// post's user_id. Empty string if neither is available — Firestore block
-    /// still gets written using the username-only path in PostStore.
+    /// Resolves the userId for the displayed username from the post store.
+    /// Empty string if no post found — Firestore block still gets written
+    /// using the username-only path in PostStore.
     private var targetUserId: String {
-        if let og = OGAccountsService.ogAccounts.first(where: { $0.username == username }) {
-            return og.id
-        }
-        return postStore.posts.first(where: { $0.username == username })?.userId ?? ""
+        postStore.posts.first(where: { $0.username == username })?.userId ?? ""
     }
 
     private func submitReport(reason: String) {
@@ -194,7 +190,16 @@ struct OtherProfileView: View {
             HStack(spacing: 8) {
                 // Follow / Unfollow
                 Button {
+                    let wasFollowing = postStore.isFollowing(username)
                     postStore.toggleFollow(username)
+                    let uid = targetUserId
+                    if !uid.isEmpty {
+                        if wasFollowing {
+                            FollowingRegistry.shared.unfollow(uid: uid)
+                        } else {
+                            FollowingRegistry.shared.follow(uid: uid)
+                        }
+                    }
                 } label: {
                     let following = postStore.isFollowing(username)
                     Text(following ? "Following" : "Follow")

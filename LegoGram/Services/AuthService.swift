@@ -102,7 +102,7 @@ final class AuthService: ObservableObject {
         UserDefaults.standard.set(isUnder9, forKey: "settings_kidSafeMode")
 
         UserSession.shared.currentUser = newUser
-        await OGAccountsService.shared.setupNewUser(userId: uid)
+        await followFounderIfNeeded(userId: uid)
 
         isSignedIn = true
     }
@@ -146,10 +146,6 @@ final class AuthService: ObservableObject {
             return
         }
         print("[AuthService] Seeding demo DM conversations to Firestore for reviewer UID=\(reviewerUID)")
-
-        // Make sure the OG accounts exist in Firestore first — fetchConversations
-        // / search rely on their user docs being present.
-        await OGAccountsService.shared.seedOGAccountsToFirestoreIfNeeded()
 
         let reviewerUsername = UserSession.shared.username.isEmpty
             ? (UserDefaults.standard.string(forKey: "profile_username") ?? "appreview")
@@ -232,14 +228,6 @@ final class AuthService: ObservableObject {
         // immediately, without waiting for the next view appear.
         await DMStore.shared.loadFromFirestore(currentUserId: reviewerUID)
         print("[AuthService] Demo seeding complete. DMStore now has \(DMStore.shared.conversations.count) conversations.")
-
-        // Seed OG comment documents to /comments so every post's denormalized
-        // comment_count is backed by real Firestore documents. Same idempotent
-        // pattern (deterministic IDs + existence check) as the conversation
-        // seed above. Runs on every demo activation including the auto-restored
-        // session on launch, so the reviewer never sees a post that shows
-        // "5 comments" and opens to an empty list.
-        await OGAccountsService.shared.seedDemoCommentsToFirestoreIfNeeded()
     }
 
     // =========================================================================
@@ -436,8 +424,27 @@ final class AuthService: ObservableObject {
         // Always write an explicit value so no screen relies on the @AppStorage default.
         UserDefaults.standard.set(isUnder9, forKey: "settings_kidSafeMode")
 
-        await OGAccountsService.shared.setupNewUser(userId: uid)
+        await followFounderIfNeeded(userId: uid)
         needsAppleProfileSetup = false
+    }
+
+    // MARK: - Founder Auto-Follow
+
+    private func followFounderIfNeeded(userId: String) async {
+        do {
+            guard let founder = try await FirebaseService.shared.fetchUserByUsername("blockmasterjames") else {
+                print("[AuthService] blockmasterjames not found in Firestore — skipping auto-follow")
+                return
+            }
+            PostStore.shared.followingUsernames.insert("blockmasterjames")
+            try await FirebaseService.shared.followUser(
+                currentUserId: userId,
+                targetUserId: founder.id
+            )
+            print("[AuthService] New user auto-followed blockmasterjames ✓")
+        } catch {
+            print("[AuthService] Could not auto-follow blockmasterjames: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - Helpers

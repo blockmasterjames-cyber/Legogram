@@ -364,13 +364,11 @@ struct UserSearchRow: View {
 
             // User info
             VStack(alignment: .leading, spacing: 3) {
-                Text("@\(user.username)")
-                    .font(.legoCardTitle).foregroundColor(.lightText)
-                    .lineLimit(1)
-                if !user.displayName.isEmpty {
-                    Text(user.displayName)
-                        .font(.legoCaption).foregroundColor(.secondaryText)
+                HStack(spacing: 6) {
+                    Text("@\(user.username)")
+                        .font(.legoCardTitle).foregroundColor(.lightText)
                         .lineLimit(1)
+                    FollowingBadge(uid: user.id)
                 }
                 Text("\(user.postCount) posts")
                     .font(.legoCaption).foregroundColor(.secondaryText)
@@ -390,8 +388,10 @@ struct UserSearchRow: View {
                     do {
                         if postStore.isFollowing(user.username) {
                             try await FirebaseService.shared.followUser(currentUserId: currentUid, targetUserId: user.id)
+                            FollowingRegistry.shared.follow(uid: user.id)
                         } else {
                             try await FirebaseService.shared.unfollowUser(currentUserId: currentUid, targetUserId: user.id)
+                            FollowingRegistry.shared.unfollow(uid: user.id)
                         }
                     } catch {
                         print("[UserSearchRow] Follow/unfollow error: \(error)")
