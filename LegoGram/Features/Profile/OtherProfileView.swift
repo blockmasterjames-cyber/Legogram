@@ -14,6 +14,7 @@ struct OtherProfileView: View {
     @State private var showingBlockedConfirm = false
     @State private var showingMessageThread = false
     @State private var dmConversation: DMConversation?
+    @State private var isStartingConversation = false
     @State private var showReportConfirm = false
     @State private var selectedPost: LegoPost?
     @State private var profileUser: User?
@@ -127,8 +128,17 @@ struct OtherProfileView: View {
         }
         .blockConfirmationAlert(username: username, isPresented: $showingBlockedConfirm)
         .reportConfirmationAlert(isPresented: $showReportConfirm)
+        // Two destinations on the same stack, driven by independent state:
+        // a tapped thumbnail (item:) opens PostDetailView, and the Message
+        // button (isPresented:) opens the DM thread. Both live here at the
+        // top level so they coexist cleanly.
         .navigationDestination(item: $selectedPost) { post in
             PostDetailView(post: post)
+        }
+        .navigationDestination(isPresented: $showingMessageThread) {
+            if let conv = dmConversation {
+                DirectMessageThreadView(conversation: conv)
+            }
         }
     }
 
@@ -137,6 +147,71 @@ struct OtherProfileView: View {
     /// using the username-only path in PostStore.
     private var targetUserId: String {
         postStore.posts.first(where: { $0.username == username })?.userId ?? ""
+    }
+
+    /// The recipient uid to open a DM with. Prefers the fetched user doc
+    /// (`profileUser`), falling back to the post-derived `targetUserId`.
+    /// Empty only if neither is available yet, in which case the Message
+    /// button is disabled rather than firing with a placeholder uid.
+    private var messageRecipientId: String {
+        if let id = profileUser?.id, !id.isEmpty { return id }
+        return targetUserId
+    }
+
+    /// Opens (or creates) a real, persisted DM conversation with this user.
+    ///
+    /// Mirrors `NewMessageView.startConversation` — it routes through
+    /// `FirebaseService.getOrCreateConversation` using the recipient's REAL
+    /// uid, so the conversation document is written to Firestore with both
+    /// participant_ids and actually reaches the recipient. The returned
+    /// conversation is inserted into `DMStore.shared.conversations` (keyed on
+    /// the Firestore conversation id) BEFORE navigating, so the thread's
+    /// `sendMessage(in: convId)` can find it and the very first message
+    /// persists instead of being dropped.
+    private func startConversation() {
+        let recipientId = messageRecipientId
+        guard !recipientId.isEmpty, !isStartingConversation else { return }
+        isStartingConversation = true
+
+        Task {
+            let currentUserId   = UserSession.shared.uid
+            let currentUsername = UserSession.shared.username
+            do {
+                let convId = try await FirebaseService.shared.getOrCreateConversation(
+                    currentUserId:   currentUserId,
+                    currentUsername: currentUsername,
+                    otherUserId:     recipientId,
+                    otherUsername:   username
+                )
+                await MainActor.run {
+                    // Reuse an already-loaded conversation (keeps its messages);
+                    // otherwise insert a fresh one keyed on the real convId.
+                    let conv: DMConversation
+                    if let existing = DMStore.shared.conversations.first(where: { $0.id == convId }) {
+                        conv = existing
+                    } else {
+                        conv = DMConversation(
+                            id: convId,
+                            otherUserId: recipientId,
+                            otherUsername: username,
+                            messages: []
+                        )
+                        DMStore.shared.conversations.append(conv)
+                    }
+                    dmConversation = conv
+                    isStartingConversation = false
+                    showingMessageThread = true
+                }
+            } catch {
+                // Network fallback: still open a store-backed conversation keyed
+                // on the real recipient uid so it can persist once back online.
+                await MainActor.run {
+                    dmConversation = DMStore.shared.conversation(with: username, userId: recipientId)
+                    isStartingConversation = false
+                    showingMessageThread = true
+                }
+            }
+        }
     }
 
     private func submitReport(reason: String) {
@@ -257,33 +332,39 @@ struct OtherProfileView: View {
                 // Message button (available unless Safe Mode is on)
                 if !kidSafeMode {
                     Button {
-                        let conv = DMStore.shared.conversation(with: username)
-                        dmConversation = conv
-                        showingMessageThread = true
+                        startConversation()
                     } label: {
-                        Image(systemName: "message.fill")
-                            .font(.system(size: 14, weight: .bold))
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 9)
-                            .background(Color.cardBackground)
-                            .foregroundColor(.legoYellow)
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.legoYellow.opacity(0.5), lineWidth: 1)
-                            )
+                        Group {
+                            if isStartingConversation {
+                                ProgressView()
+                                    .tint(.legoYellow)
+                                    .frame(width: 16, height: 16)
+                            } else {
+                                Image(systemName: "message.fill")
+                                    .font(.system(size: 14, weight: .bold))
+                            }
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 9)
+                        .background(Color.cardBackground)
+                        .foregroundColor(.legoYellow)
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.legoYellow.opacity(0.5), lineWidth: 1)
+                        )
                     }
+                    // Don't fire with an empty recipient uid (profile doc not
+                    // loaded yet / user has no posts) — that produced a fake,
+                    // non-persisting "other-user" conversation.
+                    .disabled(messageRecipientId.isEmpty || isStartingConversation)
+                    .opacity(messageRecipientId.isEmpty ? 0.5 : 1)
                 }
             }
             .padding(.trailing, 16)
             .padding(.bottom, 8)
         }
         .padding(.bottom, -32)
-        .navigationDestination(isPresented: $showingMessageThread) {
-            if let conv = dmConversation {
-                DirectMessageThreadView(conversation: conv)
-            }
-        }
     }
 
     private var statsRow: some View {
