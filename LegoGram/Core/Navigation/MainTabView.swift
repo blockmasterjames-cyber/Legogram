@@ -184,9 +184,23 @@ struct MainTabView: View {
         SidebarItem(tab: .profile,     icon: "person.fill",     label: "Profile"),
     ]
 
+    /// Switches tabs, with a re-tap gesture on the already-active tab. Re-tapping
+    /// Home resets it to the feed: pops the Home navigation stack to root and
+    /// signals a scroll-to-top. Other tabs simply switch.
+    private func selectTab(_ tab: AppTab) {
+        if tab == appState.selectedTab {
+            if tab == .home {
+                appState.homePath = NavigationPath()
+                appState.scrollHomeToTopToken = UUID()
+            }
+        } else {
+            appState.selectedTab = tab
+        }
+    }
+
     private func sidebarButton(item: SidebarItem) -> some View {
         Button {
-            appState.selectedTab = item.tab
+            selectTab(item.tab)
         } label: {
             HStack(spacing: 14) {
                 Image(systemName: item.icon)
@@ -228,7 +242,7 @@ struct MainTabView: View {
 
     private func tabBarButton(tab: AppTab, icon: String, label: String) -> some View {
         Button {
-            appState.selectedTab = tab
+            selectTab(tab)
         } label: {
             VStack(spacing: 4) {
                 Image(systemName: icon).font(.system(size: 22))

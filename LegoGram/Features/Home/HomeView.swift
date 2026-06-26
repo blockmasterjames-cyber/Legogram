@@ -5,9 +5,9 @@ import AVKit
 struct HomeView: View {
 
     @ObservedObject private var postStore = PostStore.shared
+    @ObservedObject private var appState  = AppState.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    @State private var selectedPost: LegoPost?          // navigate to post detail
     @State private var commentPost: LegoPost?            // opens comment sheet
     @State private var showingDMSheet        = false
     @State private var showingNotifications  = false
@@ -42,7 +42,11 @@ struct HomeView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        // Path-bound stack so a Home-tab re-tap can pop back to the feed by
+        // resetting `appState.homePath`. Both post pushes (LegoPost values from
+        // a tapped card) and profile pushes (String usernames from author rows)
+        // flow through this one path.
+        NavigationStack(path: $appState.homePath) {
             ZStack {
                 Color.darkBackground.ignoresSafeArea()
 
@@ -51,7 +55,7 @@ struct HomeView: View {
                         feedHeader
                     }
             }
-            .navigationDestination(item: $selectedPost) { post in
+            .navigationDestination(for: LegoPost.self) { post in
                 PostDetailView(post: post)
             }
             // Single String destination for this stack. Both the feed's
@@ -101,48 +105,59 @@ struct HomeView: View {
             }
             .refreshable { await postStore.refreshPosts() }
         } else {
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    if !followedPosts.isEmpty {
-                        LazyVGrid(columns: feedColumns, spacing: 16) {
-                            ForEach(followedPosts, id: \.id) { post in
-                                PostCard(
-                                    post: post,
-                                    showFollowButton: true,
-                                    onTap: { selectedPost = post },
-                                    onCommentTap: { commentPost = post }
-                                )
-                            }
-                        }
-                        .padding(.horizontal, horizontalSizeClass == .regular ? 16 : 0)
-                        .padding(.top, 8)
-                    }
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        // Invisible top anchor — a Home-tab re-tap scrolls here.
+                        Color.clear.frame(height: 0).id(Self.topAnchorID)
 
-                    if !recommendedPosts.isEmpty {
-                        recommendedHeader
-                        LazyVGrid(columns: feedColumns, spacing: 16) {
-                            ForEach(recommendedPosts, id: \.id) { post in
-                                PostCard(
-                                    post: post,
-                                    showFollowButton: true,
-                                    onTap: { selectedPost = post },
-                                    onCommentTap: { commentPost = post }
-                                )
+                        if !followedPosts.isEmpty {
+                            LazyVGrid(columns: feedColumns, spacing: 16) {
+                                ForEach(followedPosts, id: \.id) { post in
+                                    PostCard(
+                                        post: post,
+                                        showFollowButton: true,
+                                        onTap: { appState.homePath.append(post) },
+                                        onCommentTap: { commentPost = post }
+                                    )
+                                }
                             }
+                            .padding(.horizontal, horizontalSizeClass == .regular ? 16 : 0)
+                            .padding(.top, 8)
                         }
-                        .padding(.horizontal, horizontalSizeClass == .regular ? 16 : 0)
-                    }
 
-                    infiniteScrollTrigger
+                        if !recommendedPosts.isEmpty {
+                            recommendedHeader
+                            LazyVGrid(columns: feedColumns, spacing: 16) {
+                                ForEach(recommendedPosts, id: \.id) { post in
+                                    PostCard(
+                                        post: post,
+                                        showFollowButton: true,
+                                        onTap: { appState.homePath.append(post) },
+                                        onCommentTap: { commentPost = post }
+                                    )
+                                }
+                            }
+                            .padding(.horizontal, horizontalSizeClass == .regular ? 16 : 0)
+                        }
+
+                        infiniteScrollTrigger
+                    }
+                    .padding(.bottom, 80)
+                    .padding(.top, 8)
                 }
-                .padding(.bottom, 80)
-                .padding(.top, 8)
-            }
-            .refreshable {
-                await postStore.refreshPosts()
+                .refreshable {
+                    await postStore.refreshPosts()
+                }
+                .onChange(of: appState.scrollHomeToTopToken) { _, _ in
+                    withAnimation { proxy.scrollTo(Self.topAnchorID, anchor: .top) }
+                }
             }
         }
     }
+
+    /// Stable id for the feed's top anchor used by scroll-to-top.
+    private static let topAnchorID = "home_feed_top"
 
     /// Centered spinner shown while the initial feed fetch is in flight.
     private var loadingState: some View {

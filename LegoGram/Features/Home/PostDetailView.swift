@@ -253,14 +253,13 @@ struct PostDetailView: View {
             }
         }
         // PostDetailView's author row uses NavigationLink(value: post.username),
-        // which needs a String destination to resolve. Declaring it here makes
-        // the screen self-contained, so the author link works no matter which
-        // stack pushed PostDetailView (Home/Profile already register one, but
-        // Search→SetDetail and Leaderboard→OtherProfileView paths did not — so
-        // tapping the name there used to silently do nothing).
-        .navigationDestination(for: String.self) { username in
-            OtherProfileView(username: username)
-        }
+        // which resolves against the String destination declared ONCE at the
+        // root of whichever tab's NavigationStack pushed this screen (Home,
+        // Profile, Search and Leaderboard each register exactly one). We do NOT
+        // declare another String destination here: a second one on the same
+        // stack triggers SwiftUI's "navigationDestination for Swift.String was
+        // declared earlier… only the root-most is used" warning. One per stack
+        // keeps resolution unambiguous and the console clean.
         .sheet(isPresented: $showingShareCard) {
             StoryShareCardView(post: post)
         }

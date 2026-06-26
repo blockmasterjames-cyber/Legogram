@@ -78,6 +78,62 @@ final class DMStore: ObservableObject {
         }
     }
 
+    /// Fetches the messages subcollection for a SINGLE conversation and merges
+    /// them into the locally-held conversation.
+    ///
+    /// Why this exists: opening a thread directly from a profile / New Message
+    /// builds the local `DMConversation` with `messages: []` (the bulk
+    /// `loadFromFirestore` only runs from the Messages list). Without this, a
+    /// conversation that already has history in Firestore renders empty. Calling
+    /// this on thread-open pulls that history regardless of whether the list was
+    /// ever visited this session.
+    ///
+    /// Merge strategy: Firestore is the source of truth for everything that has
+    /// been persisted. Local message ids are assigned independently of the
+    /// Firestore document ids, so we can't dedupe purely by id; instead we keep
+    /// the fetched set and re-append only local messages that are NEWER than the
+    /// newest fetched message (a just-sent message whose Firestore write is
+    /// still in flight), which avoids both dropping in-flight sends and
+    /// double-showing already-persisted ones.
+    func loadMessages(for conversationId: String) async {
+        guard !conversationId.isEmpty else { return }
+        do {
+            let msgsSnap = try await db.collection("conversations").document(conversationId)
+                .collection("messages")
+                .order(by: "sent_date")
+                .getDocuments()
+
+            let fetched: [DMMessage] = msgsSnap.documents.map { mDoc in
+                let mData = mDoc.data()
+                return DMMessage(
+                    id: mDoc.documentID,
+                    senderId: mData["sender_id"] as? String ?? "",
+                    senderUsername: mData["sender_username"] as? String ?? "",
+                    text: mData["text"] as? String ?? "",
+                    sentDate: (mData["sent_date"] as? Timestamp)?.dateValue() ?? Date()
+                )
+            }
+
+            guard let idx = conversations.firstIndex(where: { $0.id == conversationId }) else {
+                // Conversation isn't locally known yet — nothing to merge into.
+                return
+            }
+
+            let existing = conversations[idx].messages
+            let fetchedIds = Set(fetched.map(\.id))
+            let newestFetchedDate = fetched.last?.sentDate ?? .distantPast
+            let inFlight = existing.filter {
+                !fetchedIds.contains($0.id) && $0.sentDate > newestFetchedDate
+            }
+
+            var merged = fetched + inFlight
+            merged.sort { $0.sentDate < $1.sentDate }
+            conversations[idx].messages = merged
+        } catch {
+            print("[DMStore] loadMessages(for:) failed: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Send Message
 
     /// Appends a new (filtered) message to the conversation locally for an

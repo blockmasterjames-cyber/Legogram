@@ -27,5 +27,15 @@ final class AppState: ObservableObject {
     /// Set to true to programmatically open Settings sheet from ProfileView.
     @Published var openSettings: Bool = false
 
+    /// Navigation path for the Home tab's stack. Held here (not as local
+    /// HomeView state) so a re-tap of the Home tab bar button can pop the stack
+    /// back to the feed by resetting it to empty.
+    @Published var homePath = NavigationPath()
+
+    /// Bumped whenever the Home feed should scroll back to the top (e.g. on a
+    /// Home-tab re-tap). HomeView observes this token and scrolls to its top
+    /// anchor when it changes.
+    @Published var scrollHomeToTopToken = UUID()
+
     private init() {}
 }

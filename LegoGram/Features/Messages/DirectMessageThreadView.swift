@@ -57,6 +57,14 @@ struct DirectMessageThreadView: View {
         }
         .navigationTitle("@\(conversation.otherUsername)")
         .navigationBarTitleDisplayMode(.inline)
+        // Pull this conversation's message history on open so it shows even when
+        // the thread was reached directly from a profile / New Message (the bulk
+        // loadFromFirestore only runs from the Messages list). Also bring up the
+        // keyboard so the user can type right away.
+        .task {
+            inputFocused = true
+            await dmStore.loadMessages(for: conversation.id)
+        }
         .toolbarBackground(Color.cardBackground, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {

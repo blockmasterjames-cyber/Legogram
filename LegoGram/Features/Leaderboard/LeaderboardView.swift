@@ -115,6 +115,14 @@ struct LeaderboardView: View {
             .navigationDestination(item: $selectedUsername) { username in
                 OtherProfileView(username: username)
             }
+            // The single String→profile destination for the Leaderboard tab's
+            // stack. The item-based push above handles direct builder taps;
+            // this resolves author links inside a PostDetailView pushed deeper
+            // (Leaderboard → OtherProfile → PostDetail), now that PostDetailView
+            // no longer declares its own String destination.
+            .navigationDestination(for: String.self) { username in
+                OtherProfileView(username: username)
+            }
         }
         .task { await loadLeaderboard() }
     }
