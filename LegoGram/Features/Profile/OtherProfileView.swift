@@ -51,10 +51,10 @@ struct OtherProfileView: View {
                             Text("@\(username)")
                                 .font(.legoScreenTitle)
                                 .foregroundColor(.lightText)
-                            AdminBadge(uid: targetUserId, size: 16)
+                            AdminBadge(uid: resolvedUserId, size: 16)
                         }
 
-                        Text("Brick fan sharing builds on BrickFeed 🧱")
+                        Text(profileBio)
                             .font(.legoBody)
                             .foregroundColor(.secondaryText)
                             .fixedSize(horizontal: false, vertical: true)
@@ -88,9 +88,21 @@ struct OtherProfileView: View {
         }
         .navigationTitle("@\(username)")
         .navigationBarTitleDisplayMode(.inline)
-        .task(id: targetUserId) {
-            guard !targetUserId.isEmpty else { return }
-            profileUser = try? await FirebaseService.shared.fetchUser(userId: targetUserId)
+        // Populate the profile from the user's OWN document, looked up by
+        // username — NOT by scraping a uid out of the locally-loaded feed.
+        // The old approach gated the fetch on a post being present in
+        // `postStore.posts`, so opening a profile for someone with no post in
+        // the current feed (e.g. reached from the Leaderboard) left the screen
+        // blank. Fetching by username always resolves the real avatar, banner,
+        // bio and follower/following counts. Falls back to the post-derived uid
+        // only if the username lookup fails (e.g. offline).
+        .task(id: username) {
+            guard !username.isEmpty else { return }
+            if let fetched = try? await FirebaseService.shared.fetchUserByUsername(username) {
+                profileUser = fetched
+            } else if !targetUserId.isEmpty {
+                profileUser = try? await FirebaseService.shared.fetchUser(userId: targetUserId)
+            }
         }
         .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
@@ -118,7 +130,7 @@ struct OtherProfileView: View {
         // Block confirmation
         .alert("Block @\(username)?", isPresented: $showingBlockAlert) {
             Button("Block", role: .destructive) {
-                postStore.blockUser(userId: targetUserId, username: username,
+                postStore.blockUser(userId: resolvedUserId, username: username,
                                     reason: "Blocked from profile")
                 showingBlockedConfirm = true
             }
@@ -149,14 +161,28 @@ struct OtherProfileView: View {
         postStore.posts.first(where: { $0.username == username })?.userId ?? ""
     }
 
-    /// The recipient uid to open a DM with. Prefers the fetched user doc
-    /// (`profileUser`), falling back to the post-derived `targetUserId`.
-    /// Empty only if neither is available yet, in which case the Message
-    /// button is disabled rather than firing with a placeholder uid.
-    private var messageRecipientId: String {
+    /// The authoritative uid for this profile. Prefers the freshly-fetched user
+    /// document (reliable even when the user has no post in the loaded feed),
+    /// falling back to the post-derived uid while the fetch is in flight.
+    private var resolvedUserId: String {
         if let id = profileUser?.id, !id.isEmpty { return id }
         return targetUserId
     }
+
+    /// The bio to display — the user's real bio when present, otherwise a
+    /// friendly placeholder.
+    private var profileBio: String {
+        if let bio = profileUser?.bio, !bio.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return bio
+        }
+        return "Brick fan sharing builds on BrickFeed 🧱"
+    }
+
+    /// The recipient uid to open a DM with — the resolved profile uid. Empty
+    /// only if neither the fetched doc nor a local post is available yet, in
+    /// which case the Message button is disabled rather than firing with a
+    /// placeholder uid.
+    private var messageRecipientId: String { resolvedUserId }
 
     /// Opens (or creates) a real, persisted DM conversation with this user.
     ///
@@ -222,8 +248,8 @@ struct OtherProfileView: View {
             guard !uid.isEmpty else { return }
             try? await FirebaseService.shared.reportContent(
                 contentType:        "user",
-                contentId:          targetUserId.isEmpty ? username : targetUserId,
-                reportedUserId:     targetUserId,
+                contentId:          resolvedUserId.isEmpty ? username : resolvedUserId,
+                reportedUserId:     resolvedUserId,
                 reportedUsername:   username,
                 reportedBy:         uid,
                 reportedByUsername: reporterUsername,
@@ -308,7 +334,7 @@ struct OtherProfileView: View {
                     // the post-derived uid. Routes through the shared helper so
                     // Firestore counters + subcollections + both in-memory
                     // mechanisms all update together.
-                    let uid = profileUser?.id ?? targetUserId
+                    let uid = resolvedUserId
                     guard !uid.isEmpty else { return }
                     let shouldFollow = !postStore.isFollowing(username)
                     Task {

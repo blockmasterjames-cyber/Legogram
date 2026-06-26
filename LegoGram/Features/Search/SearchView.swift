@@ -41,6 +41,13 @@ struct SearchView: View {
             .navigationDestination(item: $selectedSet) { set in
                 SetDetailView(set: set)
             }
+            // The single String→profile destination for the Search tab's stack.
+            // Author links inside a PostDetailView pushed deeper in this stack
+            // (Search → SetDetail → OtherProfile → PostDetail) resolve here,
+            // now that PostDetailView no longer declares its own.
+            .navigationDestination(for: String.self) { username in
+                OtherProfileView(username: username)
+            }
         }
     }
 
