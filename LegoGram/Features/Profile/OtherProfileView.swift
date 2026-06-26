@@ -15,6 +15,7 @@ struct OtherProfileView: View {
     @State private var showingMessageThread = false
     @State private var dmConversation: DMConversation?
     @State private var showReportConfirm = false
+    @State private var selectedPost: LegoPost?
 
     private var theirPosts: [LegoPost] {
         postStore.posts.filter { $0.username == username }
@@ -70,7 +71,10 @@ struct OtherProfileView: View {
                     } else {
                         LazyVGrid(columns: gridColumns, spacing: 2) {
                             ForEach(theirPosts) { post in
-                                gridTile(for: post)
+                                Button { selectedPost = post } label: {
+                                    gridTile(for: post)
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
                         .padding(.top, 2)
@@ -118,6 +122,9 @@ struct OtherProfileView: View {
         }
         .blockConfirmationAlert(username: username, isPresented: $showingBlockedConfirm)
         .reportConfirmationAlert(isPresented: $showReportConfirm)
+        .navigationDestination(item: $selectedPost) { post in
+            PostDetailView(post: post)
+        }
     }
 
     /// Resolves the userId for the displayed username from the post store.
