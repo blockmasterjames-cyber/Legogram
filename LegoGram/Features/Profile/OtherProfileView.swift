@@ -16,6 +16,7 @@ struct OtherProfileView: View {
     @State private var dmConversation: DMConversation?
     @State private var showReportConfirm = false
     @State private var selectedPost: LegoPost?
+    @State private var profileUser: User?
 
     private var theirPosts: [LegoPost] {
         postStore.posts.filter { $0.username == username }
@@ -86,6 +87,10 @@ struct OtherProfileView: View {
         }
         .navigationTitle("@\(username)")
         .navigationBarTitleDisplayMode(.inline)
+        .task(id: targetUserId) {
+            guard !targetUserId.isEmpty else { return }
+            profileUser = try? await FirebaseService.shared.fetchUser(userId: targetUserId)
+        }
         .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -156,6 +161,25 @@ struct OtherProfileView: View {
 
     private var coverPhoto: some View {
         ZStack(alignment: .bottomLeading) {
+            if let bgURL = profileUser?.backgroundURL, !bgURL.isEmpty, let url = URL(string: bgURL) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let img):
+                        img.resizable().scaledToFill()
+                            .frame(height: 160).clipped()
+                    default:
+                        gradientBanner
+                    }
+                }
+                .frame(height: 160)
+            } else {
+                gradientBanner
+            }
+        }
+    }
+
+    private var gradientBanner: some View {
+        ZStack(alignment: .bottomLeading) {
             LinearGradient(
                 colors: [Color.legoRed, Color.legoYellow.opacity(0.5)],
                 startPoint: .topLeading, endPoint: .bottomTrailing
@@ -177,17 +201,27 @@ struct OtherProfileView: View {
     private var avatarAndFollowRow: some View {
         HStack(alignment: .bottom) {
             // Avatar
-            Circle()
-                .fill(Color.cardBackground)
-                .frame(width: 90, height: 90)
-                .overlay(
-                    Text(String(username.prefix(1)).uppercased())
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
-                        .foregroundColor(.legoYellow)
-                )
-                .overlay(Circle().stroke(Color.darkBackground, lineWidth: 4))
-                .offset(y: -40)
-                .padding(.leading, 16)
+            Group {
+                if let avatarURL = profileUser?.avatarURL, !avatarURL.isEmpty,
+                   let url = URL(string: avatarURL) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let img):
+                            img.resizable().scaledToFill()
+                                .frame(width: 90, height: 90)
+                                .clipShape(Circle())
+                        default:
+                            initialLetterAvatar
+                        }
+                    }
+                    .frame(width: 90, height: 90)
+                } else {
+                    initialLetterAvatar
+                }
+            }
+            .overlay(Circle().stroke(Color.darkBackground, lineWidth: 4))
+            .offset(y: -40)
+            .padding(.leading, 16)
 
             Spacer()
 
@@ -256,7 +290,9 @@ struct OtherProfileView: View {
         HStack(spacing: 0) {
             statCell(value: "\(theirPosts.count)", label: "Posts")
             Divider().frame(height: 40)
-            statCell(value: "\(followerCount)", label: "Followers")
+            statCell(value: "\(profileUser?.followerCount ?? 0)", label: "Followers")
+            Divider().frame(height: 40)
+            statCell(value: "\(profileUser?.followingCount ?? 0)", label: "Following")
             Divider().frame(height: 40)
             statCell(value: "\(setsCompleted)", label: "Completed")
         }
@@ -267,9 +303,15 @@ struct OtherProfileView: View {
         .padding(.bottom, 20)
     }
 
-    private var followerCount: Int {
-        // Count followers from local data; Firestore will have the real count
-        postStore.followingUsernames.contains(username) ? 1 : 0
+    private var initialLetterAvatar: some View {
+        Circle()
+            .fill(Color.cardBackground)
+            .frame(width: 90, height: 90)
+            .overlay(
+                Text(String(username.prefix(1)).uppercased())
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .foregroundColor(.legoYellow)
+            )
     }
 
     private func statCell(value: String, label: String) -> some View {
