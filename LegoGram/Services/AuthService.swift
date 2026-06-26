@@ -88,7 +88,7 @@ final class AuthService: ObservableObject {
             birthday:       birthday
         )
 
-        try await FirebaseService.shared.saveUser(newUser)
+        try await FirebaseService.shared.saveUser(newUser, isNewUser: true)
 
         // Persist EULA acceptance to the new user's record so we have a
         // per-account record of consent (Apple Guideline 1.2).
@@ -380,7 +380,7 @@ final class AuthService: ObservableObject {
                 birthday:       nil
             )
             do {
-                try await FirebaseService.shared.saveUser(placeholderUser)
+                try await FirebaseService.shared.saveUser(placeholderUser, isNewUser: true)
                 print("[AuthService] signInWithApple: placeholder user saved to Firestore ✓")
             } catch {
                 print("[AuthService] signInWithApple ERROR: failed to save placeholder user — \(error.localizedDescription)")

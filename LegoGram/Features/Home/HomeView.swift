@@ -336,26 +336,11 @@ struct PostCard: View {
                 if showFollowButton {
                     let isFollowed = postStore.isFollowing(post.username)
                     Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                            postStore.toggleFollow(post.username)
-                        }
                         Task {
-                            let currentUid = UserSession.shared.uid
-                            guard !currentUid.isEmpty else { return }
-                            let targetId = post.userId
-                            do {
-                                if !isFollowed {
-                                    try await FirebaseService.shared.followUser(
-                                        currentUserId: currentUid, targetUserId: targetId)
-                                    FollowingRegistry.shared.follow(uid: targetId)
-                                } else {
-                                    try await FirebaseService.shared.unfollowUser(
-                                        currentUserId: currentUid, targetUserId: targetId)
-                                    FollowingRegistry.shared.unfollow(uid: targetId)
-                                }
-                            } catch {
-                                print("[PostCard] Follow/unfollow error: \(error)")
-                            }
+                            await postStore.performFollow(
+                                targetUid: post.userId,
+                                username: post.username,
+                                shouldFollow: !isFollowed)
                         }
                     } label: {
                         Text(isFollowed ? "Unfollow" : "Follow")

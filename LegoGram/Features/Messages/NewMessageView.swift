@@ -200,15 +200,27 @@ struct NewMessageView: View {
                     otherUserId: user.id,
                     otherUsername: user.username
                 )
-                let conv = dmStore.conversation(with: user.username, userId: user.id)
-                // Update the conversation ID to match Firestore
                 await MainActor.run {
-                    newConversation = DMConversation(
-                        id: convId,
-                        otherUserId: user.id,
-                        otherUsername: user.username,
-                        messages: []
-                    )
+                    // Insert the conversation under the REAL Firestore convId
+                    // BEFORE navigating, so the thread's first sendMessage finds
+                    // it (mirrors the fixed OtherProfileView Message button).
+                    // Previously this navigated with convId while the store held
+                    // a phantom UUID conversation, so the first message was
+                    // silently dropped. Reuse an already-loaded conversation for
+                    // this convId to keep its messages.
+                    let conv: DMConversation
+                    if let existing = dmStore.conversations.first(where: { $0.id == convId }) {
+                        conv = existing
+                    } else {
+                        conv = DMConversation(
+                            id: convId,
+                            otherUserId: user.id,
+                            otherUsername: user.username,
+                            messages: []
+                        )
+                        dmStore.conversations.append(conv)
+                    }
+                    newConversation = conv
                     navigateToThread = true
                 }
             } catch {

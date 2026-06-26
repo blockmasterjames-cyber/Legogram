@@ -71,6 +71,31 @@ final class UserSession: ObservableObject {
         }
     }
 
+    // MARK: - Follow Counts
+
+    /// Adjusts the in-memory `following_count` to match a follow/unfollow the
+    /// user just performed, so their own profile updates immediately without a
+    /// full re-fetch. The authoritative value still lives in Firestore (written
+    /// by `followUser`/`unfollowUser`'s `FieldValue.increment`).
+    func adjustFollowingCount(by delta: Int) {
+        guard var user = currentUser else { return }
+        user.followingCount = max(0, user.followingCount + delta)
+        currentUser = user
+    }
+
+    /// Re-reads the signed-in user's follower/following counts from Firestore.
+    /// Called when the user opens their own profile so the counts reflect
+    /// followers gained while the app was open — others following you isn't an
+    /// action this device performs, so it can only be picked up by a re-read.
+    func refreshFollowCounts() async {
+        guard !uid.isEmpty,
+              let fresh = try? await FirebaseService.shared.fetchUser(userId: uid),
+              var user = currentUser else { return }
+        user.followerCount  = fresh.followerCount
+        user.followingCount = fresh.followingCount
+        currentUser = user
+    }
+
     // MARK: - Admin Status
 
     /// Refreshes `isAdmin` by checking whether `admins/{uid}` exists.
