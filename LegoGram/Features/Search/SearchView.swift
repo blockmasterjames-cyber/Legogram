@@ -368,6 +368,7 @@ struct UserSearchRow: View {
                     Text("@\(user.username)")
                         .font(.legoCardTitle).foregroundColor(.lightText)
                         .lineLimit(1)
+                    AdminBadge(uid: user.id)
                     FollowingBadge(uid: user.id)
                 }
                 Text("\(user.postCount) posts")

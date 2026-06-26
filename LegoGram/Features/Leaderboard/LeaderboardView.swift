@@ -212,6 +212,7 @@ struct BuilderRow: View {
                 HStack(spacing: 6) {
                     Text("@\(builder.username)")
                         .font(.legoCardTitle).foregroundColor(.lightText)
+                    AdminBadge(uid: builder.userId)
                     FollowingBadge(uid: builder.userId)
                     if builder.isCurrentUser {
                         Text("You")

@@ -70,6 +70,7 @@ struct PostDetailView: View {
                                 HStack(spacing: 6) {
                                     Text("@\(post.username)")
                                         .font(.legoCardTitle).foregroundColor(.lightText)
+                                    AdminBadge(uid: post.userId)
                                     FollowingBadge(uid: post.userId)
                                 }
                                 Text(post.postedDate.formatted(date: .abbreviated, time: .shortened))
