@@ -36,6 +36,7 @@ final class FirebaseService: ObservableObject {
             "total_likes":     user.totalLikes,
             "total_points":    user.totalPoints,
             "is_kid_account":  user.isKidAccount,
+            "is_under_9":      user.isUnder9,
             "parent_email":    user.parentEmail,
             "join_date":       Timestamp(date: user.joinDate)
         ]
@@ -61,6 +62,7 @@ final class FirebaseService: ObservableObject {
             totalLikes:     data["total_likes"]     as? Int    ?? 0,
             totalPoints:    data["total_points"]    as? Int    ?? 0,
             isKidAccount:   data["is_kid_account"]  as? Bool   ?? false,
+            isUnder9:       data["is_under_9"]      as? Bool   ?? false,
             parentEmail:    data["parent_email"]    as? String ?? "",
             joinDate:       joinTimestamp?.dateValue() ?? Date(),
             birthday:       birthdayTimestamp?.dateValue()

@@ -43,6 +43,14 @@ struct SignUpView: View {
         return age < 13
     }
 
+    /// Only under-9 accounts get Safe Mode turned on by default, so the
+    /// "Safe Mode will be turned on" notice is shown only for them.
+    private var isUnder9: Bool {
+        guard hasBirthday else { return false }
+        let age = Calendar.current.dateComponents([.year], from: birthday, to: Date()).year ?? 0
+        return age < 9
+    }
+
     var body: some View {
         ZStack {
             Color.darkBackground.ignoresSafeArea()
@@ -98,7 +106,7 @@ struct SignUpView: View {
                                     .colorScheme(.dark)
                                     .onChange(of: birthday) { _, _ in
                                         hasBirthday = true
-                                        withAnimation { showKidSafeMessage = isUnder13 }
+                                        withAnimation { showKidSafeMessage = isUnder9 }
                                     }
                             }
                             .padding(.vertical, 10).padding(.trailing, 14)

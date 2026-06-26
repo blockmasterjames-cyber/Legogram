@@ -6,7 +6,7 @@ import PhotosUI
 struct ProfileView: View {
 
     @ObservedObject private var userSession = UserSession.shared
-    @AppStorage("settings_kidSafeMode") private var kidSafeMode: Bool = true
+    @AppStorage("settings_kidSafeMode") private var kidSafeMode: Bool = false
 
     @State private var showingEditProfile = false
     @State private var showingSettings   = false
