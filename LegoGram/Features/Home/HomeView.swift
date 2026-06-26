@@ -279,14 +279,20 @@ struct PostCard: View {
     let onTap: () -> Void
     let onCommentTap: () -> Void
 
-    @ObservedObject private var postStore = PostStore.shared
+    @ObservedObject private var postStore     = PostStore.shared
+    @ObservedObject private var adminRegistry = AdminRegistry.shared
     @State private var showHeart    = false
     @State private var isLiking     = false
     @State private var carouselPage = 0
-    @State private var showReportConfirm = false
-    @State private var showBlockConfirm  = false
+    @State private var showReportConfirm  = false
+    @State private var showBlockConfirm   = false
     @State private var showBlockedConfirm = false   // post-block confirmation (Issue 1)
-    @State private var lastReportReason  = ""
+    @State private var lastReportReason   = ""
+    // Admin delete – two-step confirmation
+    @State private var showAdminDeleteConfirm1 = false
+    @State private var showAdminDeleteConfirm2 = false
+    @State private var isAdminDeleting         = false
+    @State private var adminDeleteError: String?
 
     private var legoSet: LegoSet? {
         post.isCustomBuild ? nil : LegoSetDatabase.set(for: post.legoSetNumber)
@@ -493,6 +499,28 @@ struct PostCard: View {
             Text("All of @\(post.username)'s posts, comments, and messages will be hidden immediately. The block persists across devices and app restarts.")
         }
         .blockConfirmationAlert(username: post.username, isPresented: $showBlockedConfirm)
+        // Admin delete – step 1
+        .alert("Delete this post?", isPresented: $showAdminDeleteConfirm1) {
+            Button("Continue", role: .destructive) { showAdminDeleteConfirm2 = true }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This permanently removes the post and all its comments for everyone.")
+        }
+        // Admin delete – step 2
+        .alert("Are you sure?", isPresented: $showAdminDeleteConfirm2) {
+            Button("Delete", role: .destructive) { adminDeletePost() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This cannot be undone.")
+        }
+        .alert("Delete failed", isPresented: Binding(
+            get: { adminDeleteError != nil },
+            set: { if !$0 { adminDeleteError = nil } }
+        )) {
+            Button("OK") {}
+        } message: {
+            Text(adminDeleteError ?? "")
+        }
     }
 
     // MARK: - Author Avatar
@@ -528,11 +556,21 @@ struct PostCard: View {
                     Label("Block @\(post.username)", systemImage: "hand.raised.fill")
                 }
             }
+            if adminRegistry.isAdmin(UserSession.shared.uid) {
+                Section {
+                    Button(role: .destructive) {
+                        showAdminDeleteConfirm1 = true
+                    } label: {
+                        Label("Delete Post (Admin)", systemImage: "trash.fill")
+                    }
+                }
+            }
         } label: {
             Image(systemName: "flag")
                 .font(.system(size: 14))
                 .foregroundColor(.secondaryText)
         }
+        .disabled(isAdminDeleting)
     }
 
     // MARK: - Computed counts
@@ -612,6 +650,35 @@ struct PostCard: View {
         postStore.blockUser(userId: post.userId, username: post.username,
                             reason: "Blocked from post menu")
         showBlockedConfirm = true
+    }
+
+    private func adminDeletePost() {
+        isAdminDeleting = true
+        Task {
+            let adminUid   = UserSession.shared.uid
+            let ownerUid   = post.userId
+            let postId     = post.id
+            do {
+                try await FirebaseService.shared.deletePost(postId, userId: ownerUid)
+                await FirebaseService.shared.logModerationAction(
+                    action: "remove_content",
+                    adminUid: adminUid,
+                    targetUserId: ownerUid,
+                    contentType: "post",
+                    contentId: postId,
+                    note: "deleted on sight"
+                )
+                await MainActor.run {
+                    postStore.posts.removeAll { $0.id == postId }
+                    isAdminDeleting = false
+                }
+            } catch {
+                await MainActor.run {
+                    adminDeleteError = error.localizedDescription
+                    isAdminDeleting  = false
+                }
+            }
+        }
     }
 
     // MARK: - Card Media Area (handles carousel or single image/video)
