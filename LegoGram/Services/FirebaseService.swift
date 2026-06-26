@@ -27,6 +27,14 @@ final class FirebaseService: ObservableObject {
         var data: [String: Any] = [
             "username":        user.username,
             "display_name":    user.displayName,
+            // Pre-lowercased mirrors of the searchable name fields. These are
+            // what `searchUsers` queries (Firestore range queries are byte-order
+            // comparisons, so a case-sensitive prefix on `username` misses any
+            // mixed-case stored value). The displayed username is unchanged —
+            // these are search-only fields. Mirrors the `name_lower` pattern on
+            // lego_sets. Kept in sync on every create/update through saveUser.
+            "username_lower":     user.username.lowercased().trimmingCharacters(in: .whitespaces),
+            "display_name_lower": user.displayName.lowercased().trimmingCharacters(in: .whitespaces),
             "bio":             user.bio,
             "avatar_url":      user.avatarURL,
             "background_url":  user.backgroundURL,
@@ -79,14 +87,19 @@ final class FirebaseService: ObservableObject {
         guard !lowered.isEmpty else { return [] }
         let end = lowered + "\u{f8ff}"
 
+        // Prefix-match the pre-lowercased mirror fields (see saveUser). This is
+        // the same technique searchLegoSets uses on `name_lower`. Docs that
+        // predate the username_lower backfill simply won't be returned by the
+        // range query (they lack the field) — that's acceptable; the backfill
+        // populates them.
         let usernameSnap = try await db.collection("users")
-            .whereField("username", isGreaterThanOrEqualTo: lowered)
-            .whereField("username", isLessThan: end)
+            .whereField("username_lower", isGreaterThanOrEqualTo: lowered)
+            .whereField("username_lower", isLessThan: end)
             .limit(to: limit).getDocuments()
 
         let displaySnap = try await db.collection("users")
-            .whereField("display_name", isGreaterThanOrEqualTo: lowered)
-            .whereField("display_name", isLessThan: end)
+            .whereField("display_name_lower", isGreaterThanOrEqualTo: lowered)
+            .whereField("display_name_lower", isLessThan: end)
             .limit(to: limit).getDocuments()
 
         var seen = Set<String>()
