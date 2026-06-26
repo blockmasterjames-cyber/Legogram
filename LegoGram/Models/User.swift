@@ -25,6 +25,7 @@ struct User: Identifiable, Codable, Hashable {
 
     // MARK: - Kid Safety
     var isKidAccount: Bool
+    var isUnder9: Bool
     var parentEmail: String
 
     // MARK: - Metadata
@@ -45,6 +46,7 @@ struct User: Identifiable, Codable, Hashable {
         case totalLikes     = "total_likes"
         case totalPoints    = "total_points"
         case isKidAccount   = "is_kid_account"
+        case isUnder9       = "is_under_9"
         case parentEmail    = "parent_email"
         case joinDate       = "join_date"
         case birthday
@@ -66,6 +68,7 @@ extension User {
         totalLikes: 0,
         totalPoints: 0,
         isKidAccount: false,
+        isUnder9: false,
         parentEmail: "",
         joinDate: Date(),
         birthday: nil

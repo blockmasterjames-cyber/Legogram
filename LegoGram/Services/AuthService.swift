@@ -59,11 +59,14 @@ final class AuthService: ObservableObject {
         let uid    = result.user.uid
 
         let isUnder13: Bool
+        let isUnder9: Bool
         if let birthday {
             let age = Calendar.current.dateComponents([.year], from: birthday, to: Date()).year ?? 0
             isUnder13 = age < 13
+            isUnder9  = age < 9
         } else {
             isUnder13 = false
+            isUnder9  = false
         }
 
         let newUser = User(
@@ -79,6 +82,7 @@ final class AuthService: ObservableObject {
             totalLikes:     0,
             totalPoints:    0,
             isKidAccount:   isUnder13,
+            isUnder9:       isUnder9,
             parentEmail:    parentEmail,
             joinDate:       Date(),
             birthday:       birthday
@@ -93,9 +97,9 @@ final class AuthService: ObservableObject {
 
         UserDefaults.standard.set(username, forKey: "profile_username")
         UserDefaults.standard.set(displayName, forKey: "profile_displayName")
-        if isUnder13 {
-            UserDefaults.standard.set(true, forKey: "settings_kidSafeMode")
-        }
+        // Safe Mode defaults ON only for under-9 accounts; everyone else starts OFF.
+        // Always write an explicit value so no screen relies on the @AppStorage default.
+        UserDefaults.standard.set(isUnder9, forKey: "settings_kidSafeMode")
 
         UserSession.shared.currentUser = newUser
         await OGAccountsService.shared.setupNewUser(userId: uid)
@@ -382,6 +386,7 @@ final class AuthService: ObservableObject {
                 totalLikes:     0,
                 totalPoints:    0,
                 isKidAccount:   false,
+                isUnder9:       false,
                 parentEmail:    "",
                 joinDate:       Date(),
                 birthday:       nil
@@ -411,25 +416,25 @@ final class AuthService: ObservableObject {
     func completeAppleSetup(username: String, displayName: String, birthday: Date) async throws {
         guard let uid = userId else { return }
 
-        let isUnder13: Bool = {
-            let age = Calendar.current.dateComponents([.year], from: birthday, to: Date()).year ?? 0
-            return age < 13
-        }()
+        let age = Calendar.current.dateComponents([.year], from: birthday, to: Date()).year ?? 0
+        let isUnder13 = age < 13
+        let isUnder9  = age < 9
 
         guard var user = UserSession.shared.currentUser else { return }
         user.username     = username
         user.displayName  = displayName.isEmpty ? user.displayName : displayName
         user.birthday     = birthday
         user.isKidAccount = isUnder13
+        user.isUnder9     = isUnder9
 
         try await FirebaseService.shared.saveUser(user)
         UserSession.shared.currentUser = user
 
         UserDefaults.standard.set(username, forKey: "profile_username")
         UserDefaults.standard.set(user.displayName, forKey: "profile_displayName")
-        if isUnder13 {
-            UserDefaults.standard.set(true, forKey: "settings_kidSafeMode")
-        }
+        // Safe Mode defaults ON only for under-9 accounts; everyone else starts OFF.
+        // Always write an explicit value so no screen relies on the @AppStorage default.
+        UserDefaults.standard.set(isUnder9, forKey: "settings_kidSafeMode")
 
         await OGAccountsService.shared.setupNewUser(userId: uid)
         needsAppleProfileSetup = false

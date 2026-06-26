@@ -6,7 +6,7 @@ struct SettingsView: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    @AppStorage("settings_kidSafeMode")    private var kidSafeMode:     Bool = true
+    @AppStorage("settings_kidSafeMode")    private var kidSafeMode:     Bool = false
     @AppStorage("settings_notifications") private var notificationsOn:  Bool = false
     @AppStorage("dm_ageVerified")          private var ageVerified:      Bool = false
 
@@ -24,6 +24,11 @@ struct SettingsView: View {
 
     private var isKidAccount: Bool {
         userSession.currentUser?.isKidAccount ?? false
+    }
+
+    /// Only under-9 accounts require the parental-approval gate to turn Safe Mode off.
+    private var isUnder9: Bool {
+        userSession.currentUser?.isUnder9 ?? false
     }
 
     // MARK: - Body
@@ -138,7 +143,7 @@ struct SettingsView: View {
                     isOn: Binding(
                         get: { kidSafeMode },
                         set: { newValue in
-                            if !newValue && isKidAccount {
+                            if !newValue && isUnder9 {
                                 showingParentalApproval = true
                             } else {
                                 kidSafeMode = newValue
@@ -189,7 +194,7 @@ struct SettingsView: View {
             .background(Color.cardBackground)
             .cornerRadius(12)
 
-            if isKidAccount && kidSafeMode {
+            if isUnder9 && kidSafeMode {
                 infoRow(icon: "lock.shield.fill", color: .successGreen,
                         text: "Safe Mode is required for your account. A parent or guardian must approve turning it off.")
             } else {

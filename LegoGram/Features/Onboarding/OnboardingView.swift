@@ -21,18 +21,18 @@ struct OnboardingView: View {
             .tabViewStyle(.page(indexDisplayMode: .always))
             .indexViewStyle(.page(backgroundDisplayMode: .always))
 
-            // Skip button — only on slides 0 and 1
-            if currentPage < 2 {
-                HStack {
-                    Spacer()
-                    Button("Skip") {
-                        hasSeenOnboarding = true
-                    }
-                    .font(.legoBody)
-                    .foregroundColor(.secondaryText)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 56)
+            // Skip button — visible and tappable on every slide (0, 1, and 2).
+            // Sits in the top-trailing corner; slide 3's "Get Started!" button
+            // lives in the slide body, so the two do not overlap.
+            HStack {
+                Spacer()
+                Button("Skip") {
+                    hasSeenOnboarding = true
                 }
+                .font(.legoBody)
+                .foregroundColor(.secondaryText)
+                .padding(.horizontal, 20)
+                .padding(.top, 56)
             }
         }
     }
