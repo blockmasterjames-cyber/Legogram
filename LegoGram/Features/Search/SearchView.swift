@@ -364,9 +364,12 @@ struct UserSearchRow: View {
 
             // User info
             VStack(alignment: .leading, spacing: 3) {
-                Text("@\(user.username)")
-                    .font(.legoCardTitle).foregroundColor(.lightText)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text("@\(user.username)")
+                        .font(.legoCardTitle).foregroundColor(.lightText)
+                        .lineLimit(1)
+                    AdminBadge(uid: user.id, size: 12)
+                }
                 if !user.displayName.isEmpty {
                     Text(user.displayName)
                         .font(.legoCaption).foregroundColor(.secondaryText)

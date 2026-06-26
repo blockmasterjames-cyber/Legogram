@@ -56,6 +56,7 @@ struct SettingsView: View {
                             accountSection
                             preferencesSection
                             legalSection
+                            if userSession.isAdmin { adminSection }
                             accountActionsSection
 
                             Text("BrickFeed · v1.0.0")
@@ -272,6 +273,28 @@ struct SettingsView: View {
             actionRow(label: "Terms of Service", icon: "doc.text.fill", color: .legoYellow) {
                 showingTermsOfService = true
             }
+        }
+    }
+
+    // MARK: - Admin Section
+
+    /// Shown ONLY to admins (UserSession.isAdmin, derived from admins/{uid}).
+    /// Visibility here is cosmetic — real enforcement is the Firestore rules.
+    private var adminSection: some View {
+        settingsSection("Admin") {
+            NavigationLink {
+                AdminReportsView()
+            } label: {
+                HStack {
+                    Image(systemName: "shield.lefthalf.filled").foregroundColor(.blue)
+                    Text("Reports Queue").font(.legoBody).foregroundColor(.blue)
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.legoCaption).foregroundColor(.secondaryText)
+                }
+                .padding(.horizontal).padding(.vertical, 14)
+                .background(Color.cardBackground).cornerRadius(12)
+            }
+            .buttonStyle(.plain)
         }
     }
 
