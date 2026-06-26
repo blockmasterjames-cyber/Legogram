@@ -33,6 +33,7 @@ struct NewPostView: View {
     @State private var setSearchResults: [LegoSet] = []
     @State private var selectedSet: LegoSet?
     @State private var showingSetDropdown      = false
+    @State private var setSearchTask: Task<Void, Never>?   // debounce handle
 
     // Feature 8: custom build
     @State private var isCustomBuild            = false
@@ -407,29 +408,41 @@ struct NewPostView: View {
                     .focused($setSearchFocused)
                     .submitLabel(.search)
                     .onChange(of: setSearchText) { _, newValue in
-                        selectedSet        = nil
+                        // If the text matches the set the user just picked, keep
+                        // the selection and don't re-open the dropdown.
+                        if let chosen = selectedSet, chosen.name == newValue {
+                            showingSetDropdown = false
+                            return
+                        }
+
+                        // Text diverged from any selection → fresh search.
+                        selectedSet          = nil
                         useOfficialThumbnail = false
-                        if newValue.trimmingCharacters(in: .whitespaces).isEmpty {
+                        let trimmed = newValue.trimmingCharacters(in: .whitespaces)
+
+                        // Cancel any in-flight search so we only query Firestore
+                        // after the user pauses typing (debounce).
+                        setSearchTask?.cancel()
+
+                        guard !trimmed.isEmpty else {
                             setSearchResults   = []
                             showingSetDropdown = false
-                        } else {
-                            // Search local database first
-                            let localResults = LegoSetDatabase.search(newValue)
-                            setSearchResults   = localResults
-                            showingSetDropdown = !localResults.isEmpty
+                            return
+                        }
 
-                            // Also search Rebrickable if local results are sparse
-                            if localResults.count < 3 {
-                                Task {
-                                    let apiResults = (try? await RebrickableService.shared.searchSets(query: newValue)) ?? []
-                                    let combined = localResults + apiResults.filter { api in
-                                        !localResults.contains { $0.setNumber == api.setNumber }
-                                    }
-                                    await MainActor.run {
-                                        setSearchResults   = combined
-                                        showingSetDropdown = !combined.isEmpty
-                                    }
-                                }
+                        setSearchTask = Task {
+                            // Wait ~0.35s; another keystroke cancels this Task so
+                            // the sleep throws and no Firestore read fires.
+                            try? await Task.sleep(nanoseconds: 350_000_000)
+                            if Task.isCancelled { return }
+                            let results = (try? await FirebaseService.shared.searchLegoSets(query: trimmed)) ?? []
+                            if Task.isCancelled { return }
+                            await MainActor.run {
+                                // Ignore stale results if the field changed meanwhile.
+                                guard setSearchText.trimmingCharacters(in: .whitespaces) == trimmed,
+                                      selectedSet == nil else { return }
+                                setSearchResults   = results
+                                showingSetDropdown = !results.isEmpty
                             }
                         }
                     }
@@ -513,6 +526,24 @@ struct NewPostView: View {
                         .foregroundColor(.successGreen)
                 }
                 .padding(.top, 4)
+
+                // Price (only when known) + "Find on LEGO.com" link. Catalog
+                // sets carry no price, so we surface the search link instead.
+                HStack(spacing: 8) {
+                    if set.retailPrice > 0 {
+                        Text("$\(String(format: "%.2f", set.retailPrice))")
+                            .font(.legoCaption).foregroundColor(.legoYellow)
+                    }
+                    if let url = URL(string: set.legoStoreURL) {
+                        Link(destination: url) {
+                            Label("Find on LEGO.com", systemImage: "magnifyingglass")
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .foregroundColor(.legoYellow)
+                        }
+                    }
+                    Spacer()
+                }
+                .padding(.top, 2)
 
                 // Official LEGO thumbnail toggle
                 if set.setImageURL != nil {

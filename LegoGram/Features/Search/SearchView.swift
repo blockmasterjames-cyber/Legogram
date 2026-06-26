@@ -18,16 +18,8 @@ struct SearchView: View {
         case people = "People"
     }
 
-    @State private var apiSearchResults: [LegoSet] = []
-
-    private var searchResults: [LegoSet] {
-        let local = LegoSetDatabase.search(searchText)
-        // Merge with API results, deduplicating by set number
-        let apiOnly = apiSearchResults.filter { api in
-            !local.contains { $0.setNumber == api.setNumber }
-        }
-        return local + apiOnly
-    }
+    @State private var searchResults: [LegoSet] = []   // live results from lego_sets
+    @State private var setSearchTask: Task<Void, Never>?   // debounce handle
 
     private var popularSets: [LegoSet] {
         ["75192", "71043", "10307", "76210", "21333", "42115", "60380", "76419", "21325", "76916"]
@@ -162,21 +154,12 @@ struct SearchView: View {
                     if searchTab == .people {
                         performUserSearch()
                     } else {
-                        // Augment local results with Rebrickable API when sparse
-                        let trimmed = newValue.trimmingCharacters(in: .whitespaces)
-                        if !trimmed.isEmpty && LegoSetDatabase.search(trimmed).count < 3 {
-                            Task {
-                                let results = (try? await RebrickableService.shared.searchSets(query: trimmed)) ?? []
-                                await MainActor.run { apiSearchResults = results }
-                            }
-                        } else {
-                            apiSearchResults = []
-                        }
+                        performSetSearch(newValue)
                     }
                 }
 
             if !searchText.isEmpty {
-                Button { searchText = ""; userResults = []; apiSearchResults = [] } label: {
+                Button { searchText = ""; userResults = []; searchResults = []; setSearchTask?.cancel() } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.secondaryText)
                 }
@@ -311,6 +294,29 @@ struct SearchView: View {
         .frame(maxWidth: .infinity)
         .padding(.top, 40)
         .padding(.horizontal)
+    }
+
+    // MARK: - Set Search (lego_sets collection, debounced)
+
+    private func performSetSearch(_ query: String) {
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        // Cancel any in-flight search so we only query after the user pauses.
+        setSearchTask?.cancel()
+        guard !trimmed.isEmpty else {
+            searchResults = []
+            return
+        }
+        setSearchTask = Task {
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            if Task.isCancelled { return }
+            let results = (try? await FirebaseService.shared.searchLegoSets(query: trimmed)) ?? []
+            if Task.isCancelled { return }
+            await MainActor.run {
+                // Ignore stale results if the field changed meanwhile.
+                guard searchText.trimmingCharacters(in: .whitespaces) == trimmed else { return }
+                searchResults = results
+            }
+        }
     }
 
     // MARK: - User Search
@@ -471,15 +477,18 @@ struct SearchSetRow: View {
 
             Spacer()
 
-            // Price + Shop link
+            // Price (only when known) + Find on LEGO.com link
             VStack(alignment: .trailing, spacing: 4) {
-                Text("$\(String(format: "%.2f", set.retailPrice))")
-                    .font(.legoCardTitle)
-                    .foregroundColor(.legoYellow)
+                if set.retailPrice > 0 {
+                    Text("$\(String(format: "%.2f", set.retailPrice))")
+                        .font(.legoCardTitle)
+                        .foregroundColor(.legoYellow)
+                }
                 if let url = URL(string: set.legoStoreURL) {
                     Link(destination: url) {
-                        Text("Shop")
+                        Text("Find on LEGO.com")
                             .font(.legoCaption)
+                            .lineLimit(1)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
                             .background(Color.legoYellow)
