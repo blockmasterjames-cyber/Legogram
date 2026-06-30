@@ -110,6 +110,9 @@ struct LeaderboardView: View {
 
                         Color.clear.frame(height: 80)
                     }
+                    // Pull-to-refresh: re-fetch the ranked users via the same
+                    // loader used on appear.
+                    .refreshable { await loadLeaderboard() }
                 }
             }
             .navigationDestination(item: $selectedUsername) { username in
