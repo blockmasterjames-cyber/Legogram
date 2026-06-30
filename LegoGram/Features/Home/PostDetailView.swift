@@ -76,6 +76,9 @@ struct PostDetailView: View {
                                 HStack(spacing: 6) {
                                     Text("@\(post.username)")
                                         .font(.legoCardTitle).foregroundColor(.lightText)
+                                        .lineLimit(1)
+                                        .truncationMode(.tail)
+                                        .minimumScaleFactor(0.8)
                                     AdminBadge(uid: post.userId)
                                     FollowingBadge(uid: post.userId)
                                 }

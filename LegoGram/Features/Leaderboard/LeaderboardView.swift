@@ -220,6 +220,9 @@ struct BuilderRow: View {
                 HStack(spacing: 6) {
                     Text("@\(builder.username)")
                         .font(.legoCardTitle).foregroundColor(.lightText)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .minimumScaleFactor(0.8)
                     AdminBadge(uid: builder.userId)
                     FollowingBadge(uid: builder.userId)
                     if builder.isCurrentUser {
@@ -232,8 +235,10 @@ struct BuilderRow: View {
                     }
                 }
             }
-
-            Spacer()
+            // Let the username area flex and truncate so it yields space to the
+            // fixed rank circle and the trailing points/chevron — keeping the
+            // row on a single line.
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             // Points score with brick icon
             VStack(alignment: .trailing, spacing: 2) {

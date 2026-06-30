@@ -51,6 +51,9 @@ struct OtherProfileView: View {
                             Text("@\(username)")
                                 .font(.legoScreenTitle)
                                 .foregroundColor(.lightText)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .minimumScaleFactor(0.7)
                             AdminBadge(uid: resolvedUserId, size: 16)
                         }
 

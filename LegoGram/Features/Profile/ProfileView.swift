@@ -251,6 +251,9 @@ struct ProfileView: View {
             HStack(spacing: 8) {
                 Text("@\(username)")
                     .font(.legoScreenTitle).foregroundColor(.lightText)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .minimumScaleFactor(0.7)
                 AdminBadge(uid: currentUser?.id ?? "", size: 16)
                 if currentUser?.isKidAccount == true || kidSafeMode {
                     HStack(spacing: 3) {
