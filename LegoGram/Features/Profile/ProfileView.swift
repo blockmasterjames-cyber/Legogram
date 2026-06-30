@@ -284,9 +284,19 @@ struct ProfileView: View {
             HStack(spacing: 0) {
                 statCell(value: "\(currentUser?.postCount ?? myPosts.count)", label: "Posts")
                 Divider().frame(height: 40)
-                statCell(value: "\(currentUser?.followerCount ?? 0)", label: "Followers")
+                NavigationLink {
+                    FollowListView(userId: userSession.uid, mode: .followers)
+                } label: {
+                    statCell(value: "\(currentUser?.followerCount ?? 0)", label: "Followers")
+                }
+                .buttonStyle(.plain)
                 Divider().frame(height: 40)
-                statCell(value: "\(currentUser?.followingCount ?? 0)", label: "Following")
+                NavigationLink {
+                    FollowListView(userId: userSession.uid, mode: .following)
+                } label: {
+                    statCell(value: "\(currentUser?.followingCount ?? 0)", label: "Following")
+                }
+                .buttonStyle(.plain)
             }
             .padding(.vertical, 10)
 
