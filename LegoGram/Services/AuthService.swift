@@ -430,20 +430,57 @@ final class AuthService: ObservableObject {
 
     // MARK: - Founder Auto-Follow
 
-    private func followFounderIfNeeded(userId: String) async {
+    /// The founder account every user should follow.
+    private static let founderUsername = "blockmasterjames"
+
+    /// Ensures the current user follows the founder. Safe to call on EVERY launch
+    /// / sign-in (not just brand-new signups) so EXISTING users also end up
+    /// following the founder.
+    ///
+    /// - Idempotent: it checks the real `following` subcollection and no-ops if
+    ///   the follow already exists — no UserDefaults "already ran" flag (which
+    ///   could be set before the write actually landed).
+    /// - Reliable lookup: resolves the founder via the case-insensitive
+    ///   `username_lower` field, so a different stored casing of the username
+    ///   doesn't silently miss.
+    /// - Persists through the shared `followUser` path, so it benefits from the
+    ///   decoupled, merge-based write and works even if the founder doc was
+    ///   hand-created/incomplete.
+    func followFounderIfNeeded(userId: String) async {
+        guard !userId.isEmpty else { return }
         do {
-            guard let founder = try await FirebaseService.shared.fetchUserByUsername("blockmasterjames") else {
-                print("[AuthService] blockmasterjames not found in Firestore — skipping auto-follow")
+            // Prefer the case-insensitive `username_lower` lookup; fall back to a
+            // case-sensitive exact match for a founder doc that predates the
+            // username_lower backfill but whose `username` is already lowercase.
+            let founderLookup = try await FirebaseService.shared
+                .fetchUserByUsernameLower(Self.founderUsername)
+                ?? FirebaseService.shared
+                .fetchUserByUsername(Self.founderUsername)
+            guard let founder = founderLookup else {
+                print("[AuthService] \(Self.founderUsername) not found in Firestore — skipping auto-follow")
                 return
             }
-            PostStore.shared.followingUsernames.insert("blockmasterjames")
+            // Never auto-follow yourself (the founder's own account).
+            guard founder.id != userId else { return }
+
+            // Idempotent guard: skip if already following (real subcollection check).
+            if (try? await FirebaseService.shared
+                .isFollowing(currentUserId: userId, targetUserId: founder.id)) == true {
+                return
+            }
+
             try await FirebaseService.shared.followUser(
                 currentUserId: userId,
                 targetUserId: founder.id
             )
-            print("[AuthService] New user auto-followed blockmasterjames ✓")
+
+            // Keep in-memory follow state in sync so the founder shows as followed
+            // immediately, using the founder's REAL stored username/uid.
+            PostStore.shared.followingUsernames.insert(founder.username)
+            FollowingRegistry.shared.follow(uid: founder.id)
+            print("[AuthService] Ensured current user follows \(Self.founderUsername) ✓")
         } catch {
-            print("[AuthService] Could not auto-follow blockmasterjames: \(error.localizedDescription)")
+            print("[AuthService] Could not auto-follow \(Self.founderUsername): \(error.localizedDescription)")
         }
     }
 

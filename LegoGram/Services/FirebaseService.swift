@@ -127,24 +127,59 @@ final class FirebaseService: ObservableObject {
     // MARK: - Following Operations
     // =========================================================================
 
+    /// Persists a follow as TWO independent writes so the user's own follow state
+    /// and own `following_count` can never be rolled back by a failure on the
+    /// followed user's side.
+    ///
+    /// Why not one atomic batch: a single batch spanning both the current user's
+    /// doc AND the target's doc is atomic — if the cross-user write fails for any
+    /// reason (a rules edge case, or a target doc that's missing/hand-created),
+    /// the WHOLE batch rolls back, including the user's own count. That coupling
+    /// was the "stuck following count" bug. So we commit the own side first
+    /// (always permitted — it only touches the user's own doc/subcollection),
+    /// then the target side best-effort: a target failure is logged, not
+    /// rethrown, so the user's own follow + count still persist (the target
+    /// counter can be reconciled later). The brief divergence this allows is
+    /// acceptable and far better than a total rollback.
     func followUser(currentUserId: String, targetUserId: String) async throws {
-        let batch = db.batch()
-        let followingRef = db.collection("users").document(currentUserId)
-            .collection("following").document(targetUserId)
-        batch.setData(["followed_at": Timestamp(date: Date())], forDocument: followingRef)
+        // --- Own side (always permitted; must persist) ---
+        // The user's own `following` entry + their own `following_count`. These
+        // only touch the user's OWN doc/subcollection, so the deployed rules
+        // always allow them. setData(merge:) so a missing field/doc is created
+        // rather than throwing NOT_FOUND.
+        let ownBatch = db.batch()
+        ownBatch.setData(["followed_at": Timestamp(date: Date())],
+                         forDocument: db.collection("users").document(currentUserId)
+                             .collection("following").document(targetUserId))
+        ownBatch.setData(["following_count": FieldValue.increment(Int64(1))],
+                         forDocument: db.collection("users").document(currentUserId),
+                         merge: true)
+        try await ownBatch.commit()
 
-        let followerRef = db.collection("users").document(targetUserId)
-            .collection("followers").document(currentUserId)
-        batch.setData(["followed_at": Timestamp(date: Date())], forDocument: followerRef)
-
-        batch.updateData(["following_count": FieldValue.increment(Int64(1))],
-                         forDocument: db.collection("users").document(currentUserId))
-        batch.updateData(["follower_count": FieldValue.increment(Int64(1))],
-                         forDocument: db.collection("users").document(targetUserId))
-        // Award 1 point to the followed user
-        batch.updateData(["total_points": FieldValue.increment(Int64(1))],
-                         forDocument: db.collection("users").document(targetUserId))
-        try await batch.commit()
+        // --- Target side (best-effort) ---
+        // Records this user in the target's `followers` list and bumps the
+        // target's `follower_count` (+1) and `total_points` (+1). The cross-user
+        // counter write is permitted by the deployed rules' onlyCounterDelta()
+        // ONLY when it touches just the allowed counter fields within the delta
+        // caps — so we write EXACTLY follower_count and total_points and NOTHING
+        // else (no timestamp/extra field, or hasOnly() would reject it).
+        // setData(merge:) creates the doc/fields when the target doc is
+        // incomplete (e.g. a hand-created founder doc), avoiding the NOT_FOUND
+        // that updateData throws. A failure here is logged but NOT rethrown — the
+        // own side above already persisted.
+        do {
+            let targetBatch = db.batch()
+            targetBatch.setData(["followed_at": Timestamp(date: Date())],
+                                forDocument: db.collection("users").document(targetUserId)
+                                    .collection("followers").document(currentUserId))
+            targetBatch.setData(["follower_count": FieldValue.increment(Int64(1)),
+                                 "total_points":   FieldValue.increment(Int64(1))],
+                                forDocument: db.collection("users").document(targetUserId),
+                                merge: true)
+            try await targetBatch.commit()
+        } catch {
+            print("[FirebaseService] followUser: target-side write failed (own follow + count persisted): \(error.localizedDescription)")
+        }
 
         // In-app follow notification
         let currentUsername = await UserSession.shared.username
@@ -163,17 +198,35 @@ final class FirebaseService: ObservableObject {
         NotificationManager.shared.sendFollowNotification(from: currentUsername)
     }
 
+    /// Symmetric to `followUser`: removes the follow as two independent writes so
+    /// the user's own unfollow + own `following_count` decrement can't be rolled
+    /// back by a failure on the target side.
     func unfollowUser(currentUserId: String, targetUserId: String) async throws {
-        let batch = db.batch()
-        batch.deleteDocument(db.collection("users").document(currentUserId)
+        // --- Own side (always permitted; must persist) ---
+        let ownBatch = db.batch()
+        ownBatch.deleteDocument(db.collection("users").document(currentUserId)
             .collection("following").document(targetUserId))
-        batch.deleteDocument(db.collection("users").document(targetUserId)
-            .collection("followers").document(currentUserId))
-        batch.updateData(["following_count": FieldValue.increment(Int64(-1))],
-                         forDocument: db.collection("users").document(currentUserId))
-        batch.updateData(["follower_count": FieldValue.increment(Int64(-1))],
-                         forDocument: db.collection("users").document(targetUserId))
-        try await batch.commit()
+        ownBatch.setData(["following_count": FieldValue.increment(Int64(-1))],
+                         forDocument: db.collection("users").document(currentUserId),
+                         merge: true)
+        try await ownBatch.commit()
+
+        // --- Target side (best-effort) ---
+        // Removes this user from the target's `followers` list and decrements the
+        // target's `follower_count` (-1). Writes ONLY the allowed counter field
+        // (no extra field, to satisfy the rule's hasOnly check). Failure logged,
+        // not rethrown.
+        do {
+            let targetBatch = db.batch()
+            targetBatch.deleteDocument(db.collection("users").document(targetUserId)
+                .collection("followers").document(currentUserId))
+            targetBatch.setData(["follower_count": FieldValue.increment(Int64(-1))],
+                                forDocument: db.collection("users").document(targetUserId),
+                                merge: true)
+            try await targetBatch.commit()
+        } catch {
+            print("[FirebaseService] unfollowUser: target-side write failed (own unfollow + count persisted): \(error.localizedDescription)")
+        }
     }
 
     func isFollowing(currentUserId: String, targetUserId: String) async throws -> Bool {
@@ -685,6 +738,22 @@ final class FirebaseService: ObservableObject {
     func fetchUserByUsername(_ username: String) async throws -> User? {
         let snap = try await db.collection("users")
             .whereField("username", isEqualTo: username)
+            .limit(to: 1)
+            .getDocuments()
+        guard let doc = snap.documents.first else { return nil }
+        return userFromData(doc.data(), id: doc.documentID)
+    }
+
+    /// Case-insensitive username lookup via the pre-lowercased `username_lower`
+    /// mirror field (see `saveUser`). Used for resolving well-known accounts like
+    /// the founder, where the stored casing of `username` may not match a
+    /// hardcoded lowercase string — the case-sensitive `fetchUserByUsername`
+    /// would silently miss those. Returns nil if not found.
+    func fetchUserByUsernameLower(_ username: String) async throws -> User? {
+        let lowered = username.lowercased().trimmingCharacters(in: .whitespaces)
+        guard !lowered.isEmpty else { return nil }
+        let snap = try await db.collection("users")
+            .whereField("username_lower", isEqualTo: lowered)
             .limit(to: 1)
             .getDocuments()
         guard let doc = snap.documents.first else { return nil }
