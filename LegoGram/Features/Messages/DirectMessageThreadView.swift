@@ -94,10 +94,11 @@ struct DirectMessageThreadView: View {
                 }
             }
             // The message field is multi-line (Return inserts a newline), so a
-            // Done button is needed to dismiss the keyboard.
+            // Done button is needed to dismiss the keyboard. It sits on the
+            // LEADING edge so it never overlaps the trailing send arrow.
             ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
                 Button("Done") { inputFocused = false }
+                Spacer()
             }
         }
         .reportConfirmationAlert(isPresented: $showReportConfirm)

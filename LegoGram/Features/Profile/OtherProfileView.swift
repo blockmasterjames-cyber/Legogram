@@ -143,16 +143,35 @@ struct OtherProfileView: View {
         }
         .blockConfirmationAlert(username: username, isPresented: $showingBlockedConfirm)
         .reportConfirmationAlert(isPresented: $showReportConfirm)
-        // Two destinations on the same stack, driven by independent state:
-        // a tapped thumbnail (item:) opens PostDetailView, and the Message
-        // button (isPresented:) opens the DM thread. Both live here at the
-        // top level so they coexist cleanly.
+        // A tapped thumbnail (item:) opens PostDetailView on this stack.
         .navigationDestination(item: $selectedPost) { post in
             PostDetailView(post: post)
         }
-        .navigationDestination(isPresented: $showingMessageThread) {
+        // The DM thread is presented as a full-screen cover (NOT a push) so it
+        // gets its own full-screen container and is never rendered under
+        // MainTabView's custom tab bar — which would otherwise hide the input
+        // bar pinned to the bottom safe area. Mirrors how the Messages-list and
+        // New-Message paths reach the thread inside a sheet (above the tab bar).
+        .fullScreenCover(isPresented: $showingMessageThread) {
             if let conv = dmConversation {
-                DirectMessageThreadView(conversation: conv)
+                NavigationStack {
+                    DirectMessageThreadView(conversation: conv)
+                        // A cover has no automatic back button, so add one that
+                        // dismisses back to the profile.
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                Button {
+                                    showingMessageThread = false
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "chevron.left")
+                                        Text("Back")
+                                    }
+                                    .foregroundColor(.legoYellow)
+                                }
+                            }
+                        }
+                }
             }
         }
     }
