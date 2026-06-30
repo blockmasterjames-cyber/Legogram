@@ -452,10 +452,12 @@ final class AuthService: ObservableObject {
             // Prefer the case-insensitive `username_lower` lookup; fall back to a
             // case-sensitive exact match for a founder doc that predates the
             // username_lower backfill but whose `username` is already lowercase.
-            let founderLookup = try await FirebaseService.shared
-                .fetchUserByUsernameLower(Self.founderUsername)
-                ?? FirebaseService.shared
-                .fetchUserByUsername(Self.founderUsername)
+            var founderLookup = try await FirebaseService.shared
+                            .fetchUserByUsernameLower(Self.founderUsername)
+                        if founderLookup == nil {
+                            founderLookup = try await FirebaseService.shared
+                                .fetchUserByUsername(Self.founderUsername)
+                        }
             guard let founder = founderLookup else {
                 print("[AuthService] \(Self.founderUsername) not found in Firestore — skipping auto-follow")
                 return
