@@ -241,6 +241,15 @@ final class FirebaseService: ObservableObject {
         return Set(snap.documents.map { $0.documentID })
     }
 
+    /// Returns the UIDs of every user that follows `userId`. Reads the
+    /// `followers` subcollection, where each document ID *is* the follower's
+    /// UID. Mirrors `fetchFollowingIds` for the inverse relationship.
+    func fetchFollowerIds(userId: String) async throws -> [String] {
+        let snap = try await db.collection("users").document(userId)
+            .collection("followers").getDocuments()
+        return snap.documents.map { $0.documentID }
+    }
+
     /// Resolves a set of user UIDs to their usernames. Used at launch to restore
     /// `PostStore.followingUsernames` from the `following` subcollection (which
     /// stores only UIDs as document IDs). Batched in chunks of 10 to respect
@@ -261,6 +270,28 @@ final class FirebaseService: ObservableObject {
             }
         }
         return usernames
+    }
+
+    /// Resolves a list of user UIDs to full `User` objects. De-dupes the input
+    /// first, then batches the lookups in chunks of 10 to respect Firestore's
+    /// `in`-query limit (same pattern as `fetchUsernames`). Result order does
+    /// not follow the input; users are sorted by username for a stable display.
+    func fetchUsers(for ids: [String]) async throws -> [User] {
+        let uniqueIds = Array(Set(ids))
+        guard !uniqueIds.isEmpty else { return [] }
+        var users: [User] = []
+        for start in stride(from: 0, to: uniqueIds.count, by: 10) {
+            let chunk = Array(uniqueIds[start..<min(start + 10, uniqueIds.count)])
+            let snap = try await db.collection("users")
+                .whereField(FieldPath.documentID(), in: chunk)
+                .getDocuments()
+            for doc in snap.documents {
+                users.append(userFromData(doc.data(), id: doc.documentID))
+            }
+        }
+        return users.sorted {
+            $0.username.localizedCaseInsensitiveCompare($1.username) == .orderedAscending
+        }
     }
 
     func fetchFollowerCount(userId: String) async throws -> Int {

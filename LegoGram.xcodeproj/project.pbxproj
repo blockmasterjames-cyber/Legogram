@@ -69,6 +69,7 @@
 		AA000100000000000000003D /* AdminRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000003D /* AdminRegistry.swift */; };
 		AA000100000000000000003E /* AdminBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000003E /* AdminBadge.swift */; };
 		AA00010000000000000000C1 /* UserAvatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00020000000000000000C1 /* UserAvatar.swift */; };
+		AA00010000000000000000C2 /* FollowListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00020000000000000000C2 /* FollowListView.swift */; };
 		AA000100000000000000003F /* AdminReportsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000003F /* AdminReportsView.swift */; };
 		AA00010000000000000000B1 /* BlockConfirmation.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00020000000000000000B1 /* BlockConfirmation.swift */; };
 		AA00010000000000000000B2 /* ReportConfirmation.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00020000000000000000B2 /* ReportConfirmation.swift */; };
@@ -144,6 +145,7 @@
 		AA000200000000000000003D /* AdminRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminRegistry.swift; sourceTree = "<group>"; };
 		AA000200000000000000003E /* AdminBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminBadge.swift; sourceTree = "<group>"; };
 		AA00020000000000000000C1 /* UserAvatar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserAvatar.swift; sourceTree = "<group>"; };
+		AA00020000000000000000C2 /* FollowListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowListView.swift; sourceTree = "<group>"; };
 		AA000200000000000000003F /* AdminReportsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminReportsView.swift; sourceTree = "<group>"; };
 		AA00020000000000000000B1 /* BlockConfirmation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockConfirmation.swift; sourceTree = "<group>"; };
 		AA00020000000000000000B2 /* ReportConfirmation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportConfirmation.swift; sourceTree = "<group>"; };
@@ -300,6 +302,7 @@
 				AA000200000000000000000C /* ProfileView.swift */,
 				AA0002000000000000000016 /* EditProfileView.swift */,
 				AA000200000000000000001D /* OtherProfileView.swift */,
+				AA00020000000000000000C2 /* FollowListView.swift */,
 				AA0002000000000000000027 /* CropView.swift */,
 				AA000200000000000000003A /* PointsExplanationView.swift */,
 			);
@@ -553,6 +556,7 @@
 				AA000100000000000000003D /* AdminRegistry.swift in Sources */,
 				AA000100000000000000003E /* AdminBadge.swift in Sources */,
 				AA00010000000000000000C1 /* UserAvatar.swift in Sources */,
+				AA00010000000000000000C2 /* FollowListView.swift in Sources */,
 				AA000100000000000000003F /* AdminReportsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

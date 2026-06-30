@@ -408,9 +408,19 @@ struct OtherProfileView: View {
         HStack(spacing: 0) {
             statCell(value: "\(theirPosts.count)", label: "Posts")
             Divider().frame(height: 40)
-            statCell(value: "\(profileUser?.followerCount ?? 0)", label: "Followers")
+            NavigationLink {
+                FollowListView(userId: resolvedUserId, mode: .followers)
+            } label: {
+                statCell(value: "\(profileUser?.followerCount ?? 0)", label: "Followers")
+            }
+            .buttonStyle(.plain)
             Divider().frame(height: 40)
-            statCell(value: "\(profileUser?.followingCount ?? 0)", label: "Following")
+            NavigationLink {
+                FollowListView(userId: resolvedUserId, mode: .following)
+            } label: {
+                statCell(value: "\(profileUser?.followingCount ?? 0)", label: "Following")
+            }
+            .buttonStyle(.plain)
             Divider().frame(height: 40)
             statCell(value: "\(setsCompleted)", label: "Completed")
         }
