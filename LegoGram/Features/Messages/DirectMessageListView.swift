@@ -268,15 +268,23 @@ struct DirectMessageListView: View {
 struct ConversationRow: View {
     let conversation: DMConversation
 
+    /// Shared UID→avatar cache. The conversation doc only stores `otherUserId` /
+    /// `otherUsername` (no avatar URL), so we resolve the other user's avatar by
+    /// UID — fetched once and cached so scrolling / revisiting doesn't refetch.
+    @ObservedObject private var avatarCache = UserAvatarCache.shared
+
     var body: some View {
         HStack(spacing: 12) {
-            Circle()
-                .fill(Color.legoRed)
-                .frame(width: 48, height: 48)
-                .overlay(
-                    Text(String(conversation.otherUsername.prefix(1)).uppercased())
-                        .font(.legoCardTitle).foregroundColor(.white)
-                )
+            // Other user's avatar, resolved by UID. While it loads / if the user
+            // has no avatar, UserAvatar shows the same red initial-letter circle
+            // the row used before, so the layout is unchanged.
+            UserAvatar(
+                url: avatarCache.avatarURL(for: conversation.otherUserId),
+                username: conversation.otherUsername,
+                size: 48,
+                fallbackFill: .legoRed,
+                initialFont: .legoCardTitle
+            )
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
