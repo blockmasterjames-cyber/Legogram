@@ -134,6 +134,14 @@ struct ContentView: View {
                         }
                     }
 
+                    // Ensure EVERY user (new AND existing) follows the founder.
+                    // Runs on every launch; it's idempotent (checks the real
+                    // following subcollection and no-ops if already following), so
+                    // existing users who predate the auto-follow feature get
+                    // caught up here. Placed after the restore above so its local
+                    // state update isn't overwritten.
+                    await AuthService.shared.followFounderIfNeeded(userId: user.uid)
+
                     // Load blocked users from Firestore so the content filter
                     // applies before any feed / DM / comment query renders.
                     // Apple Guideline 1.2 requires blocks to persist across
