@@ -15,14 +15,21 @@ struct HomeView: View {
 
     // MARK: - Feed Sections
 
+    // Both sections are ordered newest-first so recently posted builds surface
+    // at the top instead of the same high-liked posts being pinned forever
+    // (the old `recommendedPosts` sort was by `likeCount`, which discarded
+    // recency). Newest-first also keeps load-more clean: paged-in older posts
+    // append to the bottom in the same order the query returns them.
     private var followedPosts: [LegoPost] {
-        postStore.visiblePosts.filter { postStore.isFollowing($0.username) }
+        postStore.visiblePosts
+            .filter { postStore.isFollowing($0.username) }
+            .sorted { $0.postedDate > $1.postedDate }
     }
 
     private var recommendedPosts: [LegoPost] {
         postStore.visiblePosts
             .filter { !postStore.isFollowing($0.username) }
-            .sorted { $0.likeCount > $1.likeCount }
+            .sorted { $0.postedDate > $1.postedDate }
     }
 
     /// Adaptive columns replace the old GeometryReader-derived width math.

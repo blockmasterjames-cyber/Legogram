@@ -338,12 +338,60 @@ final class FirebaseService: ObservableObject {
             .updateData(["post_count": FieldValue.increment(Int64(1))])
     }
 
-    func fetchFeedPosts(limit: Int = 30) async throws -> [LegoPost] {
+    // MARK: - Feed Pagination
+    //
+    // The main feed is paged newest-first. The Firestore cursor (a
+    // `DocumentSnapshot`) lives HERE rather than in PostStore so PostStore can
+    // stay Firebase-free (SwiftUI/Foundation only). PostStore drives paging
+    // through the calls below; the initial load, pull-to-refresh, and every
+    // "load more" all funnel through the same `posted_date`-ordered query, so
+    // ordering can never disagree between the first page and later pages.
+
+    /// Cursor marking the last post returned by the most recent feed page.
+    /// `nil` before the first page or after a reset.
+    private var feedCursor: DocumentSnapshot?
+
+    /// False once a feed page returns fewer documents than requested — i.e. the
+    /// feed has been fully paged through. PostStore reads this to stop calling
+    /// `fetchFeedNextPage` once there is nothing left to load.
+    private(set) var feedHasMore = true
+
+    /// Fetches the FIRST page of the feed (newest first) and resets the
+    /// paginator. Used by the initial sign-in load and by pull-to-refresh.
+    func fetchFeedFirstPage(pageSize: Int = 30) async throws -> [LegoPost] {
         let snap = try await db.collection("posts")
             .order(by: "posted_date", descending: true)
-            .limit(to: limit)
+            .limit(to: pageSize)
             .getDocuments()
+        feedCursor  = snap.documents.last
+        feedHasMore = snap.documents.count == pageSize
         return snap.documents.compactMap { postFromDocument($0) }
+    }
+
+    /// Fetches the NEXT page after the stored cursor. Returns `[]` once the feed
+    /// is exhausted (no cursor, or no more posts). Continues from the cursor
+    /// document position, so posts inserted at the top between pages don't shift
+    /// the window or cause duplicates.
+    func fetchFeedNextPage(pageSize: Int = 30) async throws -> [LegoPost] {
+        guard feedHasMore, let cursor = feedCursor else {
+            feedHasMore = false
+            return []
+        }
+        let snap = try await db.collection("posts")
+            .order(by: "posted_date", descending: true)
+            .start(afterDocument: cursor)
+            .limit(to: pageSize)
+            .getDocuments()
+        if let last = snap.documents.last { feedCursor = last }
+        feedHasMore = snap.documents.count == pageSize
+        return snap.documents.compactMap { postFromDocument($0) }
+    }
+
+    /// Backwards-compatible entry point for the initial feed load. Routes
+    /// through `fetchFeedFirstPage` so existing call sites keep working AND the
+    /// paginator cursor is reset on every fresh first-page fetch.
+    func fetchFeedPosts(limit: Int = 30) async throws -> [LegoPost] {
+        try await fetchFeedFirstPage(pageSize: limit)
     }
 
     func fetchPostsByUser(userId: String) async throws -> [LegoPost] {

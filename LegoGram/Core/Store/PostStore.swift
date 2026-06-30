@@ -330,17 +330,57 @@ final class PostStore: ObservableObject {
 
     // MARK: - Infinite Scroll
 
-    /// Placeholder for future server-side pagination. Currently a no-op.
+    /// Number of posts fetched per feed page — the initial load, pull-to-refresh,
+    /// and each "load more" all use this so cursor-based paging lines up with the
+    /// first page fetched at sign-in.
+    private let feedPageSize = 30
+
+    /// Loads the next page of the feed and APPENDS it (deduped by id). No-ops
+    /// while a page is already in flight or once the feed is exhausted
+    /// (`FirebaseService.feedHasMore` is the single source of truth for "more
+    /// posts exist", reset by every first-page fetch). This is the real
+    /// implementation of the former stub and drives HomeView's bottom-of-feed
+    /// infinite-scroll trigger.
     func loadMorePosts() {
-        // Will be implemented with real Firestore pagination in a future sprint
+        guard !isLoadingMore, FirebaseService.shared.feedHasMore else { return }
+        isLoadingMore = true
+        Task {
+            defer { isLoadingMore = false }
+            do {
+                let next = try await FirebaseService.shared.fetchFeedNextPage(pageSize: feedPageSize)
+                guard !next.isEmpty else { return }
+
+                // Dedupe against what's already loaded so a post can never appear
+                // twice if it straddles a page boundary (e.g. a new post was
+                // inserted while paging).
+                let existingIDs = Set(posts.map { $0.id })
+                let fresh = next.filter { !existingIDs.contains($0.id) }
+                guard !fresh.isEmpty else { return }
+                posts.append(contentsOf: fresh)
+
+                // Pull liked-state for just the newly appended posts so their
+                // hearts render correctly.
+                let uid = UserSession.shared.uid
+                if !uid.isEmpty {
+                    let ids = fresh.map { $0.id }
+                    if let liked = try? await FirebaseService.shared.fetchLikedPostIds(userId: uid, postIds: ids) {
+                        likedPostIDs.formUnion(liked)
+                    }
+                }
+            } catch {
+                print("[PostStore] loadMorePosts error: \(error)")
+            }
+        }
     }
 
     // MARK: - Pull to Refresh
 
-    /// Reloads all posts from Firestore, newest first.
+    /// Reloads the first page from Firestore, newest first. Routing through
+    /// `fetchFeedPosts` → `fetchFeedFirstPage` resets the pagination cursor and
+    /// `feedHasMore`, so load-more starts fresh from the newest posts again.
     func refreshPosts() async {
         do {
-            let fresh = try await FirebaseService.shared.fetchFeedPosts(limit: 30)
+            let fresh = try await FirebaseService.shared.fetchFeedPosts(limit: feedPageSize)
             // Also reload liked IDs
             let uid = UserSession.shared.uid
             var liked = likedPostIDs
