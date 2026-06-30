@@ -311,24 +311,14 @@ struct OtherProfileView: View {
     private var avatarAndFollowRow: some View {
         HStack(alignment: .bottom) {
             // Avatar
-            Group {
-                if let avatarURL = profileUser?.avatarURL, !avatarURL.isEmpty,
-                   let url = URL(string: avatarURL) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let img):
-                            img.resizable().scaledToFill()
-                                .frame(width: 90, height: 90)
-                                .clipShape(Circle())
-                        default:
-                            initialLetterAvatar
-                        }
-                    }
-                    .frame(width: 90, height: 90)
-                } else {
-                    initialLetterAvatar
-                }
-            }
+            UserAvatar(
+                url: profileUser?.avatarURL,
+                username: username,
+                size: 90,
+                fallbackFill: Color.cardBackground,
+                initialColor: .legoYellow,
+                initialFont: .system(size: 36, weight: .bold, design: .rounded)
+            )
             .overlay(Circle().stroke(Color.darkBackground, lineWidth: 4))
             .offset(y: -40)
             .padding(.leading, 16)
@@ -346,6 +336,17 @@ struct OtherProfileView: View {
                     let uid = resolvedUserId
                     guard !uid.isEmpty else { return }
                     let shouldFollow = !postStore.isFollowing(username)
+                    // Optimistically reflect the change in THEIR displayed
+                    // follower count so it updates instantly (the @State
+                    // profileUser is fetched once and otherwise never refreshes
+                    // after a follow). Mirrors the optimistic pattern already
+                    // used for the current user's own following count. Clamp at
+                    // 0 so an unfollow never shows a negative count.
+                    if shouldFollow {
+                        profileUser?.followerCount += 1
+                    } else {
+                        profileUser?.followerCount = max(0, (profileUser?.followerCount ?? 0) - 1)
+                    }
                     Task {
                         await postStore.performFollow(targetUid: uid, username: username, shouldFollow: shouldFollow)
                     }
@@ -418,17 +419,6 @@ struct OtherProfileView: View {
         .cornerRadius(12)
         .padding(.horizontal, 16)
         .padding(.bottom, 20)
-    }
-
-    private var initialLetterAvatar: some View {
-        Circle()
-            .fill(Color.cardBackground)
-            .frame(width: 90, height: 90)
-            .overlay(
-                Text(String(username.prefix(1)).uppercased())
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
-                    .foregroundColor(.legoYellow)
-            )
     }
 
     private func statCell(value: String, label: String) -> some View {

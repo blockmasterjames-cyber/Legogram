@@ -366,14 +366,15 @@ struct UserSearchRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Avatar
-            Circle()
-                .fill(Color.legoRed)
-                .frame(width: 48, height: 48)
-                .overlay(
-                    Text(String(user.username.prefix(1)).uppercased())
-                        .font(.legoCardTitle).foregroundColor(.white)
-                )
+            // Avatar — real photo when available, otherwise the legoRed initial circle
+            UserAvatar(
+                url: user.avatarURL,
+                username: user.username,
+                size: 48,
+                fallbackFill: Color.legoRed,
+                initialColor: .white,
+                initialFont: .legoCardTitle
+            )
 
             // User info
             VStack(alignment: .leading, spacing: 3) {
