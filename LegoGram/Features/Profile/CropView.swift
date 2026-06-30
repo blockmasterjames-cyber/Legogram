@@ -241,6 +241,17 @@ struct CropView: View {
     }
 }
 
+// MARK: - Crop Item
+
+/// Identifiable wrapper so a single `UIImage` can drive a `.fullScreenCover(item:)`
+/// / `.sheet(item:)` that presents `CropView`. Used when routing one-off avatar
+/// and banner picks through the cropper before upload (mirrors the post
+/// composer's per-image crop pattern, but for a single image — no queue).
+struct CropImageItem: Identifiable {
+    let id = UUID()
+    let image: UIImage
+}
+
 #Preview {
     CropView(
         image: UIImage(systemName: "photo.fill") ?? UIImage(),
