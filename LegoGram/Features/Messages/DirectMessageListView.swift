@@ -282,6 +282,9 @@ struct ConversationRow: View {
                 HStack(spacing: 6) {
                     Text("@\(conversation.otherUsername)")
                         .font(.legoCardTitle).foregroundColor(.lightText)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .minimumScaleFactor(0.8)
                     AdminBadge(uid: conversation.otherUserId)
                     FollowingBadge(uid: conversation.otherUserId)
                 }

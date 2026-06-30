@@ -111,6 +111,9 @@ struct NewMessageView: View {
                         VStack(alignment: .leading, spacing: 3) {
                             Text("@\(user.username)")
                                 .font(.legoCardTitle).foregroundColor(.lightText)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .minimumScaleFactor(0.8)
                             }
 
                         Spacer()

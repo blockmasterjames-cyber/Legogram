@@ -24,35 +24,35 @@ struct DirectMessageThreadView: View {
         ZStack {
             Color.darkBackground.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // Messages scroll area
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            ForEach(liveConversation.messages) { message in
-                                MessageBubble(
-                                    message: message,
-                                    canReport: !message.isFromCurrentUser,
-                                    onReport: { reason in submitMessageReport(message: message, reason: reason) }
-                                )
-                                .id(message.id)
-                            }
+            // Messages scroll area
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(liveConversation.messages) { message in
+                            MessageBubble(
+                                message: message,
+                                canReport: !message.isFromCurrentUser,
+                                onReport: { reason in submitMessageReport(message: message, reason: reason) }
+                            )
+                            .id(message.id)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
                     }
-                    .onAppear {
-                        scrollToBottom(proxy: proxy)
-                    }
-                    .onChange(of: liveConversation.messages.count) { _, _ in
-                        withAnimation { scrollToBottom(proxy: proxy) }
-                    }
-                    // Tap to dismiss keyboard
-                    .onTapGesture { hideKeyboard() }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
                 }
-
-                // Input bar
-                inputBar
+                .onAppear {
+                    scrollToBottom(proxy: proxy)
+                }
+                .onChange(of: liveConversation.messages.count) { _, _ in
+                    withAnimation { scrollToBottom(proxy: proxy) }
+                }
+                // Tap to dismiss keyboard
+                .onTapGesture { hideKeyboard() }
+                // Pin the input bar to the bottom safe area so the keyboard can
+                // never cover it (mirrors HomeView's top safe-area inset). As a
+                // plain trailing VStack child it used to render behind the
+                // keyboard on device.
+                .safeAreaInset(edge: .bottom) { inputBar }
             }
         }
         .navigationTitle("@\(conversation.otherUsername)")
@@ -63,9 +63,12 @@ struct DirectMessageThreadView: View {
         // keyboard so the user can type right away.
         .task {
             print("🔵DMDEBUG [thread] opened — conversation.id=\(conversation.id), store has \(dmStore.conversations.count) convs, this id present=\(dmStore.conversations.contains(where: { $0.id == conversation.id }))")
-            inputFocused = true
             await dmStore.loadMessages(for: conversation.id)
             print("🔵DMDEBUG [thread] loadMessages done — conversation.id=\(conversation.id), messages count now=\(dmStore.conversations.first(where: { $0.id == conversation.id })?.messages.count ?? -1)")
+            // Focus the input only AFTER messages load and the layout settles, so
+            // the keyboard rises with the input bar already pinned in place
+            // (otherwise it could come up before layout and hide the bar).
+            inputFocused = true
         }
         .toolbarBackground(Color.cardBackground, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
@@ -89,6 +92,12 @@ struct DirectMessageThreadView: View {
                     Image(systemName: "ellipsis.circle")
                         .foregroundColor(.legoYellow)
                 }
+            }
+            // The message field is multi-line (Return inserts a newline), so a
+            // Done button is needed to dismiss the keyboard.
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { inputFocused = false }
             }
         }
         .reportConfirmationAlert(isPresented: $showReportConfirm)

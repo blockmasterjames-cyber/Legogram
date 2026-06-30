@@ -19,6 +19,8 @@ struct EditProfileView: View {
     @State private var isSaving = false
     @State private var saveError: String?
 
+    @FocusState private var fieldFocused: Bool
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -42,6 +44,7 @@ struct EditProfileView: View {
                                     .autocorrectionDisabled()
                                     .foregroundColor(.lightText).font(.legoBody)
                                     .padding(.vertical, 14).padding(.trailing, 14).padding(.leading, 4)
+                                    .focused($fieldFocused)
                             }
                             .background(Color.cardBackground).cornerRadius(12)
                             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.secondaryText.opacity(0.3), lineWidth: 1))
@@ -60,6 +63,7 @@ struct EditProfileView: View {
                                 .lineLimit(3, reservesSpace: true)
                                 .foregroundColor(.lightText).font(.legoBody)
                                 .padding(14).background(Color.cardBackground).cornerRadius(12)
+                                .focused($fieldFocused)
                         }
                         .padding(.horizontal)
 
@@ -95,6 +99,12 @@ struct EditProfileView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }.foregroundColor(.legoYellow)
+                }
+                // The Bio field is multi-line (Return inserts a newline), so a
+                // Done button is needed to dismiss the keyboard.
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { fieldFocused = false }
                 }
             }
         }

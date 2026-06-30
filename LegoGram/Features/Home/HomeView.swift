@@ -398,6 +398,9 @@ struct PostCard: View {
                         postAuthorAvatar
                         Text("@\(post.username)")
                             .font(.legoCardTitle).foregroundColor(.lightText)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .minimumScaleFactor(0.8)
                         AdminBadge(uid: post.userId)
                         FollowingBadge(uid: post.userId)
                         Spacer()

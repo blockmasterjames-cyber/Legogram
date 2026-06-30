@@ -94,6 +94,16 @@ struct CommentSheetView: View {
                     commentInputBar
                 }
             }
+            // Tap anywhere outside the field lowers the keyboard.
+            .onTapGesture { hideKeyboard() }
+            // The comment field is multi-line (Return inserts a newline), so it
+            // needs an explicit Done button to dismiss the keyboard.
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { commentFocused = false }
+                }
+            }
         }
         .onAppear { loadComments() }
         .alert("Report submitted", isPresented: $showReportConfirm) {
@@ -371,6 +381,9 @@ struct CommentRow: View {
                     Text("@\(comment.username)")
                         .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundColor(.lightText)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .minimumScaleFactor(0.8)
                     AdminBadge(uid: comment.userId)
                     FollowingBadge(uid: comment.userId)
                     Text(comment.timeAgo)
