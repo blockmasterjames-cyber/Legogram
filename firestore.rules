@@ -1,40 +1,108 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function onlyCounterDelta() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['total_points', 'total_likes',
+                         'follower_count', 'following_count'])
+        && deltaWithin('total_points', 5)
+        && deltaWithin('total_likes', 1)
+        && deltaWithin('follower_count', 1)
+        && deltaWithin('following_count', 1);
+    }
+    function deltaWithin(field, maxAbs) {
+      return !(field in request.resource.data.diff(resource.data).affectedKeys())
+        || (
+             (request.resource.data[field] - resource.data[field]) >= (-1 * maxAbs)
+             && (request.resource.data[field] - resource.data[field]) <= maxAbs
+           );
+    }
+
+    match /admins/{uid} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
     match /users/{userId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
-      match /{subcollection}/{docId} {
-        allow read, write: if request.auth != null;
+      allow read: if signedIn();
+
+      allow create: if signedIn() && request.auth.uid == userId;
+      allow delete: if (signedIn() && request.auth.uid == userId) || isAdmin();
+      allow update: if isAdmin()
+                    || (signedIn() && request.auth.uid == userId
+                        && !changingBanFlag())
+                    || (signedIn() && onlyCounterDelta());
+
+      match /following/{targetId} {
+        allow read, write: if signedIn();
+      }
+      match /followers/{followerId} {
+        allow read, write: if signedIn();
+      }
+      match /notifications/{notificationId} {
+        allow read, update, delete: if signedIn() && request.auth.uid == userId;
+        allow create: if signedIn();
+      }
+      match /blocked_users/{blockedUserId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
       }
     }
+
+    function changingBanFlag() {
+      return ('is_banned' in request.resource.data.diff(resource.data).affectedKeys());
+    }
+
     match /posts/{postId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-      match /{subcollection}/{docId} {
-        allow read, write: if request.auth != null;
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update: if signedIn();
+      allow delete: if isAdmin()
+                    || (signedIn() && resource.data.user_id == request.auth.uid);
+
+      match /likes/{likeId} {
+        allow read: if signedIn();
+        allow write: if signedIn() && likeId == request.auth.uid;
       }
     }
+
     match /comments/{commentId} {
-      allow read, write: if request.auth != null;
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update: if signedIn();
+      allow delete: if isAdmin()
+                    || (signedIn() && resource.data.user_id == request.auth.uid);
     }
+
     match /reports/{reportId} {
-      allow create: if request.auth != null;
+      allow create: if signedIn();
+      allow read, update: if isAdmin();
     }
+
+    match /moderation_logs/{logId} {
+      allow create: if isAdmin();
+      allow read: if isAdmin();
+    }
+
     match /conversations/{conversationId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if signedIn();
       match /messages/{messageId} {
-        allow read, write: if request.auth != null;
+        allow read, write: if signedIn();
       }
     }
-    match /notifications/{notificationId} {
-      allow read, write: if request.auth != null;
-    }
-    match /moderation_logs/{logId} {
-      allow create: if request.auth != null;
-    }
+
     match /lego_sets/{setId} {
-      allow read: if request.auth != null;
+      allow read: if signedIn();
+      allow write: if false;
     }
   }
 }
