@@ -359,22 +359,12 @@ struct CommentRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             // Avatar: show photo if URL available, otherwise colored initial circle
-            Group {
-                if !comment.avatarURL.isEmpty, let url = URL(string: comment.avatarURL) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let img):
-                            img.resizable().scaledToFill()
-                                .frame(width: 36, height: 36)
-                                .clipShape(Circle())
-                        default:
-                            initialCircle
-                        }
-                    }
-                } else {
-                    initialCircle
-                }
-            }
+            UserAvatar(
+                url: comment.avatarURL,
+                username: comment.username,
+                size: 36,
+                initialFont: .legoCaption
+            )
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
@@ -438,21 +428,5 @@ struct CommentRow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-    }
-
-    private var initialCircle: some View {
-        Circle()
-            .fill(avatarColor(for: comment.username))
-            .frame(width: 36, height: 36)
-            .overlay(
-                Text(String(comment.username.prefix(1)).uppercased())
-                    .font(.legoCaption).foregroundColor(.white)
-            )
-    }
-
-    private func avatarColor(for username: String) -> Color {
-        let colors: [Color] = [Color.legoRed.opacity(0.8), .blue, .purple, .orange, .pink, .teal]
-        let index = abs(username.hashValue) % colors.count
-        return colors[index]
     }
 }
