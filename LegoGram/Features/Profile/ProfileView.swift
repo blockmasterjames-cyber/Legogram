@@ -82,6 +82,13 @@ struct ProfileView: View {
                         Color.clear.frame(height: 80)
                     }
                 }
+                // Pull-to-refresh: reuse the existing loaders — re-read the
+                // signed-in user's follow counts and re-query the feed posts the
+                // profile grid is derived from.
+                .refreshable {
+                    await userSession.refreshFollowCounts()
+                    await postStore.refreshPosts()
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
