@@ -16,6 +16,10 @@ struct EditProfileView: View {
     @State private var isUploadingAvatar = false
     @State private var previewAvatar: UIImage?
 
+    // Picked avatar awaiting a square crop. Set after the picker loads a photo;
+    // drives the `CropView` cover. Upload happens only after the user confirms.
+    @State private var avatarCropItem: CropImageItem?
+
     @State private var isSaving = false
     @State private var saveError: String?
 
@@ -116,18 +120,50 @@ struct EditProfileView: View {
         .photosPicker(isPresented: $showingLibrary, selection: $selectedPhotoItem, matching: .images)
         .onChange(of: selectedPhotoItem) { _, newItem in
             guard let newItem else { return }
-            isUploadingAvatar = true
+            // Load the picked photo, then hand it to the cropper instead of
+            // uploading the raw full-frame image. Upload happens only after the
+            // user positions/zooms and confirms (see avatarCropItem cover).
             Task {
-                defer { Task { @MainActor in isUploadingAvatar = false } }
                 guard let data = try? await newItem.loadTransferable(type: Data.self),
-                      let img = UIImage(data: data) else { return }
-                await MainActor.run { previewAvatar = img }
-                do {
-                    try await userSession.uploadAndSaveAvatar(img)
-                } catch {
-                    await MainActor.run { saveError = "Photo upload failed. Try again." }
-                    print("[EditProfileView] Avatar upload error: \(error)")
+                      let img = UIImage(data: data) else {
+                    await MainActor.run { selectedPhotoItem = nil }
+                    return
                 }
+                // Reset the selection so re-picking the same photo fires onChange.
+                await MainActor.run { selectedPhotoItem = nil }
+                // Let the photos picker finish dismissing before presenting the
+                // cropper, mirroring the post composer's crop-present delay.
+                try? await Task.sleep(nanoseconds: 350_000_000)
+                await MainActor.run { avatarCropItem = CropImageItem(image: img) }
+            }
+        }
+        .fullScreenCover(item: $avatarCropItem) { item in
+            CropView(
+                image: item.image,
+                onDone: { cropped in
+                    avatarCropItem = nil
+                    uploadCroppedAvatar(cropped)
+                },
+                onCancel: { avatarCropItem = nil },   // abort — no upload
+                cropAspect: 1.0                        // square avatar
+            )
+        }
+    }
+
+    // MARK: - Avatar Upload
+
+    /// Uploads the user-cropped square avatar. The circle display clip stays as
+    /// is, so what the user framed is exactly what shows (WYSIWYG).
+    private func uploadCroppedAvatar(_ image: UIImage) {
+        previewAvatar     = image
+        isUploadingAvatar = true
+        Task {
+            defer { Task { @MainActor in isUploadingAvatar = false } }
+            do {
+                try await userSession.uploadAndSaveAvatar(image)
+            } catch {
+                await MainActor.run { saveError = "Photo upload failed. Try again." }
+                print("[EditProfileView] Avatar upload error: \(error)")
             }
         }
     }

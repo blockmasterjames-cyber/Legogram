@@ -23,6 +23,19 @@ struct ProfileView: View {
     @State private var showingAvatarPicker = false
     @State private var isUploadingAvatar   = false
 
+    // Picked images awaiting a crop. Set after the picker loads a photo; each
+    // drives a `CropView` cover. Upload happens only after the user confirms.
+    @State private var avatarCropItem: CropImageItem?
+    @State private var bannerCropItem: CropImageItem?
+
+    /// Aspect ratio (width / height) for cropping the cover banner. The banner
+    /// displays full-width × 160pt, so cropping to the live screen width / 160
+    /// keeps it WYSIWYG; falls back to a wide default if bounds are unavailable.
+    private var bannerCropAspect: CGFloat {
+        let w = UIScreen.main.bounds.width
+        return w > 0 ? w / 160 : 2.4
+    }
+
     @State private var showingSignOutConfirm   = false
     @State private var showingPointsExplanation = false
 
@@ -101,34 +114,59 @@ struct ProfileView: View {
                       selection: $selectedBgItem, matching: .images)
         .onChange(of: selectedBgItem) { _, newItem in
             guard let newItem else { return }
-            isUploadingBg = true
+            // Load the picked photo, then hand it to the banner cropper instead
+            // of uploading the raw image. Upload happens only after confirm.
             Task {
-                defer { Task { @MainActor in isUploadingBg = false } }
                 guard let data = try? await newItem.loadTransferable(type: Data.self),
-                      let img  = UIImage(data: data) else { return }
-                do {
-                    try await userSession.uploadAndSaveBackground(img)
-                } catch {
-                    await MainActor.run { bgUploadError = "Upload failed. Try again." }
-                    print("[ProfileView] Background upload error: \(error)")
+                      let img  = UIImage(data: data) else {
+                    await MainActor.run { selectedBgItem = nil }
+                    return
                 }
+                await MainActor.run { selectedBgItem = nil }
+                // Let the photos picker dismiss before presenting the cropper.
+                try? await Task.sleep(nanoseconds: 350_000_000)
+                await MainActor.run { bannerCropItem = CropImageItem(image: img) }
             }
         }
         .photosPicker(isPresented: $showingAvatarPicker,
                       selection: $selectedAvatarItem, matching: .images)
         .onChange(of: selectedAvatarItem) { _, newItem in
             guard let newItem else { return }
-            isUploadingAvatar = true
+            // Load the picked photo, then hand it to the square cropper instead
+            // of uploading the raw image. Upload happens only after confirm.
             Task {
-                defer { Task { @MainActor in isUploadingAvatar = false } }
                 guard let data = try? await newItem.loadTransferable(type: Data.self),
-                      let img  = UIImage(data: data) else { return }
-                do {
-                    try await userSession.uploadAndSaveAvatar(img)
-                } catch {
-                    print("[ProfileView] Avatar upload error: \(error)")
+                      let img  = UIImage(data: data) else {
+                    await MainActor.run { selectedAvatarItem = nil }
+                    return
                 }
+                await MainActor.run { selectedAvatarItem = nil }
+                // Let the photos picker dismiss before presenting the cropper.
+                try? await Task.sleep(nanoseconds: 350_000_000)
+                await MainActor.run { avatarCropItem = CropImageItem(image: img) }
             }
+        }
+        .fullScreenCover(item: $avatarCropItem) { item in
+            CropView(
+                image: item.image,
+                onDone: { cropped in
+                    avatarCropItem = nil
+                    uploadCroppedAvatar(cropped)
+                },
+                onCancel: { avatarCropItem = nil },   // abort — no upload
+                cropAspect: 1.0                        // square avatar
+            )
+        }
+        .fullScreenCover(item: $bannerCropItem) { item in
+            CropView(
+                image: item.image,
+                onDone: { cropped in
+                    bannerCropItem = nil
+                    uploadCroppedBackground(cropped)
+                },
+                onCancel: { bannerCropItem = nil },    // abort — no upload
+                cropAspect: bannerCropAspect           // wide banner
+            )
         }
         .alert("Sign Out", isPresented: $showingSignOutConfirm) {
             Button("Sign Out", role: .destructive) { performSignOut() }
@@ -467,6 +505,37 @@ struct ProfileView: View {
             Text(label).font(.legoCaption).foregroundColor(.secondaryText)
         }
         .frame(minWidth: 68).padding(.horizontal, 4)
+    }
+
+    // MARK: - Cropped Uploads
+
+    /// Uploads the user-cropped square avatar. The circle display clip stays as
+    /// is, so the source is already a clean square the user positioned (WYSIWYG).
+    private func uploadCroppedAvatar(_ image: UIImage) {
+        isUploadingAvatar = true
+        Task {
+            defer { Task { @MainActor in isUploadingAvatar = false } }
+            do {
+                try await userSession.uploadAndSaveAvatar(image)
+            } catch {
+                print("[ProfileView] Avatar upload error: \(error)")
+            }
+        }
+    }
+
+    /// Uploads the user-cropped wide banner. Cropping to the banner's display
+    /// ratio means the cover shows exactly what the user framed (WYSIWYG).
+    private func uploadCroppedBackground(_ image: UIImage) {
+        isUploadingBg = true
+        Task {
+            defer { Task { @MainActor in isUploadingBg = false } }
+            do {
+                try await userSession.uploadAndSaveBackground(image)
+            } catch {
+                await MainActor.run { bgUploadError = "Upload failed. Try again." }
+                print("[ProfileView] Background upload error: \(error)")
+            }
+        }
     }
 
     // MARK: - Sign Out
