@@ -356,11 +356,26 @@ struct CommentRow: View {
     var onBlock:       (() -> Void)?       = nil
     var onAdminDelete: (() -> Void)?       = nil
 
+    /// Shared UID→avatar cache, used to backfill comments that were stored with
+    /// an empty `avatar_url` (older comments, or the optimistic local add).
+    @ObservedObject private var avatarCache = UserAvatarCache.shared
+
+    /// Avatar URL to render. Fast path: a denormalized non-empty `avatarURL`
+    /// is used directly with no fetch. Otherwise, when the commenter's UID is
+    /// known, ask the shared cache to resolve it (one-time fetch, cached). While
+    /// it loads / if the user has no avatar, `UserAvatar` shows its initial
+    /// fallback (never blank).
+    private var resolvedAvatarURL: String? {
+        if !comment.avatarURL.isEmpty { return comment.avatarURL }
+        guard !comment.userId.isEmpty else { return nil }
+        return avatarCache.avatarURL(for: comment.userId)
+    }
+
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             // Avatar: show photo if URL available, otherwise colored initial circle
             UserAvatar(
-                url: comment.avatarURL,
+                url: resolvedAvatarURL,
                 username: comment.username,
                 size: 36,
                 initialFont: .legoCaption
