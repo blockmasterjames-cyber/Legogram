@@ -99,9 +99,11 @@ struct CommentSheetView: View {
             // The comment field is multi-line (Return inserts a newline), so it
             // needs an explicit Done button to dismiss the keyboard.
             .toolbar {
+                // Done sits on the LEADING edge so it never overlaps the
+                // trailing send arrow at the bottom of the input bar.
                 ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
                     Button("Done") { commentFocused = false }
+                    Spacer()
                 }
             }
         }
