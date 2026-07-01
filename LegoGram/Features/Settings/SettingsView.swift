@@ -31,6 +31,25 @@ struct SettingsView: View {
         userSession.currentUser?.isUnder9 ?? false
     }
 
+    /// Binds the "Allow Direct Messages" toggle to the current user's
+    /// `acceptsDMs`, updating `UserSession.currentUser` optimistically and
+    /// persisting to the user's own account doc (`accepts_dms`).
+    private var acceptsDMsBinding: Binding<Bool> {
+        Binding(
+            get: { userSession.currentUser?.acceptsDMs ?? true },
+            set: { newValue in
+                userSession.currentUser?.acceptsDMs = newValue
+                Task {
+                    do {
+                        try await userSession.updateAcceptsDMs(newValue)
+                    } catch {
+                        print("[SettingsView] Failed to update Allow Direct Messages: \(error.localizedDescription)")
+                    }
+                }
+            }
+        )
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -152,6 +171,21 @@ struct SettingsView: View {
                         }
                     ),
                     highlighted: kidSafeMode
+                )
+
+                Divider()
+                    .background(Color.secondaryText.opacity(0.2))
+                    .padding(.horizontal, 16)
+
+                // Allow Direct Messages — persisted to the user's account
+                // (accepts_dms) so other users' apps can check it before
+                // letting them start a conversation. Default ON.
+                alignedToggleRow(
+                    label: "Allow Direct Messages",
+                    icon: "envelope.fill",
+                    tint: .legoYellow,
+                    isOn: acceptsDMsBinding,
+                    highlighted: false
                 )
 
                 Divider()

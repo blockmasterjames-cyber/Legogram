@@ -114,6 +114,14 @@ struct DirectMessageThreadView: View {
             Text("All of @\(conversation.otherUsername)'s messages, posts, and comments will be hidden immediately.")
         }
         .blockConfirmationAlert(username: conversation.otherUsername, isPresented: $showBlockedConfirm)
+        .alert("Error", isPresented: Binding(
+            get: { dmStore.sendError != nil },
+            set: { if !$0 { dmStore.sendError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(dmStore.sendError ?? "")
+        }
     }
 
     // MARK: - Report Helpers

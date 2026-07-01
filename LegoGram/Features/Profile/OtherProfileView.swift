@@ -15,6 +15,7 @@ struct OtherProfileView: View {
     @State private var showingMessageThread = false
     @State private var dmConversation: DMConversation?
     @State private var isStartingConversation = false
+    @State private var showingDMsDisabledAlert = false
     @State private var showReportConfirm = false
     @State private var selectedPost: LegoPost?
     @State private var profileUser: User?
@@ -143,6 +144,9 @@ struct OtherProfileView: View {
         }
         .blockConfirmationAlert(username: username, isPresented: $showingBlockedConfirm)
         .reportConfirmationAlert(isPresented: $showReportConfirm)
+        .alert("This user doesn't accept DMs.", isPresented: $showingDMsDisabledAlert) {
+            Button("OK", role: .cancel) {}
+        }
         // A tapped thumbnail (item:) opens PostDetailView on this stack.
         .navigationDestination(item: $selectedPost) { post in
             PostDetailView(post: post)
@@ -223,6 +227,23 @@ struct OtherProfileView: View {
         isStartingConversation = true
 
         Task {
+            // Check the target's DM preference before creating/opening a
+            // conversation. Prefer the already-fetched profile doc; only hit
+            // Firestore again if it hasn't loaded yet.
+            let targetAcceptsDMs: Bool
+            if let profileUser {
+                targetAcceptsDMs = profileUser.acceptsDMs
+            } else {
+                targetAcceptsDMs = (try? await FirebaseService.shared.fetchUser(userId: recipientId))?.acceptsDMs ?? true
+            }
+            guard targetAcceptsDMs else {
+                await MainActor.run {
+                    isStartingConversation = false
+                    showingDMsDisabledAlert = true
+                }
+                return
+            }
+
             let currentUserId   = UserSession.shared.uid
             let currentUsername = UserSession.shared.username
             do {
@@ -385,8 +406,9 @@ struct OtherProfileView: View {
                         )
                 }
 
-                // Message button (available unless Safe Mode is on)
-                if !kidSafeMode {
+                // Message button (available unless Safe Mode is on or the
+                // target has turned off "Allow Direct Messages")
+                if !kidSafeMode && (profileUser?.acceptsDMs ?? true) {
                     Button {
                         startConversation()
                     } label: {

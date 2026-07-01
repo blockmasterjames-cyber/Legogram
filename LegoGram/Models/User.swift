@@ -28,6 +28,12 @@ struct User: Identifiable, Codable, Hashable {
     var isUnder9: Bool
     var parentEmail: String
 
+    // MARK: - Privacy
+    /// Whether other users can start a DM conversation with this user
+    /// (Firestore `accepts_dms`). Defaults to `true` so existing accounts and
+    /// documents that predate this field still receive DMs.
+    var acceptsDMs: Bool = true
+
     // MARK: - Metadata
     var joinDate: Date
     var birthday: Date?
@@ -56,6 +62,7 @@ struct User: Identifiable, Codable, Hashable {
         case isUnder9       = "is_under_9"
         case isBanned       = "is_banned"
         case parentEmail    = "parent_email"
+        case acceptsDMs     = "accepts_dms"
         case joinDate       = "join_date"
         case birthday
     }

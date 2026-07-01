@@ -190,6 +190,18 @@ final class UserSession: ObservableObject {
         UserDefaults.standard.set(user.displayName, forKey: "profile_displayName")
     }
 
+    // MARK: - Privacy
+
+    /// Persists the "Allow Direct Messages" setting to the user's own doc
+    /// (`accepts_dms`) and updates the in-memory user so the UI reflects it
+    /// immediately. This is an own-doc write, permitted by the Firestore rules.
+    func updateAcceptsDMs(_ newValue: Bool) async throws {
+        guard var user = currentUser else { return }
+        user.acceptsDMs = newValue
+        try await FirebaseService.shared.saveUser(user)
+        currentUser = user
+    }
+
     // MARK: - Clear
 
     func clear() {
