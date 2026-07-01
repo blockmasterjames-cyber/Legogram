@@ -68,12 +68,12 @@
 		AA000100000000000000003C /* AdminReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000003C /* AdminReport.swift */; };
 		AA000100000000000000003D /* AdminRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000003D /* AdminRegistry.swift */; };
 		AA000100000000000000003E /* AdminBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000003E /* AdminBadge.swift */; };
-		AA00010000000000000000C1 /* UserAvatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00020000000000000000C1 /* UserAvatar.swift */; };
-		AA00010000000000000000C3 /* FollowListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00020000000000000000C3 /* FollowListView.swift */; };
-		AA00010000000000000000C2 /* UserAvatarCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00020000000000000000C2 /* UserAvatarCache.swift */; };
 		AA000100000000000000003F /* AdminReportsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000003F /* AdminReportsView.swift */; };
 		AA00010000000000000000B1 /* BlockConfirmation.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00020000000000000000B1 /* BlockConfirmation.swift */; };
 		AA00010000000000000000B2 /* ReportConfirmation.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00020000000000000000B2 /* ReportConfirmation.swift */; };
+		AA00010000000000000000C1 /* UserAvatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00020000000000000000C1 /* UserAvatar.swift */; };
+		AA00010000000000000000C2 /* UserAvatarCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00020000000000000000C2 /* UserAvatarCache.swift */; };
+		AA00010000000000000000C3 /* FollowListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00020000000000000000C3 /* FollowListView.swift */; };
 		F400AB222FEE3DEA00131185 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = AA0006000000000000000002 /* FirebaseAuth */; };
 		F400AB232FEE3DEA00131185 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = AA0006000000000000000003 /* FirebaseFirestore */; };
 		F400AB242FEE3DEA00131185 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = AA0006000000000000000004 /* FirebaseStorage */; };
@@ -145,12 +145,12 @@
 		AA000200000000000000003C /* AdminReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminReport.swift; sourceTree = "<group>"; };
 		AA000200000000000000003D /* AdminRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminRegistry.swift; sourceTree = "<group>"; };
 		AA000200000000000000003E /* AdminBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminBadge.swift; sourceTree = "<group>"; };
-		AA00020000000000000000C1 /* UserAvatar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserAvatar.swift; sourceTree = "<group>"; };
-		AA00020000000000000000C3 /* FollowListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowListView.swift; sourceTree = "<group>"; };
-		AA00020000000000000000C2 /* UserAvatarCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserAvatarCache.swift; sourceTree = "<group>"; };
 		AA000200000000000000003F /* AdminReportsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminReportsView.swift; sourceTree = "<group>"; };
 		AA00020000000000000000B1 /* BlockConfirmation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockConfirmation.swift; sourceTree = "<group>"; };
 		AA00020000000000000000B2 /* ReportConfirmation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportConfirmation.swift; sourceTree = "<group>"; };
+		AA00020000000000000000C1 /* UserAvatar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserAvatar.swift; sourceTree = "<group>"; };
+		AA00020000000000000000C2 /* UserAvatarCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserAvatarCache.swift; sourceTree = "<group>"; };
+		AA00020000000000000000C3 /* FollowListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowListView.swift; sourceTree = "<group>"; };
 		F400AB262FEE431B00131185 /* FollowingBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowingBadge.swift; sourceTree = "<group>"; };
 		F400AB282FEE433000131185 /* FollowingRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowingRegistry.swift; sourceTree = "<group>"; };
 		F400AB2A2FEE43F200131185 /* BrickFeed.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BrickFeed.entitlements; sourceTree = "<group>"; };
@@ -662,7 +662,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.brickfeed.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -695,7 +695,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.brickfeed.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
