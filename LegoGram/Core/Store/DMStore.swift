@@ -15,6 +15,10 @@ final class DMStore: ObservableObject {
 
     @Published var conversations: [DMConversation] = []
     @Published var isLoading: Bool = false
+    /// Set when a Firestore write in `sendMessage` actually fails, so a thread
+    /// view can present a `.alert`. The optimistic local message is kept either
+    /// way — this just tells the user it didn't persist.
+    @Published var sendError: String?
 
     private let db = Firestore.firestore()
     private init() {}
@@ -183,6 +187,7 @@ final class DMStore: ObservableObject {
             } catch {
                 print("🔵DMDEBUG [store] firestore write ERROR: \(error)")
                 print("[DMStore] Failed to persist message to Firestore: \(error.localizedDescription)")
+                sendError = "Message couldn't be sent. Please try again."
             }
         }
     }

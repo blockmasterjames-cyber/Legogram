@@ -50,6 +50,7 @@ final class FirebaseService: ObservableObject {
             "is_kid_account":  user.isKidAccount,
             "is_under_9":      user.isUnder9,
             "parent_email":    user.parentEmail,
+            "accepts_dms":     user.acceptsDMs,
             "join_date":       Timestamp(date: user.joinDate)
         ]
         // Initialize the follow counters once, on creation only. Never written
@@ -84,7 +85,8 @@ final class FirebaseService: ObservableObject {
             parentEmail:    data["parent_email"]    as? String ?? "",
             joinDate:       joinTimestamp?.dateValue() ?? Date(),
             birthday:       birthdayTimestamp?.dateValue(),
-            isBanned:       data["is_banned"]       as? Bool   ?? false
+            isBanned:       data["is_banned"]       as? Bool   ?? false,
+            acceptsDMs:     data["accepts_dms"]     as? Bool   ?? true
         )
     }
 

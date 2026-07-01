@@ -14,6 +14,7 @@ struct NewMessageView: View {
     @State private var navigateToThread = false
     @State private var newConversation: DMConversation?
     @State private var errorMessage: String?
+    @State private var showingDMsDisabledAlert = false
 
     @FocusState private var searchFocused: Bool
 
@@ -52,6 +53,9 @@ struct NewMessageView: View {
                 if let conv = newConversation {
                     DirectMessageThreadView(conversation: conv)
                 }
+            }
+            .alert("This user doesn't accept DMs.", isPresented: $showingDMsDisabledAlert) {
+                Button("OK", role: .cancel) {}
             }
         }
         .onAppear { searchFocused = true }
@@ -192,6 +196,11 @@ struct NewMessageView: View {
     }
 
     private func startConversation(with user: User) {
+        guard user.acceptsDMs else {
+            showingDMsDisabledAlert = true
+            return
+        }
+
         let currentUserId   = UserSession.shared.uid
         let currentUsername = UserSession.shared.username
 
