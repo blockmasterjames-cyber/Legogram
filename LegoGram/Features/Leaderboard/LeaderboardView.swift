@@ -141,6 +141,10 @@ struct LeaderboardView: View {
             let currentUid = userSession.uid
             print("[Leaderboard] Loaded \(users.count) users successfully")
 
+            // Keep the Top Builder badge cache in sync with the freshest ranked
+            // data — profiles read this registry instead of querying.
+            TopBuilderRegistry.shared.refresh(withRanked: users)
+
             globalBuilders = users.enumerated().map { idx, user in
                 BuilderEntry(
                     rank:          idx + 1,
@@ -226,6 +230,7 @@ struct BuilderRow: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .minimumScaleFactor(0.8)
+                    TopBuilderBadge(uid: builder.userId)
                     AdminBadge(uid: builder.userId)
                     FollowingBadge(uid: builder.userId)
                     if builder.isCurrentUser {

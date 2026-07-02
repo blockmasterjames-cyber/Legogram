@@ -471,10 +471,16 @@ final class AuthService: ObservableObject {
                 return
             }
 
-            try await FirebaseService.shared.followUser(
+            // First-ever follow of the founder earns the same one-time +2 as any
+            // other follow — mirror it in the in-memory session so the points
+            // display is immediately correct.
+            let awardedFollowBonus = try await FirebaseService.shared.followUser(
                 currentUserId: userId,
                 targetUserId: founder.id
             )
+            if awardedFollowBonus {
+                UserSession.shared.adjustTotalPoints(by: 2)
+            }
 
             // Keep in-memory follow state in sync so the founder shows as followed
             // immediately, using the founder's REAL stored username/uid.

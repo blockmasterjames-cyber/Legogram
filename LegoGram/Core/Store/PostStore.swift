@@ -287,7 +287,15 @@ final class PostStore: ObservableObject {
 
         do {
             if shouldFollow {
-                try await FirebaseService.shared.followUser(currentUserId: currentUid, targetUserId: targetUid)
+                // Returns true only the FIRST time this user ever follows this
+                // target (persistent follow_awards ledger) — mirror the +2 the
+                // follower just earned so their points display updates live.
+                // Refollows return false and award nothing; unfollowing never
+                // subtracts (awards are permanent).
+                let awardedFollowBonus = try await FirebaseService.shared.followUser(currentUserId: currentUid, targetUserId: targetUid)
+                if awardedFollowBonus {
+                    UserSession.shared.adjustTotalPoints(by: 2)
+                }
             } else {
                 try await FirebaseService.shared.unfollowUser(currentUserId: currentUid, targetUserId: targetUid)
             }

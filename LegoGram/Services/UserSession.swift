@@ -83,6 +83,19 @@ final class UserSession: ObservableObject {
         currentUser = user
     }
 
+    // MARK: - Points
+
+    /// Adjusts the in-memory `total_points` to match an award the user just
+    /// earned, so their profile/points UI updates immediately without a full
+    /// re-fetch — mirrors `adjustFollowingCount`. The authoritative value still
+    /// lives in Firestore (written via `FieldValue.increment` by the award
+    /// paths).
+    func adjustTotalPoints(by delta: Int) {
+        guard var user = currentUser else { return }
+        user.totalPoints = max(0, user.totalPoints + delta)
+        currentUser = user
+    }
+
     /// Re-reads the signed-in user's follower/following counts from Firestore.
     /// Called when the user opens their own profile so the counts reflect
     /// followers gained while the app was open — others following you isn't an
@@ -139,6 +152,18 @@ final class UserSession: ObservableObject {
         guard var user = currentUser else { return }
         user.avatarURL = url
         try await FirebaseService.shared.saveUser(user)
+
+        // One-time +5 for adding a profile photo. Gated by the persistent
+        // `awarded_avatar` flag (re-checked in Firestore inside the award call),
+        // so changing the avatar again never re-awards. An award failure is
+        // swallowed — the flag stays false, so the next avatar save retries.
+        if !user.awardedAvatar,
+           (try? await FirebaseService.shared.awardProfileCompletionIfNeeded(
+               userId: uid, flagField: "awarded_avatar", points: 5)) == true {
+            user.awardedAvatar = true
+            user.totalPoints  += 5
+        }
+
         currentUser = user
         avatarImage = image
     }
@@ -152,6 +177,16 @@ final class UserSession: ObservableObject {
         guard var user = currentUser else { return }
         user.backgroundURL = url
         try await FirebaseService.shared.saveUser(user)
+
+        // One-time +5 for adding a banner — same farm-proof pattern as the
+        // avatar award above.
+        if !user.awardedBanner,
+           (try? await FirebaseService.shared.awardProfileCompletionIfNeeded(
+               userId: uid, flagField: "awarded_banner", points: 5)) == true {
+            user.awardedBanner = true
+            user.totalPoints  += 5
+        }
+
         currentUser = user
         backgroundImage = image
     }
@@ -163,6 +198,7 @@ final class UserSession: ObservableObject {
         user.displayName = displayName
         user.bio         = bio
         try await FirebaseService.shared.saveUser(user)
+        await grantBioAwardIfEligible(&user)
         currentUser = user
     }
 
@@ -183,11 +219,28 @@ final class UserSession: ObservableObject {
         user.username    = trimmedUsername.isEmpty ? user.username : trimmedUsername
         user.bio         = bio
         try await FirebaseService.shared.saveUser(user)
+        await grantBioAwardIfEligible(&user)
         currentUser = user
 
         // Keep UserDefaults in sync
         UserDefaults.standard.set(user.username, forKey: "profile_username")
         UserDefaults.standard.set(user.displayName, forKey: "profile_displayName")
+    }
+
+    /// Grants the one-time +5 "write a bio" bonus when the just-saved bio is
+    /// non-empty and the persistent `awarded_bio` flag isn't set. Called by both
+    /// `updateProfile` overloads AFTER `saveUser` succeeds. Clearing the bio
+    /// later never subtracts, and re-writing it never re-awards (the flag is
+    /// also re-checked in Firestore inside the award call). Award failures are
+    /// swallowed — the flag stays false, so the next bio save retries.
+    private func grantBioAwardIfEligible(_ user: inout User) async {
+        guard !user.awardedBio,
+              !user.bio.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              (try? await FirebaseService.shared.awardProfileCompletionIfNeeded(
+                  userId: user.id, flagField: "awarded_bio", points: 5)) == true
+        else { return }
+        user.awardedBio   = true
+        user.totalPoints += 5
     }
 
     // MARK: - Privacy

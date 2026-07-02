@@ -21,7 +21,18 @@ struct User: Identifiable, Codable, Hashable {
     // MARK: - Points System (replaces earnings)
     /// Total points earned through posting, receiving likes, comments, and follows.
     /// Posting = 10 pts, Like received = 2 pts, Comment received = 5 pts, Follow received = 1 pt
+    /// One-time bonuses: profile photo / bio / banner = 5 pts each, first follow of a user = 2 pts.
     var totalPoints: Int
+
+    // MARK: - One-Time Profile Awards
+    /// Persistent "already awarded" flags for the one-time profile-completion
+    /// bonuses (+5 each). Once true they NEVER reset — changing or clearing the
+    /// underlying field later neither re-awards nor subtracts points. Written
+    /// ONLY by `FirebaseService.awardProfileCompletionIfNeeded` (never by
+    /// `saveUser`, so a stale in-memory user can't clobber a granted flag).
+    var awardedAvatar: Bool = false
+    var awardedBio: Bool = false
+    var awardedBanner: Bool = false
 
     // MARK: - Kid Safety
     var isKidAccount: Bool
@@ -58,6 +69,9 @@ struct User: Identifiable, Codable, Hashable {
         case postCount      = "post_count"
         case totalLikes     = "total_likes"
         case totalPoints    = "total_points"
+        case awardedAvatar  = "awarded_avatar"
+        case awardedBio     = "awarded_bio"
+        case awardedBanner  = "awarded_banner"
         case isKidAccount   = "is_kid_account"
         case isUnder9       = "is_under_9"
         case isBanned       = "is_banned"

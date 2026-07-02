@@ -56,6 +56,7 @@ struct OtherProfileView: View {
                                 .truncationMode(.tail)
                                 .minimumScaleFactor(0.7)
                             AdminBadge(uid: resolvedUserId, size: 16)
+                            TopBuilderBadge(uid: resolvedUserId, size: 16)
                         }
 
                         Text(profileBio)

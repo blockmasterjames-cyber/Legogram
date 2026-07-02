@@ -80,6 +80,8 @@
 		F400AB252FEE3DEA00131185 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = AA0006000000000000000005 /* FirebaseAnalytics */; };
 		F400AB272FEE431B00131185 /* FollowingBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = F400AB262FEE431B00131185 /* FollowingBadge.swift */; };
 		F400AB292FEE433000131185 /* FollowingRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = F400AB282FEE433000131185 /* FollowingRegistry.swift */; };
+		F400AB2C2FEE500000131185 /* TopBuilderBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = F400AB2B2FEE500000131185 /* TopBuilderBadge.swift */; };
+		F400AB2E2FEE500000131185 /* TopBuilderRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = F400AB2D2FEE500000131185 /* TopBuilderRegistry.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -153,6 +155,8 @@
 		AA00020000000000000000C3 /* FollowListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowListView.swift; sourceTree = "<group>"; };
 		F400AB262FEE431B00131185 /* FollowingBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowingBadge.swift; sourceTree = "<group>"; };
 		F400AB282FEE433000131185 /* FollowingRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowingRegistry.swift; sourceTree = "<group>"; };
+		F400AB2B2FEE500000131185 /* TopBuilderBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopBuilderBadge.swift; sourceTree = "<group>"; };
+		F400AB2D2FEE500000131185 /* TopBuilderRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopBuilderRegistry.swift; sourceTree = "<group>"; };
 		F400AB2A2FEE43F200131185 /* BrickFeed.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BrickFeed.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -229,6 +233,7 @@
 			isa = PBXGroup;
 			children = (
 				F400AB262FEE431B00131185 /* FollowingBadge.swift */,
+				F400AB2B2FEE500000131185 /* TopBuilderBadge.swift */,
 				AA0002000000000000000006 /* BrickFeedLogo.swift */,
 				AA0002000000000000000007 /* LoadingView.swift */,
 				AA000200000000000000001B /* BadWordFilter.swift */,
@@ -368,6 +373,7 @@
 			isa = PBXGroup;
 			children = (
 				F400AB282FEE433000131185 /* FollowingRegistry.swift */,
+				F400AB2D2FEE500000131185 /* TopBuilderRegistry.swift */,
 				AA0002000000000000000014 /* AppState.swift */,
 				AA0002000000000000000015 /* PostStore.swift */,
 				AA0002000000000000000021 /* DMStore.swift */,
@@ -522,6 +528,8 @@
 				AA0001000000000000000018 /* SettingsView.swift in Sources */,
 				AA0001000000000000000019 /* LegoSetDatabase.swift in Sources */,
 				F400AB292FEE433000131185 /* FollowingRegistry.swift in Sources */,
+				F400AB2C2FEE500000131185 /* TopBuilderBadge.swift in Sources */,
+				F400AB2E2FEE500000131185 /* TopBuilderRegistry.swift in Sources */,
 				AA000100000000000000001A /* Comment.swift in Sources */,
 				AA000100000000000000001B /* BadWordFilter.swift in Sources */,
 				AA00010000000000000000B1 /* BlockConfirmation.swift in Sources */,

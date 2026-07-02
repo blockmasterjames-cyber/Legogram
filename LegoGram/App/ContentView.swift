@@ -112,6 +112,11 @@ struct ContentView: View {
                     // collection — the same secure source as the admin gate).
                     await AdminRegistry.shared.refresh()
 
+                    // Load the Top Builder badge cache (top 3 by points) so
+                    // profiles can badge before the Leaderboard tab is opened;
+                    // the Leaderboard refreshes it again on every load.
+                    await TopBuilderRegistry.shared.refreshFromServer()
+
                     // Demo seeding for the Apple reviewer account. Idempotent —
                     // skips if the seed conversations already exist in Firestore.
                     // Needed here because Firebase auto-restores the session on

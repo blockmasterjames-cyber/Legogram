@@ -300,6 +300,7 @@ struct ProfileView: View {
                     .truncationMode(.tail)
                     .minimumScaleFactor(0.7)
                 AdminBadge(uid: currentUser?.id ?? "", size: 16)
+                TopBuilderBadge(uid: currentUser?.id ?? "", size: 16)
                 if currentUser?.isKidAccount == true || kidSafeMode {
                     HStack(spacing: 3) {
                         Image(systemName: "shield.checkmark.fill").font(.system(size: 10))
