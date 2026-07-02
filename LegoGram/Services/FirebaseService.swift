@@ -70,30 +70,57 @@ final class FirebaseService: ObservableObject {
     }
 
     private func userFromData(_ data: [String: Any], id: String) -> User {
-        let joinTimestamp     = data["join_date"] as? Timestamp
-        let birthdayTimestamp = data["birthday"] as? Timestamp
+        // Pre-extract every field into a typed constant FIRST. Handing the
+        // compiler 20 `as? T ?? default` expressions inside one giant init made
+        // type-checking blow up ("unable to type-check in reasonable time"), so
+        // each coercion is resolved on its own line, then the init below is a
+        // simple pass-through of already-typed values.
+        let joinTimestamp:     Timestamp? = data["join_date"] as? Timestamp
+        let birthdayTimestamp: Timestamp? = data["birthday"]  as? Timestamp
+
+        let username:       String = data["username"]         as? String ?? ""
+        let displayName:    String = data["display_name"]     as? String ?? ""
+        let bio:            String = data["bio"]              as? String ?? ""
+        let avatarURL:      String = data["avatar_url"]       as? String ?? ""
+        let backgroundURL:  String = data["background_url"]   as? String ?? ""
+        let followerCount:  Int    = data["follower_count"]   as? Int    ?? 0
+        let followingCount: Int    = data["following_count"]  as? Int    ?? 0
+        let postCount:      Int    = data["post_count"]       as? Int    ?? 0
+        let totalLikes:     Int    = data["total_likes"]      as? Int    ?? 0
+        let totalPoints:    Int    = data["total_points"]     as? Int    ?? 0
+        let isKidAccount:   Bool   = data["is_kid_account"]   as? Bool   ?? false
+        let isUnder9:       Bool   = data["is_under_9"]       as? Bool   ?? false
+        let parentEmail:    String = data["parent_email"]     as? String ?? ""
+        let joinDate:       Date   = joinTimestamp?.dateValue() ?? Date()
+        let birthday:       Date?  = birthdayTimestamp?.dateValue()
+        let isBanned:       Bool   = data["is_banned"]        as? Bool   ?? false
+        let acceptsDMs:     Bool   = data["accepts_dms"]      as? Bool   ?? true
+        let awardedAvatar:  Bool   = data["awarded_avatar"]   as? Bool   ?? false
+        let awardedBio:     Bool   = data["awarded_bio"]      as? Bool   ?? false
+        let awardedBanner:  Bool   = data["awarded_banner"]   as? Bool   ?? false
+
         return User(
             id:             id,
-            username:       data["username"]        as? String ?? "",
-            displayName:    data["display_name"]    as? String ?? "",
-            bio:            data["bio"]             as? String ?? "",
-            avatarURL:      data["avatar_url"]      as? String ?? "",
-            backgroundURL:  data["background_url"]  as? String ?? "",
-            followerCount:  data["follower_count"]  as? Int    ?? 0,
-            followingCount: data["following_count"] as? Int    ?? 0,
-            postCount:      data["post_count"]      as? Int    ?? 0,
-            totalLikes:     data["total_likes"]     as? Int    ?? 0,
-            totalPoints:    data["total_points"]    as? Int    ?? 0,
-            isKidAccount:   data["is_kid_account"]  as? Bool   ?? false,
-            isUnder9:       data["is_under_9"]      as? Bool   ?? false,
-            parentEmail:    data["parent_email"]    as? String ?? "",
-            joinDate:       joinTimestamp?.dateValue() ?? Date(),
-            birthday:       birthdayTimestamp?.dateValue(),
-            isBanned:       data["is_banned"]       as? Bool   ?? false,
-            acceptsDMs:     data["accepts_dms"]     as? Bool   ?? true,
-            awardedAvatar:  data["awarded_avatar"]  as? Bool   ?? false,
-            awardedBio:     data["awarded_bio"]     as? Bool   ?? false,
-            awardedBanner:  data["awarded_banner"]  as? Bool   ?? false
+            username:       username,
+            displayName:    displayName,
+            bio:            bio,
+            avatarURL:      avatarURL,
+            backgroundURL:  backgroundURL,
+            followerCount:  followerCount,
+            followingCount: followingCount,
+            postCount:      postCount,
+            totalLikes:     totalLikes,
+            totalPoints:    totalPoints,
+            isKidAccount:   isKidAccount,
+            isUnder9:       isUnder9,
+            parentEmail:    parentEmail,
+            acceptsDMs:     acceptsDMs,
+                        joinDate:       joinDate,
+                        birthday:       birthday,
+                        isBanned:       isBanned,
+                        awardedAvatar:  awardedAvatar,
+                        awardedBio:     awardedBio,
+                        awardedBanner:  awardedBanner
         )
     }
 
