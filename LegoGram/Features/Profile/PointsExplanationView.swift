@@ -107,6 +107,24 @@ struct PointsExplanationView: View {
                                 points: "+1",
                                 color: .successGreen
                             )
+                            Divider().background(Color.secondaryText.opacity(0.2))
+
+                            pointRow(
+                                emoji: "🤝",
+                                title: "Follow a Builder",
+                                subtitle: "First time you follow someone new",
+                                points: "+2",
+                                color: .successGreen
+                            )
+                            Divider().background(Color.secondaryText.opacity(0.2))
+
+                            pointRow(
+                                emoji: "🎨",
+                                title: "Complete Your Profile",
+                                subtitle: "Add a photo, bio, and banner — one time each",
+                                points: "+5",
+                                color: .legoYellow
+                            )
                         }
                         .background(Color.cardBackground)
                         .cornerRadius(12)

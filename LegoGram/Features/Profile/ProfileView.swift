@@ -107,7 +107,12 @@ struct ProfileView: View {
         // Re-read follower/following from Firestore when the profile opens so the
         // counts reflect followers gained while the app was running (the in-memory
         // user is otherwise only loaded at launch).
-        .task { await userSession.refreshFollowCounts() }
+        .task {
+            await userSession.refreshFollowCounts()
+            // Fallback fill of the Top Builder cache when the profile is
+            // opened before the Leaderboard has loaded (one-per-session).
+            await TopBuilderRegistry.shared.refreshIfNeeded()
+        }
         .sheet(isPresented: $showingEditProfile)       { EditProfileView() }
         .sheet(isPresented: $showingSettings)          { SettingsView() }
         .sheet(isPresented: $showingPointsExplanation) { PointsExplanationView() }
@@ -299,6 +304,7 @@ struct ProfileView: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .minimumScaleFactor(0.7)
+                TopBuilderBadge(uid: currentUser?.id ?? "", size: 16)
                 AdminBadge(uid: currentUser?.id ?? "", size: 16)
                 if currentUser?.isKidAccount == true || kidSafeMode {
                     HStack(spacing: 3) {

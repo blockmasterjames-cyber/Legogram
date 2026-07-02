@@ -141,6 +141,11 @@ struct LeaderboardView: View {
             let currentUid = userSession.uid
             print("[Leaderboard] Loaded \(users.count) users successfully")
 
+            // Keep the session-wide Top Builder cache in sync with the ranked
+            // data we already have — this is what drives TopBuilderBadge here
+            // and on profiles, with no extra query.
+            TopBuilderRegistry.shared.update(fromRanked: users)
+
             globalBuilders = users.enumerated().map { idx, user in
                 BuilderEntry(
                     rank:          idx + 1,
@@ -226,6 +231,7 @@ struct BuilderRow: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .minimumScaleFactor(0.8)
+                    TopBuilderBadge(uid: builder.userId)
                     AdminBadge(uid: builder.userId)
                     FollowingBadge(uid: builder.userId)
                     if builder.isCurrentUser {
