@@ -96,6 +96,41 @@ final class UserSession: ObservableObject {
         currentUser = user
     }
 
+    // MARK: - Points
+
+    /// Bumps the in-memory `total_points` to mirror an award that was just
+    /// written to the user's own doc with `FieldValue.increment`, so the
+    /// profile/points UI updates immediately without a full re-fetch (same
+    /// pattern as `adjustFollowingCount`). Firestore stays authoritative.
+    func addPoints(_ delta: Int) {
+        guard var user = currentUser else { return }
+        user.totalPoints += delta
+        currentUser = user
+    }
+
+    /// Grants a once-ever +5 profile-completion bonus (avatar / bio / banner)
+    /// if the field is actually set and the persistent flag isn't already true.
+    /// On success, mirrors the flag + points into `currentUser` via
+    /// `markAwarded` so the award can't repeat within this session either.
+    /// Failure is logged, not thrown — the profile save itself already
+    /// succeeded, and the flag stays unset so the bonus is retried on the next
+    /// save of that field.
+    private func awardProfileBonusIfNeeded(flagField: String,
+                                           alreadyAwarded: Bool,
+                                           fieldIsSet: Bool,
+                                           markAwarded: (inout User) -> Void) async {
+        guard fieldIsSet, !alreadyAwarded, var user = currentUser else { return }
+        do {
+            try await FirebaseService.shared.grantProfileCompletionBonus(
+                userId: user.id, flagField: flagField)
+            markAwarded(&user)
+            user.totalPoints += 5
+            currentUser = user
+        } catch {
+            print("[UserSession] Profile bonus (\(flagField)) failed: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Admin Status
 
     /// Refreshes `isAdmin` by checking whether `admins/{uid}` exists.
@@ -141,6 +176,14 @@ final class UserSession: ObservableObject {
         try await FirebaseService.shared.saveUser(user)
         currentUser = user
         avatarImage = image
+
+        // Once-ever +5 for adding a profile photo. Changing or re-adding the
+        // avatar later never re-awards (persistent `awarded_avatar` flag).
+        await awardProfileBonusIfNeeded(
+            flagField:      "awarded_avatar",
+            alreadyAwarded: user.awardedAvatar,
+            fieldIsSet:     !url.isEmpty
+        ) { $0.awardedAvatar = true }
     }
 
     // MARK: - Upload and Save Background
@@ -154,6 +197,13 @@ final class UserSession: ObservableObject {
         try await FirebaseService.shared.saveUser(user)
         currentUser = user
         backgroundImage = image
+
+        // Once-ever +5 for adding a banner (persistent `awarded_banner` flag).
+        await awardProfileBonusIfNeeded(
+            flagField:      "awarded_banner",
+            alreadyAwarded: user.awardedBanner,
+            fieldIsSet:     !url.isEmpty
+        ) { $0.awardedBanner = true }
     }
 
     // MARK: - Update Profile
@@ -164,6 +214,7 @@ final class UserSession: ObservableObject {
         user.bio         = bio
         try await FirebaseService.shared.saveUser(user)
         currentUser = user
+        await awardBioBonusIfNeeded(bio: bio, alreadyAwarded: user.awardedBio)
     }
 
     /// Updates display name, username, and bio. Checks username uniqueness before saving.
@@ -188,6 +239,19 @@ final class UserSession: ObservableObject {
         // Keep UserDefaults in sync
         UserDefaults.standard.set(user.username, forKey: "profile_username")
         UserDefaults.standard.set(user.displayName, forKey: "profile_displayName")
+
+        await awardBioBonusIfNeeded(bio: bio, alreadyAwarded: user.awardedBio)
+    }
+
+    /// Once-ever +5 for writing a NON-EMPTY bio, shared by both `updateProfile`
+    /// overloads. Clearing and re-writing the bio never re-awards (persistent
+    /// `awarded_bio` flag), and clearing never removes the points.
+    private func awardBioBonusIfNeeded(bio: String, alreadyAwarded: Bool) async {
+        await awardProfileBonusIfNeeded(
+            flagField:      "awarded_bio",
+            alreadyAwarded: alreadyAwarded,
+            fieldIsSet:     !bio.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        ) { $0.awardedBio = true }
     }
 
     // MARK: - Privacy

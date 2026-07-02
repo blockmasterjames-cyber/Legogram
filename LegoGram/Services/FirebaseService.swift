@@ -29,6 +29,10 @@ final class FirebaseService: ObservableObject {
     /// Writing them wholesale from a (potentially stale) in-memory `User` would
     /// silently clobber real follow activity. On user CREATION (`isNewUser`)
     /// they are initialized to 0 so the doc starts in a known state.
+    /// The once-ever award fields (`awarded_avatar`/`awarded_bio`/
+    /// `awarded_banner` and the `follow_points_awarded` map) are likewise never
+    /// written here — only `grantProfileCompletionBonus` and `followUser` set
+    /// them, so a stale in-memory `User` can't reset one and re-open an award.
     func saveUser(_ user: User, isNewUser: Bool = false) async throws {
         var data: [String: Any] = [
             "username":        user.username,
@@ -86,7 +90,10 @@ final class FirebaseService: ObservableObject {
             joinDate:       joinTimestamp?.dateValue() ?? Date(),
             birthday:       birthdayTimestamp?.dateValue(),
             isBanned:       data["is_banned"]       as? Bool   ?? false,
-            acceptsDMs:     data["accepts_dms"]     as? Bool   ?? true
+            acceptsDMs:     data["accepts_dms"]     as? Bool   ?? true,
+            awardedAvatar:  data["awarded_avatar"]  as? Bool   ?? false,
+            awardedBio:     data["awarded_bio"]     as? Bool   ?? false,
+            awardedBanner:  data["awarded_banner"]  as? Bool   ?? false
         )
     }
 
@@ -144,38 +151,77 @@ final class FirebaseService: ObservableObject {
     /// counter can be reconciled later). The brief divergence this allows is
     /// acceptable and far better than a total rollback.
     func followUser(currentUserId: String, targetUserId: String) async throws {
+        // --- Once-ever follow-award ledger ---
+        // Follow points (+2 to the follower, +1 to the followed user) are
+        // granted only the FIRST time this follower ever follows this target;
+        // unfollow + refollow re-grants NOTHING. The persistent marker lives in
+        // the `follow_points_awarded` map on the FOLLOWER'S OWN user doc
+        // (`follow_points_awarded.{targetUid} = true`) — NOT on the
+        // `following/{target}` doc, which `unfollowUser` deletes (so a marker
+        // there would reset on every unfollow), and NOT in a new subcollection,
+        // which the deployed rules don't match (unlisted paths are denied). The
+        // own-doc map is covered by the owner update branch and survives
+        // unfollow forever. If the marker can't be read, we skip the award
+        // rather than risk granting it twice — a plain refollow still works.
+        var isFirstEverFollow = false
+        do {
+            let ownDoc = try await db.collection("users").document(currentUserId).getDocument()
+            let awardedMap = ownDoc.data()?["follow_points_awarded"] as? [String: Any]
+            isFirstEverFollow = !((awardedMap?[targetUserId] as? Bool) ?? false)
+        } catch {
+            print("[FirebaseService] followUser: award-ledger read failed — following without points: \(error.localizedDescription)")
+        }
+
         // --- Own side (always permitted; must persist) ---
         // The user's own `following` entry + their own `following_count`. These
         // only touch the user's OWN doc/subcollection, so the deployed rules
         // always allow them. setData(merge:) so a missing field/doc is created
-        // rather than throwing NOT_FOUND.
+        // rather than throwing NOT_FOUND. The follower's +2 award and its
+        // ledger marker ride on THIS commit (own-doc writes) — never on the
+        // best-effort target side, so a target failure can't roll them back.
+        // merge:true deep-merges the nested map, adding only this target's key.
         let ownBatch = db.batch()
         ownBatch.setData(["followed_at": Timestamp(date: Date())],
                          forDocument: db.collection("users").document(currentUserId)
                              .collection("following").document(targetUserId))
-        ownBatch.setData(["following_count": FieldValue.increment(Int64(1))],
+        var ownUserUpdate: [String: Any] = ["following_count": FieldValue.increment(Int64(1))]
+        if isFirstEverFollow {
+            ownUserUpdate["total_points"] = FieldValue.increment(Int64(2))
+            ownUserUpdate["follow_points_awarded"] = [targetUserId: true]
+        }
+        ownBatch.setData(ownUserUpdate,
                          forDocument: db.collection("users").document(currentUserId),
                          merge: true)
         try await ownBatch.commit()
 
+        // Mirror the follower's own +2 into the in-memory session immediately.
+        if isFirstEverFollow {
+            await UserSession.shared.addPoints(2)
+        }
+
         // --- Target side (best-effort) ---
         // Records this user in the target's `followers` list and bumps the
-        // target's `follower_count` (+1) and `total_points` (+1). The cross-user
-        // counter write is permitted by the deployed rules' onlyCounterDelta()
-        // ONLY when it touches just the allowed counter fields within the delta
-        // caps — so we write EXACTLY follower_count and total_points and NOTHING
-        // else (no timestamp/extra field, or hasOnly() would reject it).
-        // setData(merge:) creates the doc/fields when the target doc is
-        // incomplete (e.g. a hand-created founder doc), avoiding the NOT_FOUND
-        // that updateData throws. A failure here is logged but NOT rethrown — the
-        // own side above already persisted.
+        // target's `follower_count` (+1), plus `total_points` (+1) — but the
+        // points only on the first-ever follow (see the ledger above), closing
+        // the old unfollow/refollow farming hole. The cross-user counter write
+        // is permitted by the deployed rules' onlyCounterDelta() ONLY when it
+        // touches just the allowed counter fields within the delta caps — so we
+        // write EXACTLY those fields and NOTHING else (no timestamp/extra
+        // field, or hasOnly() would reject it). setData(merge:) creates the
+        // doc/fields when the target doc is incomplete (e.g. a hand-created
+        // founder doc), avoiding the NOT_FOUND that updateData throws. A
+        // failure here is logged but NOT rethrown — the own side above already
+        // persisted.
         do {
             let targetBatch = db.batch()
             targetBatch.setData(["followed_at": Timestamp(date: Date())],
                                 forDocument: db.collection("users").document(targetUserId)
                                     .collection("followers").document(currentUserId))
-            targetBatch.setData(["follower_count": FieldValue.increment(Int64(1)),
-                                 "total_points":   FieldValue.increment(Int64(1))],
+            var targetUserUpdate: [String: Any] = ["follower_count": FieldValue.increment(Int64(1))]
+            if isFirstEverFollow {
+                targetUserUpdate["total_points"] = FieldValue.increment(Int64(1))
+            }
+            targetBatch.setData(targetUserUpdate,
                                 forDocument: db.collection("users").document(targetUserId),
                                 merge: true)
             try await targetBatch.commit()
@@ -217,7 +263,10 @@ final class FirebaseService: ObservableObject {
         // Removes this user from the target's `followers` list and decrements the
         // target's `follower_count` (-1). Writes ONLY the allowed counter field
         // (no extra field, to satisfy the rule's hasOnly check). Failure logged,
-        // not rethrown.
+        // not rethrown. Follow-award points (the follower's +2 and the target's
+        // +1) are deliberately NOT removed here — awards are permanent, and the
+        // `follow_points_awarded` ledger on the follower's doc guarantees a
+        // refollow never re-grants them.
         do {
             let targetBatch = db.batch()
             targetBatch.deleteDocument(db.collection("users").document(targetUserId)
@@ -1171,6 +1220,20 @@ final class FirebaseService: ObservableObject {
     func awardPoints(to userId: String, points: Int) async throws {
         try await db.collection("users").document(userId)
             .updateData(["total_points": FieldValue.increment(Int64(points))])
+    }
+
+    /// Grants a once-ever +5 profile-completion bonus (avatar / bio / banner).
+    /// The points increment and the persistent `awarded_*` flag land in the
+    /// SAME write, so the flag can never be set without the points (or vice
+    /// versa). This is the ONLY writer of the `awarded_*` flags — `saveUser`
+    /// never touches them, so they can't be reset by a stale in-memory user.
+    /// Own-doc write, permitted by the rules' owner branch (not the cross-user
+    /// ±5 counter path). Callers must check the flag BEFORE calling.
+    func grantProfileCompletionBonus(userId: String, flagField: String) async throws {
+        try await db.collection("users").document(userId).setData([
+            "total_points": FieldValue.increment(Int64(5)),
+            flagField:      true
+        ], merge: true)
     }
 
     // =========================================================================

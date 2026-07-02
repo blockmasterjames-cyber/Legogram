@@ -55,6 +55,7 @@ struct OtherProfileView: View {
                                 .lineLimit(1)
                                 .truncationMode(.tail)
                                 .minimumScaleFactor(0.7)
+                            TopBuilderBadge(uid: resolvedUserId, size: 16)
                             AdminBadge(uid: resolvedUserId, size: 16)
                         }
 
@@ -107,6 +108,9 @@ struct OtherProfileView: View {
             } else if !targetUserId.isEmpty {
                 profileUser = try? await FirebaseService.shared.fetchUser(userId: targetUserId)
             }
+            // Fallback fill of the Top Builder cache when a profile is opened
+            // before the Leaderboard has loaded (one-per-session).
+            await TopBuilderRegistry.shared.refreshIfNeeded()
         }
         .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {

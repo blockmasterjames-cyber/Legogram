@@ -68,6 +68,8 @@
 		AA000100000000000000003C /* AdminReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000003C /* AdminReport.swift */; };
 		AA000100000000000000003D /* AdminRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000003D /* AdminRegistry.swift */; };
 		AA000100000000000000003E /* AdminBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000003E /* AdminBadge.swift */; };
+		AB0001000000000000000001 /* TopBuilderBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0002000000000000000001 /* TopBuilderBadge.swift */; };
+		AB0001000000000000000002 /* TopBuilderRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0002000000000000000002 /* TopBuilderRegistry.swift */; };
 		AA000100000000000000003F /* AdminReportsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000200000000000000003F /* AdminReportsView.swift */; };
 		AA00010000000000000000B1 /* BlockConfirmation.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00020000000000000000B1 /* BlockConfirmation.swift */; };
 		AA00010000000000000000B2 /* ReportConfirmation.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00020000000000000000B2 /* ReportConfirmation.swift */; };
@@ -145,6 +147,8 @@
 		AA000200000000000000003C /* AdminReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminReport.swift; sourceTree = "<group>"; };
 		AA000200000000000000003D /* AdminRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminRegistry.swift; sourceTree = "<group>"; };
 		AA000200000000000000003E /* AdminBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminBadge.swift; sourceTree = "<group>"; };
+		AB0002000000000000000001 /* TopBuilderBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopBuilderBadge.swift; sourceTree = "<group>"; };
+		AB0002000000000000000002 /* TopBuilderRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopBuilderRegistry.swift; sourceTree = "<group>"; };
 		AA000200000000000000003F /* AdminReportsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminReportsView.swift; sourceTree = "<group>"; };
 		AA00020000000000000000B1 /* BlockConfirmation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockConfirmation.swift; sourceTree = "<group>"; };
 		AA00020000000000000000B2 /* ReportConfirmation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportConfirmation.swift; sourceTree = "<group>"; };
@@ -238,6 +242,7 @@
 				AA000200000000000000002E /* NetworkMonitor.swift */,
 				AA0002000000000000000035 /* NotificationManager.swift */,
 				AA000200000000000000003E /* AdminBadge.swift */,
+				AB0002000000000000000001 /* TopBuilderBadge.swift */,
 				AA00020000000000000000C1 /* UserAvatar.swift */,
 				AA00020000000000000000C2 /* UserAvatarCache.swift */,
 			);
@@ -372,6 +377,7 @@
 				AA0002000000000000000015 /* PostStore.swift */,
 				AA0002000000000000000021 /* DMStore.swift */,
 				AA000200000000000000003D /* AdminRegistry.swift */,
+				AB0002000000000000000002 /* TopBuilderRegistry.swift */,
 			);
 			path = Store;
 			sourceTree = "<group>";
@@ -558,6 +564,8 @@
 				AA000100000000000000003C /* AdminReport.swift in Sources */,
 				AA000100000000000000003D /* AdminRegistry.swift in Sources */,
 				AA000100000000000000003E /* AdminBadge.swift in Sources */,
+				AB0001000000000000000001 /* TopBuilderBadge.swift in Sources */,
+				AB0001000000000000000002 /* TopBuilderRegistry.swift in Sources */,
 				AA00010000000000000000C1 /* UserAvatar.swift in Sources */,
 				AA00010000000000000000C3 /* FollowListView.swift in Sources */,
 				AA00010000000000000000C2 /* UserAvatarCache.swift in Sources */,

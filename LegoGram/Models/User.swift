@@ -20,7 +20,8 @@ struct User: Identifiable, Codable, Hashable {
 
     // MARK: - Points System (replaces earnings)
     /// Total points earned through posting, receiving likes, comments, and follows.
-    /// Posting = 10 pts, Like received = 2 pts, Comment received = 5 pts, Follow received = 1 pt
+    /// Posting = 10 pts, Like received = 2 pts, Comment received = 5 pts, Follow received = 1 pt.
+    /// One-time bonuses: first avatar/bio/banner = 5 pts each, first-ever follow of a user = 2 pts.
     var totalPoints: Int
 
     // MARK: - Kid Safety
@@ -44,6 +45,18 @@ struct User: Identifiable, Codable, Hashable {
     /// `saveUser`, and the rules restrict it to admins. Declared last (with a
     /// default) so the memberwise initializer's other call sites are unaffected.
     var isBanned: Bool = false
+
+    // MARK: - One-Time Profile Awards
+    /// Persistent "already awarded" flags for the once-ever profile-completion
+    /// bonuses (Firestore `awarded_avatar` / `awarded_bio` / `awarded_banner`).
+    /// They only ever go false → true and are written EXCLUSIVELY by
+    /// `FirebaseService.grantProfileCompletionBonus` (never by `saveUser`, so a
+    /// stale in-memory copy can't reset one and re-open an award). Missing on
+    /// old documents = not yet awarded. Declared last with defaults, same as
+    /// `isBanned`, so existing memberwise-init call sites are unaffected.
+    var awardedAvatar: Bool = false
+    var awardedBio: Bool = false
+    var awardedBanner: Bool = false
 
     // MARK: - Firestore Field Keys
     enum CodingKeys: String, CodingKey {
