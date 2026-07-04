@@ -30,6 +30,15 @@ struct PostDetailView: View {
     @State private var showAdminDeleteConfirm2 = false
     @State private var isAdminDeleting         = false
     @State private var adminDeleteError: String?
+    // Owner delete – two-step confirmation
+    @State private var showOwnerDeleteConfirm1 = false
+    @State private var showOwnerDeleteConfirm2 = false
+    @State private var isOwnerDeleting         = false
+    @State private var ownerDeleteError: String?
+
+    /// True when the signed-in user authored this post. Gates the owner
+    /// "Delete Post" menu item and hides Report/Block on your own posts.
+    private var isOwnPost: Bool { post.userId == UserSession.shared.uid }
 
     private var legoSet: LegoSet? { LegoSetDatabase.set(for: post.legoSetNumber) }
 
@@ -156,17 +165,29 @@ struct PostDetailView: View {
                         Spacer()
 
                         Menu {
-                            Section("Report this post") {
-                                Button("Inappropriate content") { reportPost(reason: "Inappropriate content") }
-                                Button("Bullying or harassment") { reportPost(reason: "Bullying or harassment") }
-                                Button("Spam") { reportPost(reason: "Spam") }
-                                Button("Not LEGO related") { reportPost(reason: "Not LEGO related") }
-                            }
-                            Section {
-                                Button(role: .destructive) {
-                                    showBlockConfirm = true
-                                } label: {
-                                    Label("Block @\(post.username)", systemImage: "hand.raised.fill")
+                            if isOwnPost {
+                                // Your own post: you can delete it, but not
+                                // report/block yourself.
+                                Section {
+                                    Button(role: .destructive) {
+                                        showOwnerDeleteConfirm1 = true
+                                    } label: {
+                                        Label("Delete Post", systemImage: "trash")
+                                    }
+                                }
+                            } else {
+                                Section("Report this post") {
+                                    Button("Inappropriate content") { reportPost(reason: "Inappropriate content") }
+                                    Button("Bullying or harassment") { reportPost(reason: "Bullying or harassment") }
+                                    Button("Spam") { reportPost(reason: "Spam") }
+                                    Button("Not LEGO related") { reportPost(reason: "Not LEGO related") }
+                                }
+                                Section {
+                                    Button(role: .destructive) {
+                                        showBlockConfirm = true
+                                    } label: {
+                                        Label("Block @\(post.username)", systemImage: "hand.raised.fill")
+                                    }
                                 }
                             }
                             if adminRegistry.isAdmin(UserSession.shared.uid) {
@@ -181,7 +202,7 @@ struct PostDetailView: View {
                         } label: {
                             Image(systemName: "flag").font(.system(size: 18)).foregroundColor(.secondaryText)
                         }
-                        .disabled(isAdminDeleting)
+                        .disabled(isAdminDeleting || isOwnerDeleting)
                     }
 
                     // Tap-target "View comments" row so users have an obvious
@@ -309,6 +330,28 @@ struct PostDetailView: View {
         } message: {
             Text(adminDeleteError ?? "")
         }
+        // Owner delete – step 1
+        .alert("Delete this post?", isPresented: $showOwnerDeleteConfirm1) {
+            Button("Continue", role: .destructive) { showOwnerDeleteConfirm2 = true }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This permanently removes your post and all its comments.")
+        }
+        // Owner delete – step 2
+        .alert("Are you sure?", isPresented: $showOwnerDeleteConfirm2) {
+            Button("Delete", role: .destructive) { ownerDeletePost() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This can't be undone.")
+        }
+        .alert("Delete failed", isPresented: Binding(
+            get: { ownerDeleteError != nil },
+            set: { if !$0 { ownerDeleteError = nil } }
+        )) {
+            Button("OK") {}
+        } message: {
+            Text(ownerDeleteError ?? "")
+        }
     }
 
     // MARK: - Helpers
@@ -376,6 +419,37 @@ struct PostDetailView: View {
                 await MainActor.run {
                     adminDeleteError = error.localizedDescription
                     isAdminDeleting  = false
+                }
+            }
+        }
+    }
+
+    /// Deletes the signed-in user's OWN post. Same service call as the admin
+    /// flow, but no moderation log (that's for admin actions), and the local
+    /// mirrors — Posts stat and the +10 publish-points clawback — are applied
+    /// so the profile updates without a re-fetch.
+    private func ownerDeletePost() {
+        isOwnerDeleting = true
+        Task {
+            let uid    = UserSession.shared.uid
+            let postId = post.id
+            guard !uid.isEmpty, post.userId == uid else {
+                isOwnerDeleting = false
+                return
+            }
+            do {
+                try await FirebaseService.shared.deletePost(postId, userId: uid)
+                await MainActor.run {
+                    postStore.removePost(postId)
+                    UserSession.shared.adjustPostCount(by: -1)
+                    UserSession.shared.addPoints(-10)
+                    isOwnerDeleting = false
+                    dismiss()
+                }
+            } catch {
+                await MainActor.run {
+                    ownerDeleteError = error.localizedDescription
+                    isOwnerDeleting  = false
                 }
             }
         }

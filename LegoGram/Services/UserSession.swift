@@ -96,6 +96,19 @@ final class UserSession: ObservableObject {
         currentUser = user
     }
 
+    // MARK: - Post Count
+
+    /// Adjusts the in-memory `post_count` to mirror a post the user just
+    /// deleted (or published), so their own profile's Posts stat updates
+    /// immediately without a full re-fetch (same pattern as
+    /// `adjustFollowingCount`). Firestore stays authoritative — the increment
+    /// is written by `publishPost` / `deletePost`.
+    func adjustPostCount(by delta: Int) {
+        guard var user = currentUser else { return }
+        user.postCount = max(0, user.postCount + delta)
+        currentUser = user
+    }
+
     // MARK: - Points
 
     /// Bumps the in-memory `total_points` to mirror an award that was just

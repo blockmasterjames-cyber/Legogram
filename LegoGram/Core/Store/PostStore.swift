@@ -111,6 +111,17 @@ final class PostStore: ObservableObject {
         if let videoURL { postVideoURLs[post.id] = videoURL }
     }
 
+    /// Removes a deleted post from all in-memory state. The feed, the profile
+    /// grid, and OtherProfileView all derive from `posts`, so this one removal
+    /// refreshes every surface; the dictionary entries are dropped so cached
+    /// media and comments don't linger for a post that no longer exists.
+    func removePost(_ postId: String) {
+        posts.removeAll { $0.id == postId }
+        postImages.removeValue(forKey: postId)
+        postVideoURLs.removeValue(forKey: postId)
+        comments.removeValue(forKey: postId)
+    }
+
     /// Toggles the like state and updates the count.
     func toggleLike(_ post: LegoPost) {
         guard let index = posts.firstIndex(where: { $0.id == post.id }) else { return }
