@@ -490,13 +490,22 @@ final class FirebaseService: ObservableObject {
             batch.deleteDocument(doc.reference)
         }
         batch.deleteDocument(db.collection("posts").document(postId))
-        batch.updateData(["post_count": FieldValue.increment(Int64(-1))],
+        // Claw back ONLY the +10 publish points (see publishPost). Like/comment
+        // points the post earned are kept — removing the publish award closes
+        // the post→collect→delete→repost farming loop without punishing cleanup.
+        batch.updateData(["post_count":   FieldValue.increment(Int64(-1)),
+                          "total_points": FieldValue.increment(Int64(-10))],
                          forDocument: db.collection("users").document(userId))
         try await batch.commit()
 
-        // Delete post image from Storage
+        // Delete post media from Storage. The composer uploads photos as
+        // image_0.jpg…image_9.jpg (NewPostView); image.jpg is the legacy
+        // single-photo path — attempt both so nothing is orphaned.
         let storageRef = Storage.storage().reference()
         try? await storageRef.child("posts/\(postId)/image.jpg").delete()
+        for idx in 0..<10 {
+            try? await storageRef.child("posts/\(postId)/image_\(idx).jpg").delete()
+        }
         try? await storageRef.child("posts/\(postId)/video.mp4").delete()
     }
 
@@ -870,8 +879,11 @@ final class FirebaseService: ObservableObject {
                     try? await c.reference.delete()
                 }
             }
-            // Delete post Storage files
+            // Delete post Storage files (legacy image.jpg + carousel image_0…9)
             try? await Storage.storage().reference().child("posts/\(postId)/image.jpg").delete()
+            for idx in 0..<10 {
+                try? await Storage.storage().reference().child("posts/\(postId)/image_\(idx).jpg").delete()
+            }
             try? await Storage.storage().reference().child("posts/\(postId)/video.mp4").delete()
             try? await postDoc.reference.delete()
         }
