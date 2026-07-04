@@ -49,6 +49,12 @@ struct PostDetailView: View {
     }
 
     // MARK: - Body
+    //
+    // The body used to be one ~300-line expression (media + info + menu +
+    // sheets + 8 alerts). That single giant expression made Swift's
+    // type-checker time out ("unable to type-check in reasonable time"), so
+    // it is decomposed below into small named pieces the compiler can check
+    // one at a time. Behavior is identical.
 
     var body: some View {
         ScrollView {
@@ -56,205 +62,12 @@ struct PostDetailView: View {
 
                 // MARK: Media (carousel or single)
                 mediaSection
-                    .gesture(
-                        TapGesture(count: 2).onEnded {
-                            handleLikeTap()
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
-                                showHeartAnimation = true
-                            }
-                            Task {
-                                try? await Task.sleep(nanoseconds: 1_000_000_000)
-                                withAnimation { showHeartAnimation = false }
-                            }
-                        }
-                    )
+                    .gesture(doubleTapLikeGesture)
                     .overlay(heartOverlay)
 
                 // MARK: Post Info
-                VStack(alignment: .leading, spacing: 14) {
-
-                    NavigationLink(value: post.username) {
-                        HStack(spacing: 10) {
-                            Circle()
-                                .fill(Color.legoRed).frame(width: 42, height: 42)
-                                .overlay(
-                                    Text(String(post.username.prefix(1)).uppercased())
-                                        .font(.legoCardTitle).foregroundColor(.white)
-                                )
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack(spacing: 6) {
-                                    Text("@\(post.username)")
-                                        .font(.legoCardTitle).foregroundColor(.lightText)
-                                        .lineLimit(1)
-                                        .truncationMode(.tail)
-                                        .minimumScaleFactor(0.8)
-                                    AdminBadge(uid: post.userId)
-                                    FollowingBadge(uid: post.userId)
-                                }
-                                Text(post.postedDate.formatted(date: .abbreviated, time: .shortened))
-                                    .font(.legoCaption).foregroundColor(.secondaryText)
-                            }
-                            Spacer()
-                        }
-                    }
-                    .buttonStyle(.plain)
-
-                    HStack(spacing: 8) {
-                        Text(post.isCustomBuild
-                             ? post.customBuildName
-                             : (legoSet?.name ?? post.legoSetName))
-                            .font(.legoCardTitle).foregroundColor(.legoYellow)
-                        if post.isCustomBuild {
-                            Text("Custom Build")
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 6).padding(.vertical, 2)
-                                .background(Color.blue).cornerRadius(4)
-                        } else if let set = legoSet {
-                            AgeRatingBadge(rating: set.ageRating)
-                        }
-                        Spacer()
-                    }
-
-                    if let set = legoSet {
-                        HStack(spacing: 6) {
-                            Label(set.theme, systemImage: "tag.fill")
-                            Text("·")
-                            Label("\(set.pieceCount) pieces", systemImage: "square.grid.3x3.fill")
-                        }
-                        .font(.legoCaption).foregroundColor(.secondaryText)
-                    }
-
-                    if !post.description.isEmpty {
-                        Text(BadWordFilter.filter(post.description))
-                            .font(.legoBody).foregroundColor(.lightText)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    // Action row — comment icon opens the SAME CommentSheet
-                    // used by the feed, so the interaction is identical
-                    // everywhere.
-                    HStack(spacing: 24) {
-                        Button {
-                            handleLikeTap()
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: postStore.isLiked(post) ? "heart.fill" : "heart")
-                                    .font(.system(size: 20))
-                                    .scaleEffect(postStore.isLiked(post) ? 1.2 : 1.0)
-                                    .animation(.spring(response: 0.3, dampingFraction: 0.5),
-                                               value: postStore.isLiked(post))
-                                Text("\(currentPost.likeCount)").font(.legoBody)
-                            }
-                            .foregroundColor(postStore.isLiked(post) ? .legoRed : .secondaryText)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(isLiking)
-
-                        Button {
-                            showingCommentSheet = true
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "bubble.right.fill").font(.system(size: 20))
-                                Text("\(currentPost.commentCount)").font(.legoBody)
-                            }
-                            .foregroundColor(.secondaryText)
-                        }
-                        .buttonStyle(.plain)
-
-                        Spacer()
-
-                        Menu {
-                            if isOwnPost {
-                                // Your own post: you can delete it, but not
-                                // report/block yourself.
-                                Section {
-                                    Button(role: .destructive) {
-                                        showOwnerDeleteConfirm1 = true
-                                    } label: {
-                                        Label("Delete Post", systemImage: "trash")
-                                    }
-                                }
-                            } else {
-                                Section("Report this post") {
-                                    Button("Inappropriate content") { reportPost(reason: "Inappropriate content") }
-                                    Button("Bullying or harassment") { reportPost(reason: "Bullying or harassment") }
-                                    Button("Spam") { reportPost(reason: "Spam") }
-                                    Button("Not LEGO related") { reportPost(reason: "Not LEGO related") }
-                                }
-                                Section {
-                                    Button(role: .destructive) {
-                                        showBlockConfirm = true
-                                    } label: {
-                                        Label("Block @\(post.username)", systemImage: "hand.raised.fill")
-                                    }
-                                }
-                            }
-                            if adminRegistry.isAdmin(UserSession.shared.uid) {
-                                Section {
-                                    Button(role: .destructive) {
-                                        showAdminDeleteConfirm1 = true
-                                    } label: {
-                                        Label("Delete Post (Admin)", systemImage: "trash.fill")
-                                    }
-                                }
-                            }
-                        } label: {
-                            Image(systemName: "flag").font(.system(size: 18)).foregroundColor(.secondaryText)
-                        }
-                        .disabled(isAdminDeleting || isOwnerDeleting)
-                    }
-
-                    // Tap-target "View comments" row so users have an obvious
-                    // way in even if they miss the small bubble icon above.
-                    Button {
-                        showingCommentSheet = true
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "bubble.left.and.bubble.right.fill")
-                                .font(.system(size: 16, weight: .bold))
-                            Text(currentPost.commentCount == 0
-                                 ? "Be the first to comment"
-                                 : "View all \(currentPost.commentCount) comment\(currentPost.commentCount == 1 ? "" : "s")")
-                                .font(.legoCardTitle)
-                            Spacer()
-                            Image(systemName: "chevron.right").font(.system(size: 14))
-                        }
-                        .foregroundColor(.lightText)
-                        .padding(.horizontal, 14).padding(.vertical, 12)
-                        .background(Color.cardBackground)
-                        .cornerRadius(12)
-                    }
-                    .buttonStyle(.plain)
-
-                    Button { showingShareCard = true } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 16, weight: .bold))
-                            Text("Share to Stories").font(.legoCardTitle)
-                            Spacer()
-                            Image(systemName: "sparkles").font(.system(size: 14))
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 16).padding(.vertical, 12)
-                        .background(
-                            LinearGradient(
-                                colors: [Color.legoRed, Color.legoRed.opacity(0.75)],
-                                startPoint: .leading, endPoint: .trailing
-                            )
-                        )
-                        .cornerRadius(12)
-                    }
-                    .buttonStyle(.plain)
-
-                    if !post.isCustomBuild {
-                        if let set = legoSet { buySetSection(set: set) }
-                        else if !post.buyLink.isEmpty, let url = URL(string: post.buyLink) {
-                            Link(destination: url) { buySetLabel(price: nil) }
-                        }
-                    }
-                }
-                .padding(16)
+                postInfoSection
+                    .padding(16)
 
                 Color.clear.frame(height: 16)
             }
@@ -322,10 +135,7 @@ struct PostDetailView: View {
         } message: {
             Text("This cannot be undone.")
         }
-        .alert("Delete failed", isPresented: Binding(
-            get: { adminDeleteError != nil },
-            set: { if !$0 { adminDeleteError = nil } }
-        )) {
+        .alert("Delete failed", isPresented: adminDeleteErrorShown) {
             Button("OK") {}
         } message: {
             Text(adminDeleteError ?? "")
@@ -344,14 +154,260 @@ struct PostDetailView: View {
         } message: {
             Text("This can't be undone.")
         }
-        .alert("Delete failed", isPresented: Binding(
-            get: { ownerDeleteError != nil },
-            set: { if !$0 { ownerDeleteError = nil } }
-        )) {
+        .alert("Delete failed", isPresented: ownerDeleteErrorShown) {
             Button("OK") {}
         } message: {
             Text(ownerDeleteError ?? "")
         }
+    }
+
+    // MARK: - Body pieces (small named chunks so type-checking stays fast)
+
+    /// Double-tap-to-like gesture, extracted from the body.
+    private var doubleTapLikeGesture: some Gesture {
+        TapGesture(count: 2).onEnded {
+            handleLikeTap()
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+                showHeartAnimation = true
+            }
+            Task {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                withAnimation { showHeartAnimation = false }
+            }
+        }
+    }
+
+    /// Binding for the admin "Delete failed" alert (inline Binding closures in
+    /// the body were part of what blew up type-checking).
+    private var adminDeleteErrorShown: Binding<Bool> {
+        Binding(
+            get: { adminDeleteError != nil },
+            set: { if !$0 { adminDeleteError = nil } }
+        )
+    }
+
+    /// Binding for the owner "Delete failed" alert.
+    private var ownerDeleteErrorShown: Binding<Bool> {
+        Binding(
+            get: { ownerDeleteError != nil },
+            set: { if !$0 { ownerDeleteError = nil } }
+        )
+    }
+
+    /// Everything below the media: author, title, description, actions, buttons.
+    private var postInfoSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+
+            authorRow
+
+            titleRow
+
+            if let set = legoSet {
+                HStack(spacing: 6) {
+                    Label(set.theme, systemImage: "tag.fill")
+                    Text("·")
+                    Label("\(set.pieceCount) pieces", systemImage: "square.grid.3x3.fill")
+                }
+                .font(.legoCaption).foregroundColor(.secondaryText)
+            }
+
+            if !post.description.isEmpty {
+                Text(BadWordFilter.filter(post.description))
+                    .font(.legoBody).foregroundColor(.lightText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            actionRow
+
+            viewCommentsButton
+
+            shareToStoriesButton
+
+            if !post.isCustomBuild {
+                if let set = legoSet { buySetSection(set: set) }
+                else if !post.buyLink.isEmpty, let url = URL(string: post.buyLink) {
+                    Link(destination: url) { buySetLabel(price: nil) }
+                }
+            }
+        }
+    }
+
+    /// Tappable author header (avatar circle + username + badges + date).
+    private var authorRow: some View {
+        NavigationLink(value: post.username) {
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(Color.legoRed).frame(width: 42, height: 42)
+                    .overlay(
+                        Text(String(post.username.prefix(1)).uppercased())
+                            .font(.legoCardTitle).foregroundColor(.white)
+                    )
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text("@\(post.username)")
+                            .font(.legoCardTitle).foregroundColor(.lightText)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .minimumScaleFactor(0.8)
+                        AdminBadge(uid: post.userId)
+                        FollowingBadge(uid: post.userId)
+                    }
+                    Text(post.postedDate.formatted(date: .abbreviated, time: .shortened))
+                        .font(.legoCaption).foregroundColor(.secondaryText)
+                }
+                Spacer()
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Set name / custom-build title row.
+    private var titleRow: some View {
+        HStack(spacing: 8) {
+            Text(post.isCustomBuild
+                 ? post.customBuildName
+                 : (legoSet?.name ?? post.legoSetName))
+                .font(.legoCardTitle).foregroundColor(.legoYellow)
+            if post.isCustomBuild {
+                Text("Custom Build")
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Color.blue).cornerRadius(4)
+            } else if let set = legoSet {
+                AgeRatingBadge(rating: set.ageRating)
+            }
+            Spacer()
+        }
+    }
+
+    /// Like + comment counts and the flag/owner menu.
+    /// Comment icon opens the SAME CommentSheet used by the feed, so the
+    /// interaction is identical everywhere.
+    private var actionRow: some View {
+        HStack(spacing: 24) {
+            Button {
+                handleLikeTap()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: postStore.isLiked(post) ? "heart.fill" : "heart")
+                        .font(.system(size: 20))
+                        .scaleEffect(postStore.isLiked(post) ? 1.2 : 1.0)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.5),
+                                   value: postStore.isLiked(post))
+                    Text("\(currentPost.likeCount)").font(.legoBody)
+                }
+                .foregroundColor(postStore.isLiked(post) ? .legoRed : .secondaryText)
+            }
+            .buttonStyle(.plain)
+            .disabled(isLiking)
+
+            Button {
+                showingCommentSheet = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "bubble.right.fill").font(.system(size: 20))
+                    Text("\(currentPost.commentCount)").font(.legoBody)
+                }
+                .foregroundColor(.secondaryText)
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            flagMenu
+        }
+    }
+
+    /// Report / block / delete menu (owner sees Delete; others see Report+Block;
+    /// admins additionally see the admin delete).
+    private var flagMenu: some View {
+        Menu {
+            if isOwnPost {
+                // Your own post: you can delete it, but not
+                // report/block yourself.
+                Section {
+                    Button(role: .destructive) {
+                        showOwnerDeleteConfirm1 = true
+                    } label: {
+                        Label("Delete Post", systemImage: "trash")
+                    }
+                }
+            } else {
+                Section("Report this post") {
+                    Button("Inappropriate content") { reportPost(reason: "Inappropriate content") }
+                    Button("Bullying or harassment") { reportPost(reason: "Bullying or harassment") }
+                    Button("Spam") { reportPost(reason: "Spam") }
+                    Button("Not LEGO related") { reportPost(reason: "Not LEGO related") }
+                }
+                Section {
+                    Button(role: .destructive) {
+                        showBlockConfirm = true
+                    } label: {
+                        Label("Block @\(post.username)", systemImage: "hand.raised.fill")
+                    }
+                }
+            }
+            if adminRegistry.isAdmin(UserSession.shared.uid) {
+                Section {
+                    Button(role: .destructive) {
+                        showAdminDeleteConfirm1 = true
+                    } label: {
+                        Label("Delete Post (Admin)", systemImage: "trash.fill")
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "flag").font(.system(size: 18)).foregroundColor(.secondaryText)
+        }
+        .disabled(isAdminDeleting || isOwnerDeleting)
+    }
+
+    /// Tap-target "View comments" row so users have an obvious way in even if
+    /// they miss the small bubble icon above.
+    private var viewCommentsButton: some View {
+        Button {
+            showingCommentSheet = true
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "bubble.left.and.bubble.right.fill")
+                    .font(.system(size: 16, weight: .bold))
+                Text(currentPost.commentCount == 0
+                     ? "Be the first to comment"
+                     : "View all \(currentPost.commentCount) comment\(currentPost.commentCount == 1 ? "" : "s")")
+                    .font(.legoCardTitle)
+                Spacer()
+                Image(systemName: "chevron.right").font(.system(size: 14))
+            }
+            .foregroundColor(.lightText)
+            .padding(.horizontal, 14).padding(.vertical, 12)
+            .background(Color.cardBackground)
+            .cornerRadius(12)
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// "Share to Stories" call-to-action.
+    private var shareToStoriesButton: some View {
+        Button { showingShareCard = true } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 16, weight: .bold))
+                Text("Share to Stories").font(.legoCardTitle)
+                Spacer()
+                Image(systemName: "sparkles").font(.system(size: 14))
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 16).padding(.vertical, 12)
+            .background(
+                LinearGradient(
+                    colors: [Color.legoRed, Color.legoRed.opacity(0.75)],
+                    startPoint: .leading, endPoint: .trailing
+                )
+            )
+            .cornerRadius(12)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Helpers
